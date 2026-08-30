@@ -255,6 +255,7 @@ local ThemePresets = {
 		NotificationTitle = Color3.fromRGB(240, 230, 255),
 		NotificationDescription = Color3.fromRGB(160, 140, 220),
 		NotificationInfo = Color3.fromRGB(120, 160, 255),
+		NotificationSuccess = Color3.fromRGB(80, 220, 160),
 		NotificationWarning = Color3.fromRGB(255, 180, 80),
 		NotificationError = Color3.fromRGB(255, 80, 120),
 	},
@@ -2677,17 +2678,16 @@ local function CreateTab(window, config)
 	local cleanup = CreateCleanup()
 	local name = config.Name or "Tab"
 
-	-- The tab is intentionally a bounded ScrollingFrame.
-	-- Keep the window height fixed; only the content canvas grows.
-	-- Active=true is important on touch devices so finger swipes are
-	-- captured by the ScrollingFrame instead of being ignored.
+	-- Bounded ScrollingFrame:
+	-- We deliberately do NOT use AutomaticCanvasSize. Roblox mobile can
+	-- occasionally stop accepting normal swipe scrolling when the canvas
+	-- is being resized automatically while the contents are changing.
 	local content = Instance.new("ScrollingFrame")
 	content.Name = "TabContent_" .. name
 	content.BackgroundTransparency = 1
 	content.BorderSizePixel = 0
 	content.Size = UDim2.new(1, 0, 1, 0)
 
-	-- Native scrolling works on both mouse-wheel (PC) and touch (mobile).
 	content.Active = true
 	content.ScrollingEnabled = true
 	content.ScrollingDirection = Enum.ScrollingDirection.Y
@@ -2714,27 +2714,174 @@ local function CreateTab(window, config)
 	layout.Padding = UDim.new(0, 10)
 	layout.Parent = content
 
-	-- Do not rely on AutomaticCanvasSize here. Explicitly track the list's
-	-- real height so dynamically expanding components (especially dropdowns)
-	-- always increase the scrollable area on mobile and PC.
+	----------------------------------------------------------------
+	-- MOBILE/PC CANVAS FIX
+	----------------------------------------------------------------
 	local TOP_BOTTOM_PADDING = 24
-	local function updateCanvasSize()
-		if content.Parent == nil then return end
+	local canvasUpdateQueued = false
+	local destroyed = false
 
-		local contentHeight = layout.AbsoluteContentSize.Y + TOP_BOTTOM_PADDING
-		-- INCREASE PADDING TO 80 for full scroll
-		local extraPadding = 80
-		local requiredHeight = contentHeight + extraPadding
-		local viewportHeight = content.AbsoluteSize.Y
-
-		-- Always keep enough canvas for the actual content, while allowing
-		-- ScrollPosition to remain valid when the viewport changes.
-		content.CanvasSize = UDim2.new(0, 0, 0, math.max(requiredHeight, viewportHeight))
+	local function getCanvasHeight()
+		return math.max(
+			layout.AbsoluteContentSize.Y + TOP_BOTTOM_PADDING,
+			content.AbsoluteSize.Y
+		)
 	end
 
-	cleanup:AddConnection(layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvasSize))
-	cleanup:AddConnection(content:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateCanvasSize))
-	spawn(updateCanvasSize)  -- changed from task.defer to spawn
+	local function clampCanvasPosition()
+		if not content.Parent then return end
+
+		local viewportH = content.AbsoluteSize.Y
+		local canvasH = content.CanvasSize.Y.Offset
+		local maxY = math.max(0, canvasH - viewportH)
+		local y = math.clamp(content.CanvasPosition.Y, 0, maxY)
+
+		if math.abs(y - content.CanvasPosition.Y) > 0.01 then
+			content.CanvasPosition = Vector2.new(content.CanvasPosition.X, y)
+		end
+	end
+
+	local function updateCanvasSize()
+		if destroyed or not content.Parent then return end
+
+		-- UIListLayout can take a frame to settle after a dropdown,
+		-- textbox, label, or other dynamically-sized component changes.
+		-- Queue one deferred update so we read the final AbsoluteContentSize.
+		if canvasUpdateQueued then return end
+		canvasUpdateQueued = true
+
+		task.defer(function()
+			canvasUpdateQueued = false
+			if destroyed or not content.Parent then return end
+
+			local height = getCanvasHeight()
+
+			-- Only assign when the value actually changed. Constantly
+			-- rewriting CanvasSize can make touch scrolling flaky.
+			if math.abs(content.CanvasSize.Y.Offset - height) > 0.5 then
+				content.CanvasSize = UDim2.new(0, 0, 0, height)
+			end
+
+			clampCanvasPosition()
+		end)
+	end
+
+	-- Initial layout may not be calculated immediately.
+	cleanup:AddConnection(
+		layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvasSize)
+	)
+	cleanup:AddConnection(
+		content:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateCanvasSize)
+	)
+	cleanup:AddConnection(
+		content:GetPropertyChangedSignal("CanvasSize"):Connect(function()
+			clampCanvasPosition()
+		end)
+	)
+
+	----------------------------------------------------------------
+	-- TOUCH SCROLL FALLBACK
+	--
+	-- Roblox's native ScrollingFrame normally handles this. On some
+	-- mobile builds, however, dynamically changing CanvasSize can cause
+	-- the native gesture recognizer to get "stuck". This lightweight
+	-- fallback directly moves CanvasPosition while a touch is dragged.
+	--
+	-- It does NOT disable native scrolling; native scrolling remains
+	-- enabled for normal behavior, while this keeps swipe scrolling
+	-- responsive when the native gesture fails.
+	----------------------------------------------------------------
+	local touchDragging = false
+	local touchMoved = false
+	local activeTouch = nil
+	local touchStart = nil
+	local touchStartCanvasY = 0
+	local lastTouchY = nil
+	local TOUCH_THRESHOLD = 7
+
+	local function beginTouch(input)
+		if destroyed or not content.Visible then return end
+		if input.UserInputType ~= Enum.UserInputType.Touch then return end
+
+		activeTouch = input
+		touchDragging = true
+		touchMoved = false
+		touchStart = input.Position
+		lastTouchY = input.Position.Y
+		touchStartCanvasY = content.CanvasPosition.Y
+	end
+
+	local function moveTouch(input)
+		if destroyed or not touchDragging or input ~= activeTouch then return end
+
+		local currentY = input.Position.Y
+		local deltaFromStart = currentY - touchStart.Y
+
+		if not touchMoved and math.abs(deltaFromStart) < TOUCH_THRESHOLD then
+			return
+		end
+
+		touchMoved = true
+
+		local canvasH = content.CanvasSize.Y.Offset
+		local viewportH = content.AbsoluteSize.Y
+		local maxY = math.max(0, canvasH - viewportH)
+
+		-- Finger moves down -> content moves toward the top.
+		local targetY = touchStartCanvasY - deltaFromStart
+		targetY = math.clamp(targetY, 0, maxY)
+
+		content.CanvasPosition = Vector2.new(
+			content.CanvasPosition.X,
+			targetY
+		)
+
+		lastTouchY = currentY
+	end
+
+	local function endTouch(input)
+		if input ~= activeTouch then return end
+		touchDragging = false
+		activeTouch = nil
+		touchStart = nil
+		lastTouchY = nil
+	end
+
+	cleanup:AddConnection(content.InputBegan:Connect(function(input)
+		beginTouch(input)
+	end))
+
+	-- Listening through UIS makes the fallback continue working even if
+	-- the initial touch is over a TextButton/TextBox inside the frame.
+	cleanup:AddConnection(UserInputService.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch then
+			moveTouch(input)
+		end
+	end))
+
+	cleanup:AddConnection(UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch then
+			endTouch(input)
+		end
+	end))
+
+	-- Re-check after dynamic UI changes. This is intentionally event-driven
+	-- rather than a permanent Heartbeat loop.
+	local function forceCanvasRefresh()
+		updateCanvasSize()
+		task.defer(function()
+			updateCanvasSize()
+			clampCanvasPosition()
+		end)
+	end
+
+	cleanup:AddConnection(content.DescendantAdded:Connect(forceCanvasRefresh))
+	cleanup:AddConnection(content.DescendantRemoving:Connect(forceCanvasRefresh))
+
+	task.defer(function()
+		updateCanvasSize()
+		task.defer(updateCanvasSize)
+	end)
 
 	local tabBtn = Instance.new("TextButton")
 	tabBtn.Name = "TabBtn_" .. name
@@ -2776,6 +2923,15 @@ local function CreateTab(window, config)
 			tabBtn.BackgroundTransparency = 0.3
 			tabBtn.BackgroundColor3 = Theme.Secondary
 			tabBtn.TextColor3 = Theme.Text
+
+			-- Recalculate when a tab becomes visible because AbsoluteSize
+			-- and AbsoluteContentSize may have been stale while hidden.
+			task.defer(function()
+				if not destroyed then
+					updateCanvasSize()
+					task.defer(updateCanvasSize)
+				end
+			end)
 		else
 			content.Visible = false
 			tabBtn.BackgroundTransparency = 1
@@ -2801,6 +2957,37 @@ local function CreateTab(window, config)
 		for _, c in ipairs(tab.Components) do
 			if c.RefreshTheme then c:RefreshTheme() end
 		end
+		updateCanvasSize()
+	end
+
+	function tab:RefreshScroll()
+		updateCanvasSize()
+		task.defer(function()
+			updateCanvasSize()
+			clampCanvasPosition()
+		end)
+	end
+
+	function tab:ScrollTo(y, animate)
+		local canvasH = content.CanvasSize.Y.Offset
+		local viewportH = content.AbsoluteSize.Y
+		local maxY = math.max(0, canvasH - viewportH)
+		local targetY = math.clamp(tonumber(y) or 0, 0, maxY)
+
+		if animate then
+			TweenEngine.Play(content, {
+				CanvasPosition = Vector2.new(content.CanvasPosition.X, targetY)
+			}, {
+				Duration = 0.25,
+				Easing = "QuadOut"
+			})
+		else
+			content.CanvasPosition = Vector2.new(content.CanvasPosition.X, targetY)
+		end
+	end
+
+	function tab:GetScroll()
+		return content.CanvasPosition.Y
 	end
 
 	function tab:CreateSection(c) return CreateSection(tab, c) end
@@ -2814,6 +3001,7 @@ local function CreateTab(window, config)
 	function tab:CreateDivider(c) return CreateDivider(tab) end
 
 	function tab:Destroy()
+		destroyed = true
 		for _, c in ipairs(tab.Components) do
 			if c.Destroy then c:Destroy() end
 		end
@@ -2855,10 +3043,10 @@ local function CreateWindow(library, config)
 	main.Position = UDim2.new(0.5, 0, 0.5, 0)
 	main.Parent = gui
 
-	-- Scale the entire UI uniformly to 0.80 (20% smaller than original)
+	-- Scale the entire UI uniformly to 92% (8% smaller) without changing layout ratios.
 	local uiScale = Instance.new("UIScale")
 	uiScale.Name = "VeyraUIScale"
-	uiScale.Scale = 0.80
+	uiScale.Scale = 0.92
 	uiScale.Parent = main
 
 	local mainCorner = Instance.new("UICorner")
@@ -2934,38 +3122,18 @@ local function CreateWindow(library, config)
 	minBtn.Text = "−"
 	minBtn.Parent = titleBar
 
-	-- Tab bar as horizontally scrollable ScrollingFrame
-	local tabBar = Instance.new("ScrollingFrame")
+	local tabBar = Instance.new("Frame")
 	tabBar.Name = "TabBar"
 	tabBar.BackgroundTransparency = 1
 	tabBar.Size = UDim2.new(1, -20, 0, 32)
 	tabBar.Position = UDim2.new(0, 10, 0, 44)
 	tabBar.Parent = main
-	tabBar.ScrollingEnabled = true
-	tabBar.ScrollingDirection = Enum.ScrollingDirection.X
-	tabBar.Active = true
-	tabBar.ClipsDescendants = true
-	tabBar.ElasticBehavior = Enum.ElasticBehavior.WhenScrollable
-	-- Make scroll bar completely invisible (no blue lines)
-	tabBar.ScrollBarThickness = UserInputService.TouchEnabled and 6 or 4
-	tabBar.ScrollBarImageColor3 = Color3.new(1,1,1) -- white, but we set transparency to 1
-	tabBar.ScrollBarImageTransparency = 1 -- fully transparent
-	tabBar.CanvasSize = UDim2.new(0, 0, 0, 0)
 
 	local tabLayout = Instance.new("UIListLayout")
 	tabLayout.FillDirection = Enum.FillDirection.Horizontal
 	tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	tabLayout.Padding = UDim.new(0, 6)
 	tabLayout.Parent = tabBar
-
-	-- Update canvas size whenever tabs change, and add extra padding at the end
-	local function updateTabBarCanvas()
-		local contentSize = tabLayout.AbsoluteContentSize
-		-- Add 20px padding at the end so the last tab is fully reachable
-		tabBar.CanvasSize = UDim2.new(0, contentSize.X + 20, 0, 0)
-	end
-	cleanup:AddConnection(tabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateTabBarCanvas))
-	task.defer(updateTabBarCanvas)
 
 	local contentContainer = Instance.new("Frame")
 	contentContainer.Name = "ContentContainer"
@@ -3021,8 +3189,6 @@ local function CreateWindow(library, config)
 		subtitle.Font = Theme.Font
 		closeBtn.TextColor3 = Theme.SecondaryText
 		minBtn.TextColor3 = Theme.SecondaryText
-		tabBar.ScrollBarImageColor3 = Color3.new(1,1,1) -- keep invisible
-		tabBar.ScrollBarImageTransparency = 1
 		for _, tab in ipairs(tabs) do
 			if tab.RefreshTheme then
 				tab:RefreshTheme()
