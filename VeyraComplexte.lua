@@ -1,4 +1,6 @@
---[[ Say Hi to Veyra UI. 
+--[[
+	VeyraUI v2 Hardened + Mobile/PC Scroll Fix + 92% UI Scale + Bottom-Right Compact Notifications
+	Dark, technical, developer-oriented Roblox UI framework.
 
 	Notification redesign (merged):
 	- Sharp corners (no UICorner)
@@ -929,7 +931,7 @@ local function MakeDraggable(handle, target, options)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 			clearDragConns()
 			dragging = true
-			dragStart = input.Position -- bet no one will notice ts comment XD
+			dragStart = input.Position
 			startPos = target.Position
 			if options.OnDragStart then options.OnDragStart() end
 
@@ -2850,10 +2852,10 @@ local function CreateWindow(library, config)
 	main.Position = UDim2.new(0.5, 0, 0.5, 0)
 	main.Parent = gui
 
-	-- Scale the entire UI uniformly to 50% (half the original size)
+	-- Scale the entire UI uniformly to 0.80 (20% smaller than original)
 	local uiScale = Instance.new("UIScale")
 	uiScale.Name = "VeyraUIScale"
-	uiScale.Scale = 0.76  -- 50% smaller
+	uiScale.Scale = 0.80
 	uiScale.Parent = main
 
 	local mainCorner = Instance.new("UICorner")
@@ -2941,9 +2943,10 @@ local function CreateWindow(library, config)
 	tabBar.Active = true
 	tabBar.ClipsDescendants = true
 	tabBar.ElasticBehavior = Enum.ElasticBehavior.WhenScrollable
+	-- Make scroll bar completely invisible (no blue lines)
 	tabBar.ScrollBarThickness = UserInputService.TouchEnabled and 6 or 4
-	tabBar.ScrollBarImageColor3 = Theme.Border
-	tabBar.ScrollBarImageTransparency = 0.15
+	tabBar.ScrollBarImageColor3 = Color3.new(1,1,1) -- white, but we set transparency to 1
+	tabBar.ScrollBarImageTransparency = 1 -- fully transparent
 	tabBar.CanvasSize = UDim2.new(0, 0, 0, 0)
 
 	local tabLayout = Instance.new("UIListLayout")
@@ -2952,10 +2955,11 @@ local function CreateWindow(library, config)
 	tabLayout.Padding = UDim.new(0, 6)
 	tabLayout.Parent = tabBar
 
-	-- Update canvas size whenever tabs change
+	-- Update canvas size whenever tabs change, and add extra padding at the end
 	local function updateTabBarCanvas()
 		local contentSize = tabLayout.AbsoluteContentSize
-		tabBar.CanvasSize = UDim2.new(0, contentSize.X + 20, 0, 0) -- extra padding at end
+		-- Add 20px padding at the end so the last tab is fully reachable
+		tabBar.CanvasSize = UDim2.new(0, contentSize.X + 20, 0, 0)
 	end
 	cleanup:AddConnection(tabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateTabBarCanvas))
 	task.defer(updateTabBarCanvas)
@@ -3014,7 +3018,8 @@ local function CreateWindow(library, config)
 		subtitle.Font = Theme.Font
 		closeBtn.TextColor3 = Theme.SecondaryText
 		minBtn.TextColor3 = Theme.SecondaryText
-		tabBar.ScrollBarImageColor3 = Theme.Border
+		tabBar.ScrollBarImageColor3 = Color3.new(1,1,1) -- keep invisible
+		tabBar.ScrollBarImageTransparency = 1
 		for _, tab in ipairs(tabs) do
 			if tab.RefreshTheme then
 				tab:RefreshTheme()
