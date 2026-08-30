@@ -904,6 +904,7 @@ local function MakeDraggable(handle, target, options)
 	local dragStart, startPos
 	local conns = {}
 	local activeMoveC, activeEndC = nil, nil
+	local clampToScreen = options.ClampToScreen or false
 
 	local function clearDragConns()
 		if activeMoveC then
@@ -917,12 +918,30 @@ local function MakeDraggable(handle, target, options)
 		dragging = false
 	end
 
+	local function clampPosition(pos)
+		if not clampToScreen then return pos end
+		local screenSize = Vector2.new(guiService:GetGuiInset().X, guiService:GetGuiInset().Y)
+		-- Assuming target is a GuiObject with AnchorPoint possibly set
+		local anchor = target.AnchorPoint
+		local size = target.AbsoluteSize
+		local minX = anchor.X * size.X
+		local minY = anchor.Y * size.Y
+		local maxX = screenSize.X - (1 - anchor.X) * size.X
+		local maxY = screenSize.Y - (1 - anchor.Y) * size.Y
+		local newX = math.clamp(pos.X.Offset, minX, maxX)
+		local newY = math.clamp(pos.Y.Offset, minY, maxY)
+		return UDim2.new(pos.X.Scale, newX, pos.Y.Scale, newY)
+	end
+
 	local function update(input)
 		local delta = input.Position - dragStart
 		local newPos = UDim2.new(
 			startPos.X.Scale, startPos.X.Offset + delta.X,
 			startPos.Y.Scale, startPos.Y.Offset + delta.Y
 		)
+		if clampToScreen then
+			newPos = clampPosition(newPos)
+		end
 		target.Position = newPos
 		if options.OnDrag then options.OnDrag(newPos, delta) end
 	end
@@ -2678,28 +2697,24 @@ local function CreateTab(window, config)
 	local cleanup = CreateCleanup()
 	local name = config.Name or "Tab"
 
-	-- IMPORTANT:
-	-- Keep all existing components as direct children of this
-	-- ScrollingFrame. GetParentForComponent() depends on tab.Content.
-	-- Do not introduce a second canvas/container here, otherwise the
-	-- existing Section/component hierarchy will overlap.
+	-- Bounded ScrollingFrame:
+	-- We deliberately do NOT use AutomaticCanvasSize. Roblox mobile can
+	-- occasionally stop accepting normal swipe scrolling when the canvas
+	-- is being resized automatically while the contents are changing.
 	local content = Instance.new("ScrollingFrame")
 	content.Name = "TabContent_" .. name
 	content.BackgroundTransparency = 1
 	content.BorderSizePixel = 0
 	content.Size = UDim2.new(1, 0, 1, 0)
+
 	content.Active = true
-	content.Selectable = true
 	content.ScrollingEnabled = true
 	content.ScrollingDirection = Enum.ScrollingDirection.Y
 	content.ElasticBehavior = Enum.ElasticBehavior.WhenScrollable
-
-	-- Manual CanvasSize is intentional. AutomaticCanvasSize has caused
-	-- mobile scrolling/layout issues when sections expand dynamically.
-	content.AutomaticCanvasSize = Enum.AutomaticSize.None
-	content.CanvasSize = UDim2.new(0, 0, 0, 0)
+	content.ClipsDescendants = true
 	content.CanvasPosition = Vector2.new(0, 0)
-
+	content.CanvasSize = UDim2.new(0, 0, 0, 0)
+	content.AutomaticCanvasSize = Enum.AutomaticSize.None
 	content.ScrollBarThickness = UserInputService.TouchEnabled and 6 or 4
 	content.ScrollBarImageColor3 = Theme.Border
 	content.ScrollBarImageTransparency = 0.15
@@ -2708,7 +2723,7 @@ local function CreateTab(window, config)
 
 	local padding = Instance.new("UIPadding")
 	padding.PaddingTop = UDim.new(0, 12)
-	padding.PaddingBottom = UDim.new(0, 16)
+	padding.PaddingBottom = UDim.new(0, 12)
 	padding.PaddingLeft = UDim.new(0, 14)
 	padding.PaddingRight = UDim.new(0, 14)
 	padding.Parent = content
@@ -2719,120 +2734,172 @@ local function CreateTab(window, config)
 	layout.Parent = content
 
 	----------------------------------------------------------------
-	-- RELIABLE CANVAS SIZE
+	-- MOBILE/PC CANVAS FIX
 	----------------------------------------------------------------
+	local TOP_BOTTOM_PADDING = 24
+	local canvasUpdateQueued = false
 	local destroyed = false
-	local updateQueued = false
-	local lastHeight = -1
-	local lastViewport = -1
 
-	local function getContentHeight()
-		-- AbsoluteContentSize already includes the positions/sizes of every
-		-- direct child, including automatically-sized Sections.
-		local h = layout.AbsoluteContentSize.Y + 28 -- top + bottom padding
-		return math.max(math.ceil(h), 0)
+	local function getCanvasHeight()
+		return math.max(
+			layout.AbsoluteContentSize.Y + TOP_BOTTOM_PADDING,
+			content.AbsoluteSize.Y
+		)
+	end
+
+	local function clampCanvasPosition()
+		if not content.Parent then return end
+
+		local viewportH = content.AbsoluteSize.Y
+		local canvasH = content.CanvasSize.Y.Offset
+		local maxY = math.max(0, canvasH - viewportH)
+		local y = math.clamp(content.CanvasPosition.Y, 0, maxY)
+
+		if math.abs(y - content.CanvasPosition.Y) > 0.01 then
+			content.CanvasPosition = Vector2.new(content.CanvasPosition.X, y)
+		end
 	end
 
 	local function updateCanvasSize()
 		if destroyed or not content.Parent then return end
 
-		local viewportHeight = math.max(0, content.AbsoluteSize.Y)
-		local requiredHeight = getContentHeight()
-
-		-- Never make the canvas smaller than the viewport. More importantly,
-		-- requiredHeight is based on the actual list layout rather than the
-		-- ScrollingFrame's own AbsoluteSize.
-		local canvasHeight = math.max(requiredHeight, viewportHeight)
-
-		if canvasHeight ~= lastHeight or viewportHeight ~= lastViewport then
-			lastHeight = canvasHeight
-			lastViewport = viewportHeight
-
-			content.CanvasSize = UDim2.new(0, 0, 0, canvasHeight)
-
-			-- Only correct an invalid position. Do NOT continuously write
-			-- CanvasPosition because that can interfere with mobile swipes.
-			local maxY = math.max(0, canvasHeight - viewportHeight)
-			local currentY = content.CanvasPosition.Y
-
-			if currentY > maxY then
-				content.CanvasPosition = Vector2.new(0, maxY)
-			elseif currentY < 0 then
-				content.CanvasPosition = Vector2.new(0, 0)
-			end
-		end
-	end
-
-	local function queueCanvasUpdate()
-		if destroyed or updateQueued then return end
-		updateQueued = true
+		-- UIListLayout can take a frame to settle after a dropdown,
+		-- textbox, label, or other dynamically-sized component changes.
+		-- Queue one deferred update so we read the final AbsoluteContentSize.
+		if canvasUpdateQueued then return end
+		canvasUpdateQueued = true
 
 		task.defer(function()
-			updateQueued = false
-			if destroyed then return end
+			canvasUpdateQueued = false
+			if destroyed or not content.Parent then return end
 
-			updateCanvasSize()
+			local height = getCanvasHeight()
 
-			-- AutomaticSize elements can settle one frame after the first
-			-- layout calculation (especially dropdowns/textboxes).
-			task.defer(function()
-				if not destroyed then
-					updateCanvasSize()
-				end
-			end)
-		end)
-	end
-
-	cleanup:AddConnection(
-		layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(queueCanvasUpdate)
-	)
-
-	cleanup:AddConnection(
-		content:GetPropertyChangedSignal("AbsoluteSize"):Connect(queueCanvasUpdate)
-	)
-
-	-- When sections/components are added or removed, force another
-	-- measurement after Roblox has updated their AutomaticSize values.
-	cleanup:AddConnection(
-		content.ChildAdded:Connect(queueCanvasUpdate)
-	)
-
-	cleanup:AddConnection(
-		content.ChildRemoved:Connect(queueCanvasUpdate)
-	)
-
-	-- Some nested AutomaticSize changes do not immediately propagate to
-	-- the outer layout signal. A short validation period after changes
-	-- catches those cases without running a permanent scrolling loop.
-	local validationToken = 0
-
-	local function validateCanvas()
-		validationToken += 1
-		local token = validationToken
-
-		task.spawn(function()
-			for _ = 1, 8 do
-				if destroyed or token ~= validationToken then return end
-				updateCanvasSize()
-				task.wait()
+			-- Only assign when the value actually changed. Constantly
+			-- rewriting CanvasSize can make touch scrolling flaky.
+			if math.abs(content.CanvasSize.Y.Offset - height) > 0.5 then
+				content.CanvasSize = UDim2.new(0, 0, 0, height)
 			end
+
+			clampCanvasPosition()
 		end)
 	end
 
+	-- Initial layout may not be calculated immediately.
 	cleanup:AddConnection(
-		content.DescendantAdded:Connect(validateCanvas)
+		layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvasSize)
+	)
+	cleanup:AddConnection(
+		content:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateCanvasSize)
+	)
+	cleanup:AddConnection(
+		content:GetPropertyChangedSignal("CanvasSize"):Connect(function()
+			clampCanvasPosition()
+		end)
 	)
 
-	cleanup:AddConnection(
-		content.DescendantRemoving:Connect(validateCanvas)
-	)
+	----------------------------------------------------------------
+	-- TOUCH SCROLL FALLBACK
+	--
+	-- Roblox's native ScrollingFrame normally handles this. On some
+	-- mobile builds, however, dynamically changing CanvasSize can cause
+	-- the native gesture recognizer to get "stuck". This lightweight
+	-- fallback directly moves CanvasPosition while a touch is dragged.
+	--
+	-- It does NOT disable native scrolling; native scrolling remains
+	-- enabled for normal behavior, while this keeps swipe scrolling
+	-- responsive when the native gesture fails.
+	----------------------------------------------------------------
+	local touchDragging = false
+	local touchMoved = false
+	local activeTouch = nil
+	local touchStart = nil
+	local touchStartCanvasY = 0
+	local lastTouchY = nil
+	local TOUCH_THRESHOLD = 7
+
+	local function beginTouch(input)
+		if destroyed or not content.Visible then return end
+		if input.UserInputType ~= Enum.UserInputType.Touch then return end
+
+		activeTouch = input
+		touchDragging = true
+		touchMoved = false
+		touchStart = input.Position
+		lastTouchY = input.Position.Y
+		touchStartCanvasY = content.CanvasPosition.Y
+	end
+
+	local function moveTouch(input)
+		if destroyed or not touchDragging or input ~= activeTouch then return end
+
+		local currentY = input.Position.Y
+		local deltaFromStart = currentY - touchStart.Y
+
+		if not touchMoved and math.abs(deltaFromStart) < TOUCH_THRESHOLD then
+			return
+		end
+
+		touchMoved = true
+
+		local canvasH = content.CanvasSize.Y.Offset
+		local viewportH = content.AbsoluteSize.Y
+		local maxY = math.max(0, canvasH - viewportH)
+
+		-- Finger moves down -> content moves toward the top.
+		local targetY = touchStartCanvasY - deltaFromStart
+		targetY = math.clamp(targetY, 0, maxY)
+
+		content.CanvasPosition = Vector2.new(
+			content.CanvasPosition.X,
+			targetY
+		)
+
+		lastTouchY = currentY
+	end
+
+	local function endTouch(input)
+		if input ~= activeTouch then return end
+		touchDragging = false
+		activeTouch = nil
+		touchStart = nil
+		lastTouchY = nil
+	end
+
+	cleanup:AddConnection(content.InputBegan:Connect(function(input)
+		beginTouch(input)
+	end))
+
+	-- Listening through UIS makes the fallback continue working even if
+	-- the initial touch is over a TextButton/TextBox inside the frame.
+	cleanup:AddConnection(UserInputService.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch then
+			moveTouch(input)
+		end
+	end))
+
+	cleanup:AddConnection(UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch then
+			endTouch(input)
+		end
+	end))
+
+	-- Re-check after dynamic UI changes. This is intentionally event-driven
+	-- rather than a permanent Heartbeat loop.
+	local function forceCanvasRefresh()
+		updateCanvasSize()
+		task.defer(function()
+			updateCanvasSize()
+			clampCanvasPosition()
+		end)
+	end
+
+	cleanup:AddConnection(content.DescendantAdded:Connect(forceCanvasRefresh))
+	cleanup:AddConnection(content.DescendantRemoving:Connect(forceCanvasRefresh))
 
 	task.defer(function()
-		if not destroyed then
-			updateCanvasSize()
-			task.defer(updateCanvasSize)
-			validateCanvas()
-		end
+		updateCanvasSize()
+		task.defer(updateCanvasSize)
 	end)
 
 	local tabBtn = Instance.new("TextButton")
@@ -2870,21 +2937,18 @@ local function CreateTab(window, config)
 	end))
 
 	function tab:SetActive(active)
-		if destroyed then return end
-
 		if active then
 			content.Visible = true
 			tabBtn.BackgroundTransparency = 0.3
 			tabBtn.BackgroundColor3 = Theme.Secondary
 			tabBtn.TextColor3 = Theme.Text
 
-			-- The tab was invisible while inactive, so force a fresh
-			-- measurement when it becomes visible.
+			-- Recalculate when a tab becomes visible because AbsoluteSize
+			-- and AbsoluteContentSize may have been stale while hidden.
 			task.defer(function()
 				if not destroyed then
 					updateCanvasSize()
 					task.defer(updateCanvasSize)
-					validateCanvas()
 				end
 			end)
 		else
@@ -2896,11 +2960,9 @@ local function CreateTab(window, config)
 
 	function tab:RefreshTheme()
 		if cleanup:IsDestroyed() then return end
-
 		content.ScrollBarImageColor3 = Theme.Border
 		tabBtn.BackgroundColor3 = Theme.Secondary
 		tabBtn.Font = Theme.Font
-
 		if content.Visible then
 			tabBtn.BackgroundTransparency = 0.3
 			tabBtn.TextColor3 = Theme.Text
@@ -2908,54 +2970,43 @@ local function CreateTab(window, config)
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.SecondaryText
 		end
-
 		for _, s in ipairs(tab.Sections) do
 			if s.RefreshTheme then s:RefreshTheme() end
 		end
-
 		for _, c in ipairs(tab.Components) do
 			if c.RefreshTheme then c:RefreshTheme() end
 		end
-
-		queueCanvasUpdate()
+		updateCanvasSize()
 	end
 
 	function tab:RefreshScroll()
 		updateCanvasSize()
-		task.defer(updateCanvasSize)
-		validateCanvas()
+		task.defer(function()
+			updateCanvasSize()
+			clampCanvasPosition()
+		end)
 	end
 
 	function tab:ScrollTo(y, animate)
-		updateCanvasSize()
-
-		local maxY = math.max(0, content.CanvasSize.Y.Offset - content.AbsoluteSize.Y)
+		local canvasH = content.CanvasSize.Y.Offset
+		local viewportH = content.AbsoluteSize.Y
+		local maxY = math.max(0, canvasH - viewportH)
 		local targetY = math.clamp(tonumber(y) or 0, 0, maxY)
 
 		if animate then
 			TweenEngine.Play(content, {
-				CanvasPosition = Vector2.new(0, targetY),
+				CanvasPosition = Vector2.new(content.CanvasPosition.X, targetY)
 			}, {
 				Duration = 0.25,
-				Easing = "QuadOut",
+				Easing = "QuadOut"
 			})
 		else
-			content.CanvasPosition = Vector2.new(0, targetY)
+			content.CanvasPosition = Vector2.new(content.CanvasPosition.X, targetY)
 		end
-	end
-
-	function tab:ScrollToBottom(animate)
-		updateCanvasSize()
-		local maxY = math.max(0, content.CanvasSize.Y.Offset - content.AbsoluteSize.Y)
-		self:ScrollTo(maxY, animate)
 	end
 
 	function tab:GetScroll()
 		return content.CanvasPosition.Y
-	end
-
-	function tab:GetMaxScroll()
-		return math.max(0, content.CanvasSize.Y.Offset - content.AbsoluteSize.Y)
 	end
 
 	function tab:CreateSection(c) return CreateSection(tab, c) end
@@ -2969,17 +3020,13 @@ local function CreateTab(window, config)
 	function tab:CreateDivider(c) return CreateDivider(tab) end
 
 	function tab:Destroy()
-		if destroyed then return end
 		destroyed = true
-
 		for _, c in ipairs(tab.Components) do
 			if c.Destroy then c:Destroy() end
 		end
-
 		for _, s in ipairs(tab.Sections) do
 			if s.Destroy then s:Destroy() end
 		end
-
 		cleanup:Destroy()
 	end
 
@@ -3115,6 +3162,96 @@ local function CreateWindow(library, config)
 	contentContainer.ClipsDescendants = true
 	contentContainer.Parent = main
 
+	-- Resize handle (bottom-right corner)
+	local resizeHandle = Instance.new("Frame")
+	resizeHandle.Name = "ResizeHandle"
+	resizeHandle.BackgroundColor3 = Theme.Border
+	resizeHandle.BackgroundTransparency = 0.5
+	resizeHandle.BorderSizePixel = 0
+	resizeHandle.Size = UDim2.new(0, 16, 0, 16)
+	resizeHandle.Position = UDim2.new(1, -16, 1, -16)
+	resizeHandle.AnchorPoint = Vector2.new(0.5, 0.5)
+	resizeHandle.ZIndex = 10
+	resizeHandle.Parent = main
+
+	local resizeHandleIcon = Instance.new("TextLabel")
+	resizeHandleIcon.BackgroundTransparency = 1
+	resizeHandleIcon.Size = UDim2.new(1, 0, 1, 0)
+	resizeHandleIcon.Position = UDim2.new(0, 0, 0, 0)
+	resizeHandleIcon.Font = Enum.Font.GothamBold
+	resizeHandleIcon.TextSize = 12
+	resizeHandleIcon.TextColor3 = Theme.Text
+	resizeHandleIcon.Text = "⌄⌄"
+	resizeHandleIcon.TextScaled = true
+	resizeHandleIcon.Parent = resizeHandle
+
+	-- Clamp window position to screen
+	local function clampWindowPosition(pos)
+		local screenSize = Vector2.new(gui.AbsoluteSize.X, gui.AbsoluteSize.Y)
+		local anchor = main.AnchorPoint
+		local size = main.AbsoluteSize
+		local minX = anchor.X * size.X
+		local minY = anchor.Y * size.Y
+		local maxX = screenSize.X - (1 - anchor.X) * size.X
+		local maxY = screenSize.Y - (1 - anchor.Y) * size.Y
+		local newX = math.clamp(pos.X.Offset, minX, maxX)
+		local newY = math.clamp(pos.Y.Offset, minY, maxY)
+		return UDim2.new(pos.X.Scale, newX, pos.Y.Scale, newY)
+	end
+
+	-- Drag window with clamping
+	local dragOptions = {
+		ClampToScreen = true,
+	}
+	local drag = MakeDraggable(titleBar, main, dragOptions)
+	cleanup:AddCallback(function() drag:Destroy() end)
+
+	-- Resize logic
+	local resizing = false
+	local resizeStartMouse = nil
+	local startSize = nil
+	local minWidth, minHeight = 300, 220
+	local maxWidth, maxHeight = 1000, 800 -- adjustable
+
+	local function updateResize(input)
+		if not resizing then return end
+		local delta = input.Position - resizeStartMouse
+		local newWidth = math.clamp(startSize.X.Offset + delta.X, minWidth, maxWidth)
+		local newHeight = math.clamp(startSize.Y.Offset + delta.Y, minHeight, maxHeight)
+		main.Size = UDim2.new(0, newWidth, 0, newHeight)
+		-- Reclamp window position to keep within screen
+		main.Position = clampWindowPosition(main.Position)
+	end
+
+	local resizeMoveConn, resizeEndConn = nil, nil
+	local function stopResize()
+		if resizing then
+			resizing = false
+			if resizeMoveConn then resizeMoveConn:Disconnect() resizeMoveConn = nil end
+			if resizeEndConn then resizeEndConn:Disconnect() resizeEndConn = nil end
+		end
+	end
+
+	resizeHandle.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			stopResize()
+			resizing = true
+			resizeStartMouse = input.Position
+			startSize = main.Size
+			resizeMoveConn = UserInputService.InputChanged:Connect(function(inp)
+				if inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch then
+					updateResize(inp)
+				end
+			end)
+			resizeEndConn = UserInputService.InputEnded:Connect(function(inp)
+				if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+					stopResize()
+				end
+			end)
+		end
+	end)
+	cleanup:AddCallback(stopResize)
+
 	local window = {
 		Gui = gui,
 		Main = main,
@@ -3125,11 +3262,8 @@ local function CreateWindow(library, config)
 		Width = width,
 		Height = height,
 		Cleanup = cleanup,
+		ResizeHandle = resizeHandle,
 	}
-
-	-- Drag
-	local drag = MakeDraggable(titleBar, main)
-	cleanup:AddCallback(function() drag:Destroy() end)
 
 	cleanup:AddConnection(closeBtn.MouseButton1Click:Connect(function()
 		window:Close()
@@ -3161,6 +3295,8 @@ local function CreateWindow(library, config)
 		subtitle.Font = Theme.Font
 		closeBtn.TextColor3 = Theme.SecondaryText
 		minBtn.TextColor3 = Theme.SecondaryText
+		resizeHandle.BackgroundColor3 = Theme.Border
+		resizeHandleIcon.TextColor3 = Theme.Text
 		for _, tab in ipairs(tabs) do
 			if tab.RefreshTheme then
 				tab:RefreshTheme()
@@ -3304,5 +3440,4 @@ Library.Animation = TweenEngine
 --   getgenv().VeyraUI = Library
 -- end
 
--- Convenience so loadstring(...)() returns the library
 return Library
