@@ -2670,484 +2670,169 @@ local function CreateDivider(tab)
 	return div
 end
 
-
-----------------------------------------------------------------
--- PARAGRAPH
-----------------------------------------------------------------
-local function CreateParagraph(tab, config)
-	config = config or {}
-	local cleanup = CreateCleanup()
-	local parent = GetParentForComponent(tab)
-
-	local frame = Instance.new("Frame")
-	frame.Name = "Paragraph_" .. (config.Name or "Untitled")
-	frame.BackgroundColor3 = Theme.Secondary
-	frame.BackgroundTransparency = 0.18
-	frame.BorderSizePixel = 0
-	frame.Size = UDim2.new(1, 0, 0, 0)
-	frame.AutomaticSize = Enum.AutomaticSize.Y
-	frame.Parent = parent
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, Theme.CornerRadius)
-	corner.Parent = frame
-
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = Theme.Border
-	stroke.Thickness = 1
-	stroke.Transparency = 0.55
-	stroke.Parent = frame
-
-	local pad = Instance.new("UIPadding")
-	pad.PaddingTop = UDim.new(0, 10)
-	pad.PaddingBottom = UDim.new(0, 10)
-	pad.PaddingLeft = UDim.new(0, 12)
-	pad.PaddingRight = UDim.new(0, 12)
-	pad.Parent = frame
-
-	local layout = Instance.new("UIListLayout")
-	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Padding = UDim.new(0, 4)
-	layout.Parent = frame
-
-	local title = Instance.new("TextLabel")
-	title.BackgroundTransparency = 1
-	title.Size = UDim2.new(1, 0, 0, 18)
-	title.AutomaticSize = Enum.AutomaticSize.Y
-	title.Font = Theme.FontBold
-	title.TextSize = 13
-	title.TextColor3 = Theme.Text
-	title.TextXAlignment = Enum.TextXAlignment.Left
-	title.TextWrapped = true
-	title.Text = config.Name or "Paragraph"
-	title.LayoutOrder = 1
-	title.Parent = frame
-
-	local desc = Instance.new("TextLabel")
-	desc.BackgroundTransparency = 1
-	desc.Size = UDim2.new(1, 0, 0, 0)
-	desc.AutomaticSize = Enum.AutomaticSize.Y
-	desc.Font = Theme.Font
-	desc.TextSize = config.TextSize or 11
-	desc.TextColor3 = Theme.SecondaryText
-	desc.TextXAlignment = Enum.TextXAlignment.Left
-	desc.TextYAlignment = Enum.TextYAlignment.Top
-	desc.TextWrapped = true
-	desc.Text = config.Content or config.Description or ""
-	desc.LayoutOrder = 2
-	desc.Parent = frame
-
-	cleanup:AddInstance(frame)
-
-	local api = {Frame = frame, TitleLabel = title, ContentLabel = desc, Cleanup = cleanup}
-
-	function api:RefreshTheme()
-		if cleanup:IsDestroyed() then return end
-		frame.BackgroundColor3 = Theme.Secondary
-		stroke.Color = Theme.Border
-		title.Font = Theme.FontBold
-		title.TextColor3 = Theme.Text
-		desc.Font = Theme.Font
-		desc.TextColor3 = Theme.SecondaryText
-	end
-	function api:SetTitle(v) title.Text = tostring(v or "") end
-	function api:SetContent(v) desc.Text = tostring(v or "") end
-	function api:SetDescription(v) desc.Text = tostring(v or "") end
-	function api:Destroy() cleanup:Destroy() end
-	function api:IsDestroyed() return cleanup:IsDestroyed() end
-
-	table.insert(tab.Components, api)
-	return api
-end
-
-----------------------------------------------------------------
--- MULTI DROPDOWN
-----------------------------------------------------------------
-local function CreateMultiDropdown(tab, config)
-	config = config or {}
-	local cleanup = CreateCleanup()
-	local options = config.Options or {}
-	local selected = {}
-	local open = false
-	local destroyed = false
-	local parent = GetParentForComponent(tab)
-	local optionH = 28
-	local listGap = 4
-	local maxListH = config.MaxHeight or 168
-	local closedH = Theme.ElementHeight
-
-	for _, v in ipairs(config.Default or {}) do
-		selected[tostring(v)] = true
-	end
-
-	local changed = CreateSignal()
-
-	local frame = Instance.new("Frame")
-	frame.Name = "MultiDropdown_" .. (config.Name or "Untitled")
-	frame.BackgroundColor3 = Theme.Secondary
-	frame.BackgroundTransparency = 0.15
-	frame.BorderSizePixel = 0
-	frame.Size = UDim2.new(1, 0, 0, closedH)
-	frame.ClipsDescendants = true
-	frame.Parent = parent
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, Theme.CornerRadius)
-	corner.Parent = frame
-
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = Theme.Border
-	stroke.Thickness = 1
-	stroke.Transparency = 0.5
-	stroke.Parent = frame
-
-	local header = Instance.new("TextButton")
-	header.BackgroundTransparency = 1
-	header.Size = UDim2.new(1, 0, 0, closedH)
-	header.Text = ""
-	header.AutoButtonColor = false
-	header.Parent = frame
-
-	local title = Instance.new("TextLabel")
-	title.BackgroundTransparency = 1
-	title.Size = UDim2.new(1, -48, 1, 0)
-	title.Position = UDim2.new(0, 12, 0, 0)
-	title.Font = Theme.Font
-	title.TextSize = 13
-	title.TextColor3 = Theme.Text
-	title.TextXAlignment = Enum.TextXAlignment.Left
-	title.Parent = header
-
-	local arrow = Instance.new("TextLabel")
-	arrow.BackgroundTransparency = 1
-	arrow.Size = UDim2.new(0, 28, 1, 0)
-	arrow.Position = UDim2.new(1, -32, 0, 0)
-	arrow.Font = Theme.FontBold
-	arrow.TextSize = 14
-	arrow.TextColor3 = Theme.SecondaryText
-	arrow.Text = "›"
-	arrow.Parent = header
-
-	local list = Instance.new("Frame")
-	list.BackgroundColor3 = Theme.Tertiary
-	list.BorderSizePixel = 0
-	list.Size = UDim2.new(1, -8, 0, 0)
-	list.Position = UDim2.new(0, 4, 0, closedH + listGap)
-	list.AutomaticSize = Enum.AutomaticSize.Y
-	list.Parent = frame
-
-	local lc = Instance.new("UICorner")
-	lc.CornerRadius = UDim.new(0, 4)
-	lc.Parent = list
-
-	local lp = Instance.new("UIPadding")
-	lp.PaddingTop = UDim.new(0, 4)
-	lp.PaddingBottom = UDim.new(0, 4)
-	lp.PaddingLeft = UDim.new(0, 4)
-	lp.PaddingRight = UDim.new(0, 4)
-	lp.Parent = list
-
-	local ll = Instance.new("UIListLayout")
-	ll.SortOrder = Enum.SortOrder.LayoutOrder
-	ll.Padding = UDim.new(0, 4)
-	ll.Parent = list
-
-	local function selectionText()
-		local arr = {}
-		for _, opt in ipairs(options) do
-			local s = tostring(opt)
-			if selected[s] then
-				table.insert(arr, s)
-			end
-		end
-		return #arr > 0 and table.concat(arr, ", ") or "None"
-	end
-
-	local function updateTitle()
-		title.Text = (config.Name or "Multi Select") .. ": " .. selectionText()
-	end
-
-	local function selectedArray()
-		local arr = {}
-		for _, opt in ipairs(options) do
-			if selected[tostring(opt)] then
-				table.insert(arr, opt)
-			end
-		end
-		return arr
-	end
-
-	local function updateOptionVisual(btn, opt)
-		local on = selected[tostring(opt)] == true
-		btn.BackgroundColor3 = on and Theme.Hover or Theme.Tertiary
-		btn.TextColor3 = on and Theme.Text or Theme.SecondaryText
-	end
-
-	for i, opt in ipairs(options) do
-		local btn = Instance.new("TextButton")
-		btn.BackgroundColor3 = Theme.Tertiary
-		btn.BorderSizePixel = 0
-		btn.Size = UDim2.new(1, 0, 0, optionH)
-		btn.AutoButtonColor = false
-		btn.Font = Theme.Font
-		btn.TextSize = 12
-		btn.TextXAlignment = Enum.TextXAlignment.Left
-		btn.Text = tostring(opt)
-		btn.LayoutOrder = i
-		btn.Parent = list
-
-		local bc = Instance.new("UICorner")
-		bc.CornerRadius = UDim.new(0, 4)
-		bc.Parent = btn
-
-		local bp = Instance.new("UIPadding")
-		bp.PaddingLeft = UDim.new(0, 8)
-		bp.Parent = btn
-
-		updateOptionVisual(btn, opt)
-
-		cleanup:AddConnection(btn.MouseButton1Click:Connect(function()
-			if destroyed then return end
-			local key = tostring(opt)
-			selected[key] = not selected[key]
-			updateOptionVisual(btn, opt)
-			updateTitle()
-			changed:Fire(selectedArray())
-			if config.Callback then task.spawn(config.Callback, selectedArray()) end
-		end))
-	end
-
-	local function targetHeight()
-		local listH = math.min(
-			ll.AbsoluteContentSize.Y + 8,
-			maxListH
-		)
-		return closedH + listGap + listH + 4
-	end
-
-	local function refreshOpen(animate)
-		local targetOpen = targetHeight()
-		local frameTarget = open and targetOpen or closedH
-		arrow.Text = open and "⌄" or "›"
-
-		if animate then
-			TweenEngine.Play(frame, {Size = UDim2.new(1, 0, 0, frameTarget)}, {
-				Duration = 0.22, Easing = "QuadOut"
-			})
-		else
-			frame.Size = UDim2.new(1, 0, 0, frameTarget)
-		end
-	end
-
-	cleanup:AddConnection(header.MouseButton1Click:Connect(function()
-		open = not open
-		refreshOpen(true)
-	end))
-
-	cleanup:AddConnection(ll:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-		if open then
-			refreshOpen(false)
-		end
-	end))
-
-	updateTitle()
-	refreshOpen(false)
-	cleanup:AddInstance(frame)
-
-	local api = {Frame = frame, Cleanup = cleanup, Changed = changed, Selected = selected}
-
-	function api:RefreshTheme()
-		if cleanup:IsDestroyed() then return end
-		frame.BackgroundColor3 = Theme.Secondary
-		stroke.Color = Theme.Border
-		title.Font = Theme.Font
-		title.TextColor3 = Theme.Text
-		arrow.TextColor3 = Theme.SecondaryText
-		list.BackgroundColor3 = Theme.Tertiary
-		for _, child in ipairs(list:GetChildren()) do
-			if child:IsA("TextButton") then
-				child.BackgroundColor3 = selected[child.Text] and Theme.Hover or Theme.Tertiary
-				child.Font = Theme.Font
-				child.TextColor3 = selected[child.Text] and Theme.Text or Theme.SecondaryText
-			end
-		end
-	end
-
-	function api:Set(values, suppress)
-		table.clear(selected)
-		local lookup = {}
-		for _, v in ipairs(values or {}) do lookup[tostring(v)] = true end
-		for _, opt in ipairs(options) do
-			if lookup[tostring(opt)] then selected[tostring(opt)] = true end
-		end
-		updateTitle()
-		self:RefreshTheme()
-		if not suppress then
-			changed:Fire(selectedArray())
-			if config.Callback then task.spawn(config.Callback, selectedArray()) end
-		end
-	end
-
-	function api:Get()
-		return selectedArray()
-	end
-
-	function api:IsSelected(v)
-		return selected[tostring(v)] == true
-	end
-
-	function api:Clear(suppress)
-		self:Set({}, suppress)
-	end
-
-	function api:Open() if not open then open = true refreshOpen(true) end end
-	function api:Close() if open then open = false refreshOpen(true) end end
-
-	function api:Destroy()
-		if destroyed then return end
-		destroyed = true
-		changed:Destroy()
-		cleanup:Destroy()
-	end
-
-	return api
-end
-
 ----------------------------------------------------------------
 -- TAB
-
 ----------------------------------------------------------------
 local function CreateTab(window, config)
 	config = config or {}
 	local cleanup = CreateCleanup()
 	local name = config.Name or "Tab"
-	local destroyed = false
-	local canvasPaddingTop = 12
-	local canvasPaddingBottom = 16
 
-	-- Outer ScrollingFrame is the viewport only.
-	local scroll = Instance.new("ScrollingFrame")
-	scroll.Name = "TabContent_" .. name
-	scroll.BackgroundTransparency = 1
-	scroll.BorderSizePixel = 0
-	scroll.Size = UDim2.new(1, 0, 1, 0)
-	scroll.Position = UDim2.new(0, 0, 0, 0)
-	scroll.Active = true
-	scroll.Selectable = true
-	scroll.ScrollingEnabled = true
-	scroll.ScrollingDirection = Enum.ScrollingDirection.Y
-	scroll.ElasticBehavior = Enum.ElasticBehavior.WhenScrollable
-	scroll.CanvasSize = UDim2.fromOffset(0, 0)
-	scroll.CanvasPosition = Vector2.zero
-	scroll.AutomaticCanvasSize = Enum.AutomaticSize.None
-	scroll.ScrollBarThickness = UserInputService.TouchEnabled and 6 or 4
-	scroll.ScrollBarImageColor3 = Theme.Border
-	scroll.ScrollBarImageTransparency = 0.15
-	scroll.ClipsDescendants = true
-	scroll.Visible = false
-	scroll.Parent = window.ContentContainer
+	-- IMPORTANT:
+	-- Keep all existing components as direct children of this
+	-- ScrollingFrame. GetParentForComponent() depends on tab.Content.
+	-- Do not introduce a second canvas/container here, otherwise the
+	-- existing Section/component hierarchy will overlap.
+	local content = Instance.new("ScrollingFrame")
+	content.Name = "TabContent_" .. name
+	content.BackgroundTransparency = 1
+	content.BorderSizePixel = 0
+	content.Size = UDim2.new(1, 0, 1, 0)
+	content.Active = true
+	content.Selectable = true
+	content.ScrollingEnabled = true
+	content.ScrollingDirection = Enum.ScrollingDirection.Y
+	content.ElasticBehavior = Enum.ElasticBehavior.WhenScrollable
 
-	-- Dedicated canvas. This is important: the list layout measures the
-	-- canvas's children, not the ScrollingFrame viewport itself.
-	local canvas = Instance.new("Frame")
-	canvas.Name = "Canvas"
-	canvas.BackgroundTransparency = 1
-	canvas.BorderSizePixel = 0
-	canvas.Size = UDim2.new(1, 0, 0, 0)
-	canvas.AutomaticSize = Enum.AutomaticSize.Y
-	canvas.Position = UDim2.new(0, 0, 0, 0)
-	canvas.Parent = scroll
+	-- Manual CanvasSize is intentional. AutomaticCanvasSize has caused
+	-- mobile scrolling/layout issues when sections expand dynamically.
+	content.AutomaticCanvasSize = Enum.AutomaticSize.None
+	content.CanvasSize = UDim2.new(0, 0, 0, 0)
+	content.CanvasPosition = Vector2.new(0, 0)
+
+	content.ScrollBarThickness = UserInputService.TouchEnabled and 6 or 4
+	content.ScrollBarImageColor3 = Theme.Border
+	content.ScrollBarImageTransparency = 0.15
+	content.Visible = false
+	content.Parent = window.ContentContainer
 
 	local padding = Instance.new("UIPadding")
-	padding.PaddingTop = UDim.new(0, canvasPaddingTop)
-	padding.PaddingBottom = UDim.new(0, canvasPaddingBottom)
+	padding.PaddingTop = UDim.new(0, 12)
+	padding.PaddingBottom = UDim.new(0, 16)
 	padding.PaddingLeft = UDim.new(0, 14)
 	padding.PaddingRight = UDim.new(0, 14)
-	padding.Parent = canvas
+	padding.Parent = content
 
 	local layout = Instance.new("UIListLayout")
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Padding = UDim.new(0, 10)
-	layout.Parent = canvas
+	layout.Parent = content
 
 	----------------------------------------------------------------
-	-- CANVAS SYNCHRONIZATION
+	-- RELIABLE CANVAS SIZE
 	----------------------------------------------------------------
-	local lastCanvasHeight = -1
-	local lastViewportHeight = -1
-	local refreshQueued = false
+	local destroyed = false
+	local updateQueued = false
+	local lastHeight = -1
+	local lastViewport = -1
 
-	local function computeHeight()
-		-- Prefer the actual layout measurement. Add explicit padding so the
-		-- final component is never clipped at the bottom.
-		local h = layout.AbsoluteContentSize.Y + canvasPaddingTop + canvasPaddingBottom
-
-		-- Also consider the canvas's calculated height. On frames containing
-		-- AutomaticSize children this can settle one frame after the layout.
-		h = math.max(h, canvas.AbsoluteSize.Y)
-
-		return math.max(0, math.ceil(h))
+	local function getContentHeight()
+		-- AbsoluteContentSize already includes the positions/sizes of every
+		-- direct child, including automatically-sized Sections.
+		local h = layout.AbsoluteContentSize.Y + 28 -- top + bottom padding
+		return math.max(math.ceil(h), 0)
 	end
 
-	local function syncCanvas()
-		if destroyed or not scroll.Parent then return end
-		local viewportH = math.max(0, scroll.AbsoluteSize.Y)
-		local neededH = computeHeight()
+	local function updateCanvasSize()
+		if destroyed or not content.Parent then return end
 
-		-- Keep at least one viewport tall; otherwise Roblox can treat the
-		-- frame as non-scrollable when content changes rapidly.
-		local finalH = math.max(neededH, viewportH)
+		local viewportHeight = math.max(0, content.AbsoluteSize.Y)
+		local requiredHeight = getContentHeight()
 
-		if finalH ~= lastCanvasHeight or viewportH ~= lastViewportHeight then
-			lastCanvasHeight = finalH
-			lastViewportHeight = viewportH
-			scroll.CanvasSize = UDim2.fromOffset(0, finalH)
+		-- Never make the canvas smaller than the viewport. More importantly,
+		-- requiredHeight is based on the actual list layout rather than the
+		-- ScrollingFrame's own AbsoluteSize.
+		local canvasHeight = math.max(requiredHeight, viewportHeight)
 
-			-- Only clamp an actually-invalid position. Never rewrite a valid
-			-- CanvasPosition during a swipe, because that can fight touch input.
-			local maxY = math.max(0, finalH - viewportH)
-			if scroll.CanvasPosition.Y > maxY then
-				scroll.CanvasPosition = Vector2.new(scroll.CanvasPosition.X, maxY)
-			elseif scroll.CanvasPosition.Y < 0 then
-				scroll.CanvasPosition = Vector2.new(scroll.CanvasPosition.X, 0)
+		if canvasHeight ~= lastHeight or viewportHeight ~= lastViewport then
+			lastHeight = canvasHeight
+			lastViewport = viewportHeight
+
+			content.CanvasSize = UDim2.new(0, 0, 0, canvasHeight)
+
+			-- Only correct an invalid position. Do NOT continuously write
+			-- CanvasPosition because that can interfere with mobile swipes.
+			local maxY = math.max(0, canvasHeight - viewportHeight)
+			local currentY = content.CanvasPosition.Y
+
+			if currentY > maxY then
+				content.CanvasPosition = Vector2.new(0, maxY)
+			elseif currentY < 0 then
+				content.CanvasPosition = Vector2.new(0, 0)
 			end
 		end
 	end
 
-	local function queueSync()
-		if destroyed or refreshQueued then return end
-		refreshQueued = true
+	local function queueCanvasUpdate()
+		if destroyed or updateQueued then return end
+		updateQueued = true
+
 		task.defer(function()
-			refreshQueued = false
+			updateQueued = false
 			if destroyed then return end
-			syncCanvas()
-			task.defer(syncCanvas)
+
+			updateCanvasSize()
+
+			-- AutomaticSize elements can settle one frame after the first
+			-- layout calculation (especially dropdowns/textboxes).
+			task.defer(function()
+				if not destroyed then
+					updateCanvasSize()
+				end
+			end)
 		end)
 	end
 
-	cleanup:AddConnection(layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(queueSync))
-	cleanup:AddConnection(canvas:GetPropertyChangedSignal("AbsoluteSize"):Connect(queueSync))
-	cleanup:AddConnection(scroll:GetPropertyChangedSignal("AbsoluteSize"):Connect(queueSync))
-	cleanup:AddConnection(canvas.ChildAdded:Connect(queueSync))
-	cleanup:AddConnection(canvas.ChildRemoved:Connect(queueSync))
+	cleanup:AddConnection(
+		layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(queueCanvasUpdate)
+	)
 
-	-- Dynamic components can resize without changing child count. A very
-	-- cheap RenderStepped validator catches those cases and only writes
-	-- CanvasSize when the measured value actually changed.
-	local renderConn = RunService.RenderStepped:Connect(function()
-		if destroyed or not scroll.Visible then return end
-		local neededH = computeHeight()
-		local viewportH = scroll.AbsoluteSize.Y
-		local finalH = math.max(neededH, viewportH)
-		if finalH ~= lastCanvasHeight or viewportH ~= lastViewportHeight then
-			syncCanvas()
-		end
-	end)
-	cleanup:AddConnection(renderConn)
+	cleanup:AddConnection(
+		content:GetPropertyChangedSignal("AbsoluteSize"):Connect(queueCanvasUpdate)
+	)
 
-	task.defer(syncCanvas)
+	-- When sections/components are added or removed, force another
+	-- measurement after Roblox has updated their AutomaticSize values.
+	cleanup:AddConnection(
+		content.ChildAdded:Connect(queueCanvasUpdate)
+	)
+
+	cleanup:AddConnection(
+		content.ChildRemoved:Connect(queueCanvasUpdate)
+	)
+
+	-- Some nested AutomaticSize changes do not immediately propagate to
+	-- the outer layout signal. A short validation period after changes
+	-- catches those cases without running a permanent scrolling loop.
+	local validationToken = 0
+
+	local function validateCanvas()
+		validationToken += 1
+		local token = validationToken
+
+		task.spawn(function()
+			for _ = 1, 8 do
+				if destroyed or token ~= validationToken then return end
+				updateCanvasSize()
+				task.wait()
+			end
+		end)
+	end
+
+	cleanup:AddConnection(
+		content.DescendantAdded:Connect(validateCanvas)
+	)
+
+	cleanup:AddConnection(
+		content.DescendantRemoving:Connect(validateCanvas)
+	)
+
 	task.defer(function()
-		task.defer(syncCanvas)
+		if not destroyed then
+			updateCanvasSize()
+			task.defer(updateCanvasSize)
+			validateCanvas()
+		end
 	end)
 
 	local tabBtn = Instance.new("TextButton")
@@ -3167,13 +2852,12 @@ local function CreateTab(window, config)
 	btnCorner.CornerRadius = UDim.new(0, 4)
 	btnCorner.Parent = tabBtn
 
-	cleanup:AddInstance(scroll)
+	cleanup:AddInstance(content)
 	cleanup:AddInstance(tabBtn)
 
 	local tab = {
 		Name = name,
-		Content = scroll,
-		Canvas = canvas,
+		Content = content,
 		Button = tabBtn,
 		Sections = {},
 		Components = {},
@@ -3187,78 +2871,91 @@ local function CreateTab(window, config)
 
 	function tab:SetActive(active)
 		if destroyed then return end
+
 		if active then
-			scroll.Visible = true
+			content.Visible = true
 			tabBtn.BackgroundTransparency = 0.3
 			tabBtn.BackgroundColor3 = Theme.Secondary
 			tabBtn.TextColor3 = Theme.Text
-			queueSync()
-			task.defer(syncCanvas)
+
+			-- The tab was invisible while inactive, so force a fresh
+			-- measurement when it becomes visible.
 			task.defer(function()
-				task.defer(syncCanvas)
+				if not destroyed then
+					updateCanvasSize()
+					task.defer(updateCanvasSize)
+					validateCanvas()
+				end
 			end)
 		else
-			scroll.Visible = false
+			content.Visible = false
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.SecondaryText
 		end
-	end
-
-	function tab:RefreshScroll()
-		queueSync()
-		task.defer(syncCanvas)
-		task.defer(function()
-			task.defer(syncCanvas)
-		end)
-	end
-
-	function tab:ScrollTo(y, animate)
-		self:RefreshScroll()
-		local maxY = math.max(0, scroll.CanvasSize.Y.Offset - scroll.AbsoluteSize.Y)
-		local targetY = math.clamp(tonumber(y) or 0, 0, maxY)
-		local target = Vector2.new(0, targetY)
-		if animate then
-			TweenEngine.Play(scroll, {CanvasPosition = target}, {
-				Duration = 0.25, Easing = "QuadOut"
-			})
-		else
-			scroll.CanvasPosition = target
-		end
-	end
-
-	function tab:ScrollToBottom(animate)
-		self:RefreshScroll()
-		local targetY = math.max(0, scroll.CanvasSize.Y.Offset - scroll.AbsoluteSize.Y)
-		self:ScrollTo(targetY, animate)
-	end
-
-	function tab:GetScroll()
-		return scroll.CanvasPosition.Y
-	end
-
-	function tab:GetMaxScroll()
-		return math.max(0, scroll.CanvasSize.Y.Offset - scroll.AbsoluteSize.Y)
 	end
 
 	function tab:RefreshTheme()
 		if cleanup:IsDestroyed() then return end
-		scroll.ScrollBarImageColor3 = Theme.Border
+
+		content.ScrollBarImageColor3 = Theme.Border
 		tabBtn.BackgroundColor3 = Theme.Secondary
 		tabBtn.Font = Theme.Font
-		if scroll.Visible then
+
+		if content.Visible then
 			tabBtn.BackgroundTransparency = 0.3
 			tabBtn.TextColor3 = Theme.Text
 		else
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.SecondaryText
 		end
+
 		for _, s in ipairs(tab.Sections) do
 			if s.RefreshTheme then s:RefreshTheme() end
 		end
+
 		for _, c in ipairs(tab.Components) do
 			if c.RefreshTheme then c:RefreshTheme() end
 		end
-		queueSync()
+
+		queueCanvasUpdate()
+	end
+
+	function tab:RefreshScroll()
+		updateCanvasSize()
+		task.defer(updateCanvasSize)
+		validateCanvas()
+	end
+
+	function tab:ScrollTo(y, animate)
+		updateCanvasSize()
+
+		local maxY = math.max(0, content.CanvasSize.Y.Offset - content.AbsoluteSize.Y)
+		local targetY = math.clamp(tonumber(y) or 0, 0, maxY)
+
+		if animate then
+			TweenEngine.Play(content, {
+				CanvasPosition = Vector2.new(0, targetY),
+			}, {
+				Duration = 0.25,
+				Easing = "QuadOut",
+			})
+		else
+			content.CanvasPosition = Vector2.new(0, targetY)
+		end
+	end
+
+	function tab:ScrollToBottom(animate)
+		updateCanvasSize()
+		local maxY = math.max(0, content.CanvasSize.Y.Offset - content.AbsoluteSize.Y)
+		self:ScrollTo(maxY, animate)
+	end
+
+	function tab:GetScroll()
+		return content.CanvasPosition.Y
+	end
+
+	function tab:GetMaxScroll()
+		return math.max(0, content.CanvasSize.Y.Offset - content.AbsoluteSize.Y)
 	end
 
 	function tab:CreateSection(c) return CreateSection(tab, c) end
@@ -3266,9 +2963,7 @@ local function CreateTab(window, config)
 	function tab:CreateToggle(c) return CreateToggle(tab, c) end
 	function tab:CreateSlider(c) return CreateSlider(tab, c) end
 	function tab:CreateLabel(c) return CreateLabel(tab, c) end
-	function tab:CreateParagraph(c) return CreateParagraph(tab, c) end
 	function tab:CreateDropdown(c) return CreateDropdown(tab, c) end
-	function tab:CreateMultiDropdown(c) return CreateMultiDropdown(tab, c) end
 	function tab:CreateTextbox(c) return CreateTextbox(tab, c) end
 	function tab:CreateKeybind(c) return CreateKeybind(tab, c) end
 	function tab:CreateDivider(c) return CreateDivider(tab) end
@@ -3276,12 +2971,15 @@ local function CreateTab(window, config)
 	function tab:Destroy()
 		if destroyed then return end
 		destroyed = true
+
 		for _, c in ipairs(tab.Components) do
-			if c.Destroy then pcall(function() c:Destroy() end) end
+			if c.Destroy then c:Destroy() end
 		end
+
 		for _, s in ipairs(tab.Sections) do
-			if s.Destroy then pcall(function() s:Destroy() end) end
+			if s.Destroy then s:Destroy() end
 		end
+
 		cleanup:Destroy()
 	end
 
@@ -3297,7 +2995,6 @@ local function CreateWindow(library, config)
 	local width = config.Width or 480
 	local height = config.Height or 360
 	local minimized = false
-	local isClosed = false
 	local tabs = {}
 	local activeTab = nil
 
@@ -3318,10 +3015,10 @@ local function CreateWindow(library, config)
 	main.Position = UDim2.new(0.5, 0, 0.5, 0)
 	main.Parent = gui
 
-	-- Configurable UI scale. 0.92 preserves the original compact look.
+	-- Scale the entire UI uniformly to 92% (8% smaller) without changing layout ratios.
 	local uiScale = Instance.new("UIScale")
 	uiScale.Name = "VeyraUIScale"
-	uiScale.Scale = config.Scale or 0.92
+	uiScale.Scale = 0.92
 	uiScale.Parent = main
 
 	local mainCorner = Instance.new("UICorner")
@@ -3493,41 +3190,6 @@ local function CreateWindow(library, config)
 		refreshWindowTheme()
 	end
 
-	function window:SetTitle(title, sub)
-		titleLabel.Text = tostring(title or "")
-		if sub ~= nil then
-			subtitle.Text = tostring(sub)
-		end
-	end
-
-	function window:GetActiveTab()
-		return activeTab
-	end
-
-	function window:IsMinimized()
-		return minimized
-	end
-
-	function window:IsOpen()
-		return not isClosed and not cleanup:IsDestroyed()
-	end
-
-	function window:SetVisible(state)
-		if state then
-			if isClosed then return end
-			main.Visible = true
-			if minimized then
-				contentContainer.Visible = false
-				tabBar.Visible = false
-			else
-				contentContainer.Visible = true
-				tabBar.Visible = true
-			end
-		else
-			main.Visible = false
-		end
-	end
-
 	function window:ToggleMinimize()
 		minimized = not minimized
 		if minimized then
@@ -3546,8 +3208,6 @@ local function CreateWindow(library, config)
 	end
 
 	function window:Close()
-		if isClosed then return end
-		isClosed = true
 		TweenEngine.Play(main, {
 			Size = UDim2.new(0, 0, 0, 0),
 			BackgroundTransparency = 1,
@@ -3560,23 +3220,10 @@ local function CreateWindow(library, config)
 		})
 	end
 
-	function window:Open()
-		if cleanup:IsDestroyed() then return end
-		isClosed = false
-		main.Visible = true
-		TweenEngine.Play(main, {
-			Size = UDim2.new(0, window.Width, 0, minimized and 40 or window.Height),
-			BackgroundTransparency = 0.05,
-		}, {Duration = 0.3, Easing = "BackOut"})
-	end
-
 	function window:Destroy()
-		if cleanup:IsDestroyed() then return end
 		for _, tab in ipairs(tabs) do
-			if tab.Destroy then pcall(function() tab:Destroy() end) end
+			tab:Destroy()
 		end
-		table.clear(tabs)
-		activeTab = nil
 		cleanup:Destroy()
 	end
 
@@ -3658,43 +3305,4 @@ Library.Animation = TweenEngine
 -- end
 
 -- Convenience so loadstring(...)() returns the library
-
-function Library:GetWindows()
-	return table.clone(Windows)
-end
-
-function Library:GetWindowCount()
-	return #Windows
-end
-
-function Library:CloseAll()
-	local snap = table.clone(Windows)
-	for _, win in ipairs(snap) do
-		pcall(function() win:Close() end)
-	end
-end
-
-function Library:ApplyThemeToAll()
-	for _, win in ipairs(Windows) do
-		pcall(function() win:RefreshTheme() end)
-	end
-end
-
-Library.Version = "3.0.0"
-Library.MobileScrollFixed = true
-Library.Components = {
-	"Section",
-	"Button",
-	"Toggle",
-	"Slider",
-	"Label",
-	"Paragraph",
-	"Dropdown",
-	"MultiDropdown",
-	"Textbox",
-	"Keybind",
-	"Divider",
-}
-
-
 return Library
