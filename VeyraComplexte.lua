@@ -2956,10 +2956,22 @@ local function CreateWindow(library, config)
 	tabLayout.Parent = tabBar
 
 	-- Update canvas size whenever tabs change, and add extra padding at the end
-	local function updateTabBarCanvas()
-		local contentSize = tabLayout.AbsoluteContentSize
-		-- Add 20px padding at the end so the last tab is fully reachable
-		tabBar.CanvasSize = UDim2.new(0, contentSize.X + 20, 0, 0)
+	local function updateCanvasSize()
+    if content.Parent == nil then return end
+
+    -- 1. Get the total height of all your UI elements
+    local totalContentHeight = layout.AbsoluteContentSize.Y
+
+    -- 2. Add a little extra space at the bottom (like 20px) for padding
+    local extraBottomPadding = 20
+    local requiredHeight = totalContentHeight + extraBottomPadding
+
+    -- 3. Make sure the canvas is at least as tall as the visible area
+    local viewportHeight = content.AbsoluteSize.Y
+    local finalCanvasHeight = math.max(requiredHeight, viewportHeight)
+
+    -- 4. Set the CanvasSize manually (how to ahh😭🙏) 
+    content.CanvasSize = UDim2.new(0, 0, 0, finalCanvasHeight)
 	end
 	cleanup:AddConnection(tabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateTabBarCanvas))
 	task.defer(updateTabBarCanvas)
