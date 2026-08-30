@@ -2853,7 +2853,7 @@ local function CreateWindow(library, config)
 	-- Scale the entire UI uniformly to 50% (half the original size)
 	local uiScale = Instance.new("UIScale")
 	uiScale.Name = "VeyraUIScale"
-	uiScale.Scale = 0.5  -- 50% smaller
+	uiScale.Scale = 0.2  -- 50% smaller
 	uiScale.Parent = main
 
 	local mainCorner = Instance.new("UICorner")
