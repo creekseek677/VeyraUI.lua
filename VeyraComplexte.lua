@@ -2722,16 +2722,19 @@ local function CreateTab(window, config)
 		if content.Parent == nil then return end
 
 		local contentHeight = layout.AbsoluteContentSize.Y + TOP_BOTTOM_PADDING
+		-- INCREASE PADDING TO 80 for full scroll
+		local extraPadding = 80
+		local requiredHeight = contentHeight + extraPadding
 		local viewportHeight = content.AbsoluteSize.Y
 
 		-- Always keep enough canvas for the actual content, while allowing
 		-- ScrollPosition to remain valid when the viewport changes.
-		content.CanvasSize = UDim2.new(0, 0, 0, math.max(contentHeight, viewportHeight))
+		content.CanvasSize = UDim2.new(0, 0, 0, math.max(requiredHeight, viewportHeight))
 	end
 
 	cleanup:AddConnection(layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvasSize))
 	cleanup:AddConnection(content:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateCanvasSize))
-	task.defer(updateCanvasSize)
+	spawn(updateCanvasSize)  -- changed from task.defer to spawn
 
 	local tabBtn = Instance.new("TextButton")
 	tabBtn.Name = "TabBtn_" .. name
@@ -2956,22 +2959,10 @@ local function CreateWindow(library, config)
 	tabLayout.Parent = tabBar
 
 	-- Update canvas size whenever tabs change, and add extra padding at the end
-	local function updateCanvasSize()
-    if content.Parent == nil then return end
-
-    -- 1. Get the total height of all your UI elements
-    local totalContentHeight = layout.AbsoluteContentSize.Y
-
-    -- 2. Add a little extra space at the bottom (like 20px) for padding
-    local extraBottomPadding = 20
-    local requiredHeight = totalContentHeight + extraBottomPadding
-
-    -- 3. Make sure the canvas is at least as tall as the visible area
-    local viewportHeight = content.AbsoluteSize.Y
-    local finalCanvasHeight = math.max(requiredHeight, viewportHeight)
-
-    -- 4. Set the CanvasSize manually (how to ahh😭🙏) 
-    content.CanvasSize = UDim2.new(0, 0, 0, finalCanvasHeight)
+	local function updateTabBarCanvas()
+		local contentSize = tabLayout.AbsoluteContentSize
+		-- Add 20px padding at the end so the last tab is fully reachable
+		tabBar.CanvasSize = UDim2.new(0, contentSize.X + 20, 0, 0)
 	end
 	cleanup:AddConnection(tabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateTabBarCanvas))
 	task.defer(updateTabBarCanvas)
