@@ -2866,18 +2866,15 @@ local function CreateWindow(library, config)
 	config = config or {}
 	local cleanup = CreateCleanup()
 	-- Near-square compact defaults
-	-- Size via scale; UIAspectRatioConstraint = 1 forces true square (no fixed 380x380)
-	local sizeScale = config.Scale or 0.42
+	-- 380x380 base (equal sides). UIAspectRatioConstraint keeps it square on every device.
+	-- DevForum: AspectRatio=1 + equal Size — DominantAxis Width so height always follows width.
+	local side = config.Width or config.Height or 380
 	if config.Width and config.Height then
-		-- legacy: if both given, still prefer aspect-driven square from average
-		sizeScale = math.clamp(((config.Width + config.Height) / 2) / 900, 0.28, 0.55)
-	elseif config.Width then
-		sizeScale = math.clamp(config.Width / 900, 0.28, 0.55)
+		side = math.min(config.Width, config.Height) -- never allow taller-than-wide
 	end
 	local minimized = false
 	local tabs = {}
 	local activeTab = nil
-	local savedScale = sizeScale
 
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "VeyraUI_" .. (config.Title or "Window")
@@ -2887,7 +2884,7 @@ local function CreateWindow(library, config)
 	local root = Instance.new("Frame")
 	root.Name = "Root"
 	root.BackgroundTransparency = 1
-	root.Size = UDim2.fromScale(sizeScale, sizeScale)
+	root.Size = UDim2.fromOffset(side, side) -- equal X and Y
 	root.Position = UDim2.fromScale(0.5, 0.5)
 	root.AnchorPoint = Vector2.new(0.5, 0.5)
 	root.ClipsDescendants = true
@@ -2898,11 +2895,11 @@ local function CreateWindow(library, config)
 	sizeConstraint.MaxSize = Vector2.new(560, 560)
 	sizeConstraint.Parent = root
 
-	-- True square — only mechanism that keeps 1:1 on every device
+	-- Perfect square (DevForum method)
 	local aspect = Instance.new("UIAspectRatioConstraint")
-	aspect.AspectRatio = 1
+	aspect.AspectRatio = 1 -- width/height = 1
 	aspect.AspectType = Enum.AspectType.FitWithinMaxSize
-	aspect.DominantAxis = Enum.DominantAxis.Width
+	aspect.DominantAxis = Enum.DominantAxis.Width -- HEIGHT is derived from WIDTH (stops upward rectangle)
 	aspect.Parent = root
 
 	local main = Instance.new("Frame")
@@ -3082,9 +3079,8 @@ local function CreateWindow(library, config)
 		ContentContainer = contentContainer,
 		SearchBox = searchBox,
 		Tabs = tabs,
-		Width = 0,
-		Height = 0,
-		Scale = sizeScale,
+		Width = side,
+		Height = side,
 		Aspect = aspect,
 		Cleanup = cleanup,
 		Actions = {},
@@ -3156,14 +3152,10 @@ local function CreateWindow(library, config)
 				local dx = inp.Position.X - startInput.X
 				local dy = inp.Position.Y - startInput.Y
 				local delta = math.max(dx, dy)
-				local side = math.clamp(startSize.X + delta, minS, maxS)
-				-- Convert pixel side → scale relative to viewport
-				local vp = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1920, 1080)
-				local sc = math.clamp(side / math.min(vp.X, vp.Y), 0.28, 0.55)
-				window.Scale = sc
-				root.Size = UDim2.fromScale(sc, sc)
-				window.Width = side
-				window.Height = side
+				local s = math.clamp(startSize.X + delta, minS, maxS)
+				root.Size = UDim2.fromOffset(s, s) -- always equal = square
+				window.Width = s
+				window.Height = s
 			end)
 			endC = UserInputService.InputEnded:Connect(function(inp)
 				if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
@@ -3175,11 +3167,11 @@ local function CreateWindow(library, config)
 		end))
 	end
 
-	-- Open animation (scale → square)
-	root.Size = UDim2.fromScale(0, 0)
+	-- Open animation
+	root.Size = UDim2.fromOffset(0, 0)
 	main.BackgroundTransparency = 1
 	TweenEngine.Play(root, {
-		Size = UDim2.fromScale(sizeScale, sizeScale),
+		Size = UDim2.fromOffset(side, side),
 	}, { Duration = 0.4, Easing = "BackOut" })
 	TweenEngine.Play(main, { BackgroundTransparency = 0.02 }, { Duration = 0.32, Easing = "QuadOut" })
 	task.defer(function()
@@ -3305,25 +3297,50 @@ local function CreateWindow(library, config)
 	-- REAL minimize: only title bar remains
 	function window:ToggleMinimize()
 		minimized = not minimized
+		local grip = main:FindFirstChild("ResizeGrip")
+		local gripV = main:FindFirstChild("Frame") -- visual lines may vary
 		if minimized then
-			-- AspectRatio=1 blocks height collapse — disable while minimized
+			-- AspectRatio=1 blocks height collapse — must disable first
 			if aspect then aspect.Enabled = false end
 			if sizeConstraint then sizeConstraint.Enabled = false end
+
+			-- Hide everything below the title bar immediately
 			body.Visible = false
+			if grip then grip.Visible = false end
+			for _, ch in ipairs(main:GetChildren()) do
+				if ch.Name == "ResizeGrip" or ch.Name:find("Grip") then
+					ch.Visible = false
+				end
+			end
+
 			local w = math.max(root.AbsoluteSize.X, 260)
 			window.Width = w
+			window.Height = root.AbsoluteSize.Y
+
+			-- Collapse root to title-bar height only (no leftover body frame)
+			root.ClipsDescendants = true
+			main.ClipsDescendants = true
+			TweenEngine.CancelOnObject(root)
 			TweenEngine.Play(root, {
 				Size = UDim2.new(0, w, 0, TITLE_H),
 			}, { Duration = 0.28, Easing = "QuadOut" })
 		else
-			body.Visible = true
-			local sc = window.Scale or sizeScale
+			-- Expand back to square (equal sides)
+			local s = window.Width or side
+			TweenEngine.CancelOnObject(root)
 			TweenEngine.Play(root, {
-				Size = UDim2.fromScale(sc, sc),
+				Size = UDim2.fromOffset(s, s),
 			}, {
 				Duration = 0.32,
 				Easing = "BackOut",
 				OnComplete = function()
+					body.Visible = true
+					if grip then grip.Visible = true end
+					for _, ch in ipairs(main:GetChildren()) do
+						if ch.Name == "ResizeGrip" or ch.Name:find("Grip") then
+							ch.Visible = true
+						end
+					end
 					if aspect then aspect.Enabled = true end
 					if sizeConstraint then sizeConstraint.Enabled = true end
 					window.Width = root.AbsoluteSize.X
