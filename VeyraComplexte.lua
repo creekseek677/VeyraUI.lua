@@ -177,7 +177,7 @@ local Theme = {
 	Font = Enum.Font.GothamMedium,
 	FontBold = Enum.Font.GothamBold,
 	FontMono = Enum.Font.Code,
-	CornerRadius = 6,
+	CornerRadius = 0,  -- sharp; toggles keep own radius
 	ElementHeight = 32,
 	AnimationSpeed = 0.35,
 	HoverSpeed = 0.15,
@@ -2752,35 +2752,33 @@ local function CreateTab(window, config)
 	tabBtn.BackgroundColor3 = Theme.Secondary
 	tabBtn.BackgroundTransparency = 1
 	tabBtn.BorderSizePixel = 0
-	tabBtn.Size = UDim2.new(1, -10, 0, 28)
+	tabBtn.Size = UDim2.new(1, -8, 0, 28)
 	tabBtn.Font = Theme.Font
 	tabBtn.TextSize = 12
 	tabBtn.TextColor3 = Theme.SecondaryText
 	tabBtn.Text = name
 	tabBtn.TextXAlignment = Enum.TextXAlignment.Left
+	tabBtn.TextTruncate = Enum.TextTruncate.AtEnd
 	tabBtn.AutoButtonColor = false
+	tabBtn.ClipsDescendants = true
 	tabBtn.Parent = window.TabBar
 
+	-- Padding so long text never overlaps the left indicator
 	local btnPad = Instance.new("UIPadding")
-	btnPad.PaddingLeft = UDim.new(0, 10)
+	btnPad.PaddingLeft = UDim.new(0, 12)
+	btnPad.PaddingRight = UDim.new(0, 4)
 	btnPad.Parent = tabBtn
 
-	local btnCorner = Instance.new("UICorner")
-	btnCorner.CornerRadius = UDim.new(0, 5)
-	btnCorner.Parent = tabBtn
-
-	-- Active indicator strip on left of button
+	-- Indicator further left, outside text area
 	local indicator = Instance.new("Frame")
 	indicator.Name = "Indicator"
 	indicator.BackgroundColor3 = Theme.Accent
 	indicator.BorderSizePixel = 0
-	indicator.Size = UDim2.new(0, 2, 0.55, 0)
-	indicator.Position = UDim2.new(0, 2, 0.225, 0)
+	indicator.Size = UDim2.new(0, 2, 0.6, 0)
+	indicator.Position = UDim2.new(0, 0, 0.2, 0)
 	indicator.Visible = false
+	indicator.ZIndex = 2
 	indicator.Parent = tabBtn
-	local ic = Instance.new("UICorner")
-	ic.CornerRadius = UDim.new(1, 0)
-	ic.Parent = indicator
 
 	cleanup:AddInstance(content)
 	cleanup:AddInstance(tabBtn)
@@ -2868,11 +2866,18 @@ local function CreateWindow(library, config)
 	config = config or {}
 	local cleanup = CreateCleanup()
 	-- Near-square compact defaults
-	local width  = config.Width or 380
-	local height = config.Height or width  -- square: height matches width unless overridden
+	-- Size via scale; UIAspectRatioConstraint = 1 forces true square (no fixed 380x380)
+	local sizeScale = config.Scale or 0.42
+	if config.Width and config.Height then
+		-- legacy: if both given, still prefer aspect-driven square from average
+		sizeScale = math.clamp(((config.Width + config.Height) / 2) / 900, 0.28, 0.55)
+	elseif config.Width then
+		sizeScale = math.clamp(config.Width / 900, 0.28, 0.55)
+	end
 	local minimized = false
 	local tabs = {}
 	local activeTab = nil
+	local savedScale = sizeScale
 
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "VeyraUI_" .. (config.Title or "Window")
@@ -2882,17 +2887,18 @@ local function CreateWindow(library, config)
 	local root = Instance.new("Frame")
 	root.Name = "Root"
 	root.BackgroundTransparency = 1
-	root.Size = UDim2.new(0, width, 0, height)
-	root.Position = UDim2.new(0.5, -width / 2, 0.5, -height / 2)
+	root.Size = UDim2.fromScale(sizeScale, sizeScale)
+	root.Position = UDim2.fromScale(0.5, 0.5)
+	root.AnchorPoint = Vector2.new(0.5, 0.5)
 	root.ClipsDescendants = true
 	root.Parent = gui
 
 	local sizeConstraint = Instance.new("UISizeConstraint")
-	sizeConstraint.MinSize = Vector2.new(300, 300)
-	sizeConstraint.MaxSize = Vector2.new(520, 520)
+	sizeConstraint.MinSize = Vector2.new(260, 260)
+	sizeConstraint.MaxSize = Vector2.new(560, 560)
 	sizeConstraint.Parent = root
 
-	-- Perfect square on all devices (DevForum: UIAspectRatioConstraint AspectRatio = 1)
+	-- True square — only mechanism that keeps 1:1 on every device
 	local aspect = Instance.new("UIAspectRatioConstraint")
 	aspect.AspectRatio = 1
 	aspect.AspectType = Enum.AspectType.FitWithinMaxSize
@@ -2907,9 +2913,7 @@ local function CreateWindow(library, config)
 	main.Size = UDim2.new(1, 0, 1, 0)
 	main.Parent = root
 
-	local mainCorner = Instance.new("UICorner")
-	mainCorner.CornerRadius = UDim.new(0, 10)
-	mainCorner.Parent = main
+	-- No main corner (sharp frame)
 
 	local mainStroke = Instance.new("UIStroke")
 	mainStroke.Color = Theme.Border
@@ -2938,9 +2942,7 @@ local function CreateWindow(library, config)
 	titleBar.ZIndex = 3
 	titleBar.Parent = main
 
-	local titleCorner = Instance.new("UICorner")
-	titleCorner.CornerRadius = UDim.new(0, 10)
-	titleCorner.Parent = titleBar
+	-- No title corner
 
 	local titleFix = Instance.new("Frame")
 	titleFix.BackgroundColor3 = Theme.Secondary
@@ -3027,9 +3029,7 @@ local function CreateWindow(library, config)
 	searchBox.Text = ""
 	searchBox.ClearTextOnFocus = false
 	searchBox.Parent = sidebar
-	local searchCorner = Instance.new("UICorner")
-	searchCorner.CornerRadius = UDim.new(0, 6)
-	searchCorner.Parent = searchBox
+	-- No search corner
 	local searchPad = Instance.new("UIPadding")
 	searchPad.PaddingLeft = UDim.new(0, 8)
 	searchPad.PaddingRight = UDim.new(0, 8)
@@ -3082,8 +3082,10 @@ local function CreateWindow(library, config)
 		ContentContainer = contentContainer,
 		SearchBox = searchBox,
 		Tabs = tabs,
-		Width = width,
-		Height = height,
+		Width = 0,
+		Height = 0,
+		Scale = sizeScale,
+		Aspect = aspect,
 		Cleanup = cleanup,
 		Actions = {},
 	}
@@ -3153,10 +3155,13 @@ local function CreateWindow(library, config)
 				end
 				local dx = inp.Position.X - startInput.X
 				local dy = inp.Position.Y - startInput.Y
-				-- Prefer diagonal scale to keep near-square
 				local delta = math.max(dx, dy)
 				local side = math.clamp(startSize.X + delta, minS, maxS)
-				root.Size = UDim2.new(0, side, 0, side)
+				-- Convert pixel side → scale relative to viewport
+				local vp = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1920, 1080)
+				local sc = math.clamp(side / math.min(vp.X, vp.Y), 0.28, 0.55)
+				window.Scale = sc
+				root.Size = UDim2.fromScale(sc, sc)
 				window.Width = side
 				window.Height = side
 			end)
@@ -3170,13 +3175,17 @@ local function CreateWindow(library, config)
 		end))
 	end
 
-	-- Open animation
-	root.Size = UDim2.new(0, 0, 0, 0)
+	-- Open animation (scale → square)
+	root.Size = UDim2.fromScale(0, 0)
 	main.BackgroundTransparency = 1
 	TweenEngine.Play(root, {
-		Size = UDim2.new(0, width, 0, height),
+		Size = UDim2.fromScale(sizeScale, sizeScale),
 	}, { Duration = 0.4, Easing = "BackOut" })
 	TweenEngine.Play(main, { BackgroundTransparency = 0.02 }, { Duration = 0.32, Easing = "QuadOut" })
+	task.defer(function()
+		window.Width = root.AbsoluteSize.X
+		window.Height = root.AbsoluteSize.Y
+	end)
 
 	cleanup:AddInstance(gui)
 
@@ -3234,9 +3243,7 @@ local function CreateWindow(library, config)
 		btn.Text = ""
 		btn.ZIndex = 5
 		btn.Parent = actionBar
-		local bc = Instance.new("UICorner")
-		bc.CornerRadius = UDim.new(0, 5)
-		bc.Parent = btn
+		-- sharp action buttons
 		if icon and tostring(icon) ~= "" then
 			local img = Instance.new("ImageLabel")
 			img.BackgroundTransparency = 1
@@ -3299,15 +3306,30 @@ local function CreateWindow(library, config)
 	function window:ToggleMinimize()
 		minimized = not minimized
 		if minimized then
+			-- AspectRatio=1 blocks height collapse — disable while minimized
+			if aspect then aspect.Enabled = false end
+			if sizeConstraint then sizeConstraint.Enabled = false end
 			body.Visible = false
+			local w = math.max(root.AbsoluteSize.X, 260)
+			window.Width = w
 			TweenEngine.Play(root, {
-				Size = UDim2.new(0, window.Width, 0, TITLE_H),
-			}, { Duration = 0.25, Easing = "QuadOut" })
+				Size = UDim2.new(0, w, 0, TITLE_H),
+			}, { Duration = 0.28, Easing = "QuadOut" })
 		else
 			body.Visible = true
+			local sc = window.Scale or sizeScale
 			TweenEngine.Play(root, {
-				Size = UDim2.new(0, window.Width, 0, window.Height),
-			}, { Duration = 0.3, Easing = "BackOut" })
+				Size = UDim2.fromScale(sc, sc),
+			}, {
+				Duration = 0.32,
+				Easing = "BackOut",
+				OnComplete = function()
+					if aspect then aspect.Enabled = true end
+					if sizeConstraint then sizeConstraint.Enabled = true end
+					window.Width = root.AbsoluteSize.X
+					window.Height = root.AbsoluteSize.Y
+				end,
+			})
 		end
 	end
 
