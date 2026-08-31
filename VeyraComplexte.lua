@@ -1150,6 +1150,8 @@ function NotificationManager:Notify(config)
 	frame.BorderSizePixel = 0
 	frame.Size = UDim2.new(0, NOTIF_WIDTH, 0, 0)
 	frame.AutomaticSize = Enum.AutomaticSize.Y
+	frame.AnchorPoint = Vector2.new(0, 1) -- bottom of frame is the anchor → stack upward
+	frame.Position = UDim2.new(0, 0, 1, 0)
 	frame.ClipsDescendants = true
 	frame.Parent = self.Container
 
@@ -1337,7 +1339,7 @@ function NotificationManager:Notify(config)
 	}
 
 	function notif:PlayEntry(targetPos)
-		frame.Position = UDim2.new(1, 40, 0, targetPos.Y.Offset)
+		frame.Position = UDim2.new(0, 40, 1, targetPos.Y.Offset)
 		frame.BackgroundTransparency = 1
 		TweenEngine.Play(frame, {
 			Position = targetPos,
@@ -1369,7 +1371,7 @@ function NotificationManager:Notify(config)
 		sep:PlayOut(0.2)
 		TweenEngine.CancelOnObject(bar)
 		TweenEngine.Play(frame, {
-			Position = UDim2.new(1, 60, 0, frame.Position.Y.Offset),
+			Position = UDim2.new(0, 60, 1, frame.Position.Y.Offset),
 			BackgroundTransparency = 1,
 		}, {
 			Duration = 0.32,
@@ -1430,41 +1432,42 @@ function NotificationManager:Notify(config)
 end
 
 function NotificationManager:GetPositionForIndex(index)
-	-- Bottom-right stack: index 1 is lowest, newer sit above it
-	local totalH = 0
-	local heights = {}
-	for i, n in ipairs(self.Notifications) do
+	-- Bottom-up stack: index 1 is lowest (newest). Offset grows upward.
+	-- When stack exceeds screen, older notifs sit higher (still stacked).
+	local y = 0
+	for i = 1, index - 1 do
+		local n = self.Notifications[i]
 		if n and n.Frame and not n.Closed then
-			local h = n.Frame.AbsoluteSize.Y > 0 and n.Frame.AbsoluteSize.Y or 80
-			heights[i] = h
-			totalH += h + self.Spacing
-		else
-			heights[i] = 0
+			local h = n.Frame.AbsoluteSize.Y
+			if h < 1 then h = 72 end
+			y = y + h + self.Spacing
 		end
 	end
-	if totalH > 0 then totalH -= self.Spacing end
-
-	local yAbove = 0
-	for i = 1, index - 1 do
-		yAbove += (heights[i] or 0) + self.Spacing
+	-- Clamp so top of stack never goes past top of container
+	local maxY = math.max(0, (self.Container.AbsoluteSize.Y > 0 and self.Container.AbsoluteSize.Y or 600) - 40)
+	if y > maxY then
+		-- Still return position; hard-cap drops oldest. Offset stays valid.
+		y = math.min(y, maxY + 200)
 	end
-	-- Anchor container bottom-right via position math on each frame
-	local frameH = heights[index] or 80
-	local bottomPad = 16
-	local y = (self.Container.AbsoluteSize.Y > 0 and self.Container.AbsoluteSize.Y or 600) - bottomPad - totalH + yAbove
-	return UDim2.new(0, 0, 0, math.max(0, y))
+	-- AnchorPoint (0,1) on frame → Position Y scale 1, offset -y stacks upward
+	return UDim2.new(0, 0, 1, -y)
 end
 
 function NotificationManager:RepositionAll(animate)
-	for i, notif in ipairs(self.Notifications) do
-		if notif.Closed then continue end
-		local target = self:GetPositionForIndex(i)
-		if animate then
-			TweenEngine.Play(notif.Frame, { Position = target }, { Duration = 0.35, Easing = "QuintOut" })
-		else
-			notif.Frame.Position = target
+	local function apply()
+		for i, notif in ipairs(self.Notifications) do
+			if notif.Closed then continue end
+			local target = self:GetPositionForIndex(i)
+			if animate then
+				TweenEngine.Play(notif.Frame, { Position = target }, { Duration = 0.3, Easing = "QuintOut" })
+			else
+				notif.Frame.Position = target
+			end
 		end
 	end
+	apply()
+	-- Second pass after layout settles (AbsoluteSize becomes real)
+	task.defer(apply)
 end
 
 function NotificationManager:Remove(notif)
@@ -1967,6 +1970,8 @@ local function CreateSlider(tab, config)
 		valueLabel.Text = tostring(math.floor(v * 100 + 0.5) / 100)
 	end
 
+	local changed = CreateSignal()
+
 	local function updateFromInput(pos)
 		local rel = math.clamp((pos.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
 		local raw = minv + rel * (maxv - minv)
@@ -1974,14 +1979,12 @@ local function CreateSlider(tab, config)
 		if newVal ~= value then
 			value = newVal
 			setVisual(newVal, false)
-			changed:Fire(newVal)
+			if changed then changed:Fire(newVal) end
 			if config.Callback then task.spawn(config.Callback, newVal) end
 		else
 			setVisual(newVal, false)
 		end
 	end
-
-	local changed = CreateSignal()
 
 	local hit = Instance.new("TextButton")
 	hit.BackgroundTransparency = 1
@@ -2198,28 +2201,46 @@ local function CreateDropdown(tab, config)
 	arrow.Text = "▼"
 	arrow.Parent = header
 
-	local list = Instance.new("Frame")
+	-- Overlay host: parent list to ScreenGui so ScrollingFrame never clips options
+	local overlayGui = nil
+	local function getOverlay()
+		local p = frame
+		while p and p.Parent do
+			if p:IsA("ScreenGui") then
+				overlayGui = p
+				break
+			end
+			p = p.Parent
+		end
+		return overlayGui
+	end
+
+	local list = Instance.new("ScrollingFrame")
 	list.Name = "List"
 	list.BackgroundColor3 = Theme.Tertiary
+	list.BackgroundTransparency = 0
 	list.BorderSizePixel = 0
-	list.Size = UDim2.new(1, 0, 0, 0)
-	list.Position = UDim2.new(0, 0, 0, closedHeight + listGap)
+	list.Size = UDim2.new(0, 0, 0, 0)
 	list.Visible = false
-	list.ZIndex = 3
-	list.Parent = frame
-
-	local lc = Instance.new("UICorner")
-	lc.CornerRadius = UDim.new(0, Theme.CornerRadius)
-	lc.Parent = list
+	list.ZIndex = 200
+	list.Active = true
+	list.ScrollingEnabled = true
+	list.ScrollBarThickness = 4
+	list.ScrollBarImageColor3 = Theme.Border
+	list.CanvasSize = UDim2.new(0, 0, 0, 0)
+	list.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	list.ClipsDescendants = true
+	list.Parent = frame -- moved to overlay on open
 
 	local ls = Instance.new("UIStroke")
 	ls.Color = Theme.Border
 	ls.Thickness = 1
-	ls.Transparency = 0.4
+	ls.Transparency = 0.25
 	ls.Parent = list
 
 	local ll = Instance.new("UIListLayout")
 	ll.SortOrder = Enum.SortOrder.LayoutOrder
+	ll.Padding = UDim.new(0, 0)
 	ll.Parent = list
 
 	local function getListHeight()
@@ -2236,47 +2257,26 @@ local function CreateDropdown(tab, config)
 		end
 		TweenEngine.CancelOnObject(list)
 		TweenEngine.CancelOnObject(frame)
-		if instant then
-			list.Size = UDim2.new(1, 0, 0, 0)
+		local function finishClose()
 			list.Visible = false
+			list.Size = UDim2.new(0, 0, 0, 0)
+			list.Parent = frame
 			frame.Size = UDim2.new(1, 0, 0, closedHeight)
-			frame.ClipsDescendants = true
 			frame.ZIndex = 1
-			list.ZIndex = 3
+			transitioning = false
+		end
+		if instant then
+			finishClose()
 		else
 			transitioning = true
-			TweenEngine.Play(list, { Size = UDim2.new(1, 0, 0, 0) }, {
-				Duration = 0.18, Easing = "QuadIn",
-			})
-			TweenEngine.Play(frame, { Size = UDim2.new(1, 0, 0, closedHeight) }, {
-				Duration = 0.2, Easing = "QuadIn",
+			TweenEngine.Play(list, { BackgroundTransparency = 1 }, {
+				Duration = 0.15, Easing = "QuadIn",
 				OnComplete = function()
-					if not destroyed then
-						list.Visible = false
-						frame.ClipsDescendants = true
-						frame.ZIndex = 1
-						list.ZIndex = 3
-						transitioning = false
-					end
+					if not destroyed then finishClose() end
 				end
 			})
 		end
 		arrow.Text = "▼"
-	end
-
-	local function bumpParentCanvas()
-		local p = frame.Parent
-		while p do
-			if p:IsA("ScrollingFrame") then
-				local lay = p:FindFirstChildOfClass("UIListLayout")
-				if lay then
-					local h = lay.AbsoluteContentSize.Y + 24
-					p.CanvasSize = UDim2.new(0, 0, 0, math.max(h, p.AbsoluteSize.Y))
-				end
-				break
-			end
-			p = p.Parent
-		end
 	end
 
 	local function openList()
@@ -2285,26 +2285,28 @@ local function CreateDropdown(tab, config)
 		transitioning = true
 		open = true
 		local height = math.max(getListHeight(), optionH)
-		local totalH = closedHeight + listGap + height
+		local host = getOverlay() or frame
+		local abs = frame.AbsolutePosition
+		local absSize = frame.AbsoluteSize
+		list.Parent = host
+		list.BackgroundTransparency = 0
+		list.BackgroundColor3 = Theme.Tertiary
 		list.Visible = true
-		list.Size = UDim2.new(1, 0, 0, 0)
-		list.ZIndex = 50
-		frame.ZIndex = 40
-		frame.ClipsDescendants = false
-		TweenEngine.CancelOnObject(list)
-		TweenEngine.CancelOnObject(frame)
-		TweenEngine.Play(frame, { Size = UDim2.new(1, 0, 0, totalH) }, {
-			Duration = 0.22, Easing = "QuadOut",
-		})
-		TweenEngine.Play(list, { Size = UDim2.new(1, 0, 0, height) }, {
-			Duration = 0.22, Easing = "QuadOut",
-			OnComplete = function()
-				transitioning = false
-				bumpParentCanvas()
+		list.ZIndex = 500
+		list.Size = UDim2.fromOffset(math.max(absSize.X, 120), height)
+		list.Position = UDim2.fromOffset(abs.X, abs.Y + absSize.Y + 2)
+		list.CanvasSize = UDim2.new(0, 0, 0, #options * optionH)
+		-- Ensure every option is visible
+		for _, child in ipairs(list:GetChildren()) do
+			if child:IsA("TextButton") then
+				child.Visible = true
+				child.ZIndex = 501
+				child.BackgroundTransparency = 0
+				child.TextTransparency = 0
 			end
-		})
+		end
 		arrow.Text = "▲"
-		task.defer(bumpParentCanvas)
+		transitioning = false
 
 		task.defer(function()
 			if destroyed or not open then return end
@@ -2313,10 +2315,13 @@ local function CreateDropdown(tab, config)
 					return
 				end
 				local pos = input.Position
-				local absPos = frame.AbsolutePosition
-				local absSize = frame.AbsoluteSize
-				if pos.X < absPos.X or pos.X > absPos.X + absSize.X or
-				   pos.Y < absPos.Y or pos.Y > absPos.Y + absSize.Y + 4 then
+				local lp = list.AbsolutePosition
+				local ls = list.AbsoluteSize
+				local fp = frame.AbsolutePosition
+				local fs = frame.AbsoluteSize
+				local inList = pos.X >= lp.X and pos.X <= lp.X + ls.X and pos.Y >= lp.Y and pos.Y <= lp.Y + ls.Y
+				local inHeader = pos.X >= fp.X and pos.X <= fp.X + fs.X and pos.Y >= fp.Y and pos.Y <= fp.Y + fs.Y
+				if not inList and not inHeader then
 					forceClose(false)
 				end
 			end)
@@ -2326,15 +2331,20 @@ local function CreateDropdown(tab, config)
 
 	for i, opt in ipairs(options) do
 		local btn = Instance.new("TextButton")
+		btn.Name = "Opt_" .. tostring(i)
 		btn.BackgroundColor3 = Theme.Tertiary
+		btn.BackgroundTransparency = 0
 		btn.BorderSizePixel = 0
 		btn.Size = UDim2.new(1, 0, 0, optionH)
 		btn.Font = Theme.Font
-		btn.TextSize = 12
+		btn.TextSize = 13
 		btn.TextColor3 = Theme.Text
+		btn.TextTransparency = 0
 		btn.Text = tostring(opt)
 		btn.TextXAlignment = Enum.TextXAlignment.Left
 		btn.AutoButtonColor = false
+		btn.Visible = true
+		btn.ZIndex = 501
 		btn.LayoutOrder = i
 		btn.Parent = list
 
@@ -2893,16 +2903,16 @@ end
 local function CreateWindow(library, config)
 	config = config or {}
 	local cleanup = CreateCleanup()
-	-- Near-square compact defaults
-	-- Original proportions: WIDER than tall (game / landscape) — NOT upright phone rectangle
-	local width  = config.Width  or 480
-	local height = config.Height or 380
+	-- Wider + shorter (flat game UI). Free resize on sides/bottom — no locked aspect.
+	local width  = config.Width  or 540
+	local height = config.Height or 300
 	if height > width then
-		height = math.floor(width * 0.8)
+		height = math.floor(width * 0.55)
 	end
 	local minimized = false
 	local tabs = {}
 	local activeTab = nil
+	local aspect = nil -- no aspect lock so side/bottom resize works independently
 
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "VeyraUI_" .. (config.Title or "Window")
@@ -2913,22 +2923,16 @@ local function CreateWindow(library, config)
 	root.Name = "Root"
 	root.BackgroundTransparency = 1
 	root.Size = UDim2.fromOffset(width, height)
-	root.Position = UDim2.fromScale(0.5, 0.5)
-	root.AnchorPoint = Vector2.new(0.5, 0.5)
+	-- Top-left anchor so right/bottom resize keeps top-left fixed
+	root.AnchorPoint = Vector2.new(0, 0)
+	root.Position = UDim2.new(0.5, -width / 2, 0.5, -height / 2)
 	root.ClipsDescendants = true
 	root.Parent = gui
 
 	local sizeConstraint = Instance.new("UISizeConstraint")
-	sizeConstraint.MinSize = Vector2.new(320, 240)
-	sizeConstraint.MaxSize = Vector2.new(720, 560)
+	sizeConstraint.MinSize = Vector2.new(360, 220)
+	sizeConstraint.MaxSize = Vector2.new(900, 560)
 	sizeConstraint.Parent = root
-
-	-- Landscape aspect so it stays flat-sided
-	local aspect = Instance.new("UIAspectRatioConstraint")
-	aspect.AspectRatio = width / math.max(height, 1)
-	aspect.AspectType = Enum.AspectType.FitWithinMaxSize
-	aspect.DominantAxis = Enum.DominantAxis.Width
-	aspect.Parent = root
 
 	local main = Instance.new("Frame")
 	main.Name = "Main"
@@ -3007,7 +3011,8 @@ local function CreateWindow(library, config)
 	closeBtn.TextSize = 15
 	closeBtn.TextColor3 = Theme.SecondaryText
 	closeBtn.Text = "×"
-	closeBtn.ZIndex = 4
+	closeBtn.ZIndex = 15
+	closeBtn.Active = true
 	closeBtn.Parent = titleBar
 
 	local minBtn = Instance.new("TextButton")
@@ -3018,7 +3023,8 @@ local function CreateWindow(library, config)
 	minBtn.TextSize = 14
 	minBtn.TextColor3 = Theme.SecondaryText
 	minBtn.Text = "−"
-	minBtn.ZIndex = 4
+	minBtn.ZIndex = 15
+	minBtn.Active = true
 	minBtn.Parent = titleBar
 
 	-- Body under title: sidebar + content
@@ -3135,66 +3141,69 @@ local function CreateWindow(library, config)
 		window:ToggleMinimize()
 	end))
 
-	-- Bottom-right resize handle (keeps square via aspect constraint)
-	local resizeGrip = Instance.new("TextButton")
-	resizeGrip.Name = "ResizeGrip"
-	resizeGrip.BackgroundTransparency = 1
-	resizeGrip.Text = ""
-	resizeGrip.Size = UDim2.new(0, 18, 0, 18)
-	resizeGrip.Position = UDim2.new(1, -18, 1, -18)
-	resizeGrip.ZIndex = 20
-	resizeGrip.AutoButtonColor = false
-	resizeGrip.Parent = main
-
-	local gripVisual = Instance.new("Frame")
-	gripVisual.BackgroundColor3 = Theme.Border
-	gripVisual.BackgroundTransparency = 0.35
-	gripVisual.BorderSizePixel = 0
-	gripVisual.Size = UDim2.new(0, 10, 0, 2)
-	gripVisual.Position = UDim2.new(1, -12, 1, -6)
-	gripVisual.Rotation = -45
-	gripVisual.ZIndex = 21
-	gripVisual.Parent = main
-	local grip2 = gripVisual:Clone()
-	grip2.Position = UDim2.new(1, -8, 1, -6)
-	grip2.Parent = main
-
-	do
-		local resizing = false
-		local startInput, startSize
-		local minS, maxS = 300, 520
-		cleanup:AddConnection(resizeGrip.InputBegan:Connect(function(input)
+	-- Resize: right edge (width), bottom edge (height), corner (both)
+	local function makeResizeHandle(name, size, pos, mode)
+		local btn = Instance.new("TextButton")
+		btn.Name = name
+		btn.BackgroundTransparency = 1
+		btn.Text = ""
+		btn.Size = size
+		btn.Position = pos
+		btn.ZIndex = 25
+		btn.AutoButtonColor = false
+		btn.Parent = main
+		cleanup:AddConnection(btn.InputBegan:Connect(function(input)
 			if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
 				return
 			end
 			if minimized then return end
-			resizing = true
-			startInput = input.Position
-			startSize = root.AbsoluteSize
+			local startInput = input.Position
+			local startSize = root.AbsoluteSize
 			local moveC, endC
 			moveC = UserInputService.InputChanged:Connect(function(inp)
-				if not resizing then return end
 				if inp.UserInputType ~= Enum.UserInputType.MouseMovement and inp.UserInputType ~= Enum.UserInputType.Touch then
 					return
 				end
 				local dx = inp.Position.X - startInput.X
-				local ratio = (window.Height > 0 and window.Width / window.Height) or (480/380)
-				local newW = math.clamp(startSize.X + dx, 320, 720)
-				local newH = math.floor(newW / ratio)
-				if newH > 560 then newH = 560; newW = math.floor(newH * ratio) end
+				local dy = inp.Position.Y - startInput.Y
+				local newW = startSize.X
+				local newH = startSize.Y
+				if mode == "right" or mode == "corner" then
+					newW = math.clamp(startSize.X + dx, 360, 900)
+				end
+				if mode == "bottom" or mode == "corner" then
+					newH = math.clamp(startSize.Y + dy, 220, 560)
+				end
 				root.Size = UDim2.fromOffset(newW, newH)
 				window.Width = newW
 				window.Height = newH
 			end)
 			endC = UserInputService.InputEnded:Connect(function(inp)
 				if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
-					resizing = false
 					if moveC then moveC:Disconnect() end
 					if endC then endC:Disconnect() end
 				end
 			end)
 		end))
+		return btn
 	end
+
+	makeResizeHandle("ResizeRight", UDim2.new(0, 8, 1, -16), UDim2.new(1, -8, 0, 8), "right")
+	makeResizeHandle("ResizeBottom", UDim2.new(1, -16, 0, 8), UDim2.new(0, 8, 1, -8), "bottom")
+	local resizeGrip = makeResizeHandle("ResizeGrip", UDim2.new(0, 16, 0, 16), UDim2.new(1, -16, 1, -16), "corner")
+
+	local gripVisual = Instance.new("Frame")
+	gripVisual.BackgroundColor3 = Theme.Border
+	gripVisual.BackgroundTransparency = 0.3
+	gripVisual.BorderSizePixel = 0
+	gripVisual.Size = UDim2.new(0, 10, 0, 2)
+	gripVisual.Position = UDim2.new(1, -12, 1, -6)
+	gripVisual.Rotation = -45
+	gripVisual.ZIndex = 26
+	gripVisual.Parent = main
+	local grip2 = gripVisual:Clone()
+	grip2.Position = UDim2.new(1, -8, 1, -6)
+	grip2.Parent = main
 
 	-- Open animation (original TweenEngine)
 	root.Size = UDim2.fromOffset(0, 0)
@@ -3323,33 +3332,42 @@ local function CreateWindow(library, config)
 	function window:ToggleMinimize()
 		minimized = not minimized
 		local grip = main:FindFirstChild("ResizeGrip")
+		local gripR = main:FindFirstChild("ResizeRight")
+		local gripB = main:FindFirstChild("ResizeBottom")
 		if minimized then
-			if aspect then aspect.Enabled = false end
-			if sizeConstraint then sizeConstraint.Enabled = false end
+			-- Snapshot current size
+			window.Width = math.max(root.AbsoluteSize.X, 360)
+			window.Height = math.max(root.AbsoluteSize.Y, 220)
+			if sizeConstraint then sizeConstraint.Parent = nil end
 			body.Visible = false
-			if sidebar then sidebar.Visible = false end
-			if contentContainer then contentContainer.Visible = false end
+			sidebar.Visible = false
+			contentContainer.Visible = false
 			if grip then grip.Visible = false end
+			if gripR then gripR.Visible = false end
+			if gripB then gripB.Visible = false end
 			TweenEngine.CancelOnObject(root)
 			TweenEngine.CancelOnObject(main)
 			TweenEngine.Play(root, {
 				Size = UDim2.new(0, window.Width, 0, 40),
 			}, { Duration = 0.3, Easing = "QuadOut" })
 		else
-			body.Visible = true
-			if sidebar then sidebar.Visible = true end
-			if contentContainer then contentContainer.Visible = true end
-			if grip then grip.Visible = true end
+			local w = window.Width
+			local h = window.Height
 			TweenEngine.CancelOnObject(root)
 			TweenEngine.CancelOnObject(main)
 			TweenEngine.Play(root, {
-				Size = UDim2.new(0, window.Width, 0, window.Height),
+				Size = UDim2.new(0, w, 0, h),
 			}, {
 				Duration = 0.35,
 				Easing = "BackOut",
 				OnComplete = function()
-					if aspect then aspect.Enabled = true end
-					if sizeConstraint then sizeConstraint.Enabled = true end
+					body.Visible = true
+					sidebar.Visible = true
+					contentContainer.Visible = true
+					if grip then grip.Visible = true end
+					if gripR then gripR.Visible = true end
+					if gripB then gripB.Visible = true end
+					if sizeConstraint and not sizeConstraint.Parent then sizeConstraint.Parent = root end
 				end,
 			})
 		end
