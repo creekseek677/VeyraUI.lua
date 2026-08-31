@@ -2240,6 +2240,9 @@ local function CreateDropdown(tab, config)
 			list.Size = UDim2.new(1, 0, 0, 0)
 			list.Visible = false
 			frame.Size = UDim2.new(1, 0, 0, closedHeight)
+			frame.ClipsDescendants = true
+			frame.ZIndex = 1
+			list.ZIndex = 3
 		else
 			transitioning = true
 			TweenEngine.Play(list, { Size = UDim2.new(1, 0, 0, 0) }, {
@@ -2250,6 +2253,9 @@ local function CreateDropdown(tab, config)
 				OnComplete = function()
 					if not destroyed then
 						list.Visible = false
+						frame.ClipsDescendants = true
+						frame.ZIndex = 1
+						list.ZIndex = 3
 						transitioning = false
 					end
 				end
@@ -2258,15 +2264,35 @@ local function CreateDropdown(tab, config)
 		arrow.Text = "▼"
 	end
 
+	local function bumpParentCanvas()
+		local p = frame.Parent
+		while p do
+			if p:IsA("ScrollingFrame") then
+				local lay = p:FindFirstChildOfClass("UIListLayout")
+				if lay then
+					local h = lay.AbsoluteContentSize.Y + 24
+					p.CanvasSize = UDim2.new(0, 0, 0, math.max(h, p.AbsoluteSize.Y))
+				end
+				break
+			end
+			p = p.Parent
+		end
+	end
+
 	local function openList()
 		if destroyed or transitioning or open then return end
+		if #options == 0 then return end
 		transitioning = true
 		open = true
-		local height = getListHeight()
+		local height = math.max(getListHeight(), optionH)
 		local totalH = closedHeight + listGap + height
 		list.Visible = true
 		list.Size = UDim2.new(1, 0, 0, 0)
-		-- Grow frame first so layout sinks content below, then expand list
+		list.ZIndex = 50
+		frame.ZIndex = 40
+		frame.ClipsDescendants = false
+		TweenEngine.CancelOnObject(list)
+		TweenEngine.CancelOnObject(frame)
 		TweenEngine.Play(frame, { Size = UDim2.new(1, 0, 0, totalH) }, {
 			Duration = 0.22, Easing = "QuadOut",
 		})
@@ -2274,9 +2300,11 @@ local function CreateDropdown(tab, config)
 			Duration = 0.22, Easing = "QuadOut",
 			OnComplete = function()
 				transitioning = false
+				bumpParentCanvas()
 			end
 		})
 		arrow.Text = "▲"
+		task.defer(bumpParentCanvas)
 
 		task.defer(function()
 			if destroyed or not open then return end
@@ -2765,7 +2793,7 @@ local function CreateTab(window, config)
 
 	-- Padding so long text never overlaps the left indicator
 	local btnPad = Instance.new("UIPadding")
-	btnPad.PaddingLeft = UDim.new(0, 12)
+	btnPad.PaddingLeft = UDim.new(0, 14)
 	btnPad.PaddingRight = UDim.new(0, 4)
 	btnPad.Parent = tabBtn
 
@@ -2775,7 +2803,7 @@ local function CreateTab(window, config)
 	indicator.BackgroundColor3 = Theme.Accent
 	indicator.BorderSizePixel = 0
 	indicator.Size = UDim2.new(0, 2, 0.6, 0)
-	indicator.Position = UDim2.new(0, 0, 0.2, 0)
+	indicator.Position = UDim2.new(0, -2, 0.15, 0)
 	indicator.Visible = false
 	indicator.ZIndex = 2
 	indicator.Parent = tabBtn
@@ -2866,11 +2894,11 @@ local function CreateWindow(library, config)
 	config = config or {}
 	local cleanup = CreateCleanup()
 	-- Near-square compact defaults
-	-- 380x380 base (equal sides). UIAspectRatioConstraint keeps it square on every device.
-	-- DevForum: AspectRatio=1 + equal Size — DominantAxis Width so height always follows width.
-	local side = config.Width or config.Height or 380
-	if config.Width and config.Height then
-		side = math.min(config.Width, config.Height) -- never allow taller-than-wide
+	-- Original proportions: WIDER than tall (game / landscape) — NOT upright phone rectangle
+	local width  = config.Width  or 480
+	local height = config.Height or 380
+	if height > width then
+		height = math.floor(width * 0.8)
 	end
 	local minimized = false
 	local tabs = {}
@@ -2884,22 +2912,22 @@ local function CreateWindow(library, config)
 	local root = Instance.new("Frame")
 	root.Name = "Root"
 	root.BackgroundTransparency = 1
-	root.Size = UDim2.fromOffset(side, side) -- equal X and Y
+	root.Size = UDim2.fromOffset(width, height)
 	root.Position = UDim2.fromScale(0.5, 0.5)
 	root.AnchorPoint = Vector2.new(0.5, 0.5)
 	root.ClipsDescendants = true
 	root.Parent = gui
 
 	local sizeConstraint = Instance.new("UISizeConstraint")
-	sizeConstraint.MinSize = Vector2.new(260, 260)
-	sizeConstraint.MaxSize = Vector2.new(560, 560)
+	sizeConstraint.MinSize = Vector2.new(320, 240)
+	sizeConstraint.MaxSize = Vector2.new(720, 560)
 	sizeConstraint.Parent = root
 
-	-- Perfect square (DevForum method)
+	-- Landscape aspect so it stays flat-sided
 	local aspect = Instance.new("UIAspectRatioConstraint")
-	aspect.AspectRatio = 1 -- width/height = 1
+	aspect.AspectRatio = width / math.max(height, 1)
 	aspect.AspectType = Enum.AspectType.FitWithinMaxSize
-	aspect.DominantAxis = Enum.DominantAxis.Width -- HEIGHT is derived from WIDTH (stops upward rectangle)
+	aspect.DominantAxis = Enum.DominantAxis.Width
 	aspect.Parent = root
 
 	local main = Instance.new("Frame")
@@ -3079,8 +3107,8 @@ local function CreateWindow(library, config)
 		ContentContainer = contentContainer,
 		SearchBox = searchBox,
 		Tabs = tabs,
-		Width = side,
-		Height = side,
+		Width = width,
+		Height = height,
 		Aspect = aspect,
 		Cleanup = cleanup,
 		Actions = {},
@@ -3150,12 +3178,13 @@ local function CreateWindow(library, config)
 					return
 				end
 				local dx = inp.Position.X - startInput.X
-				local dy = inp.Position.Y - startInput.Y
-				local delta = math.max(dx, dy)
-				local s = math.clamp(startSize.X + delta, minS, maxS)
-				root.Size = UDim2.fromOffset(s, s) -- always equal = square
-				window.Width = s
-				window.Height = s
+				local ratio = (window.Height > 0 and window.Width / window.Height) or (480/380)
+				local newW = math.clamp(startSize.X + dx, 320, 720)
+				local newH = math.floor(newW / ratio)
+				if newH > 560 then newH = 560; newW = math.floor(newH * ratio) end
+				root.Size = UDim2.fromOffset(newW, newH)
+				window.Width = newW
+				window.Height = newH
 			end)
 			endC = UserInputService.InputEnded:Connect(function(inp)
 				if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
@@ -3167,17 +3196,13 @@ local function CreateWindow(library, config)
 		end))
 	end
 
-	-- Open animation
+	-- Open animation (original TweenEngine)
 	root.Size = UDim2.fromOffset(0, 0)
 	main.BackgroundTransparency = 1
 	TweenEngine.Play(root, {
-		Size = UDim2.fromOffset(side, side),
+		Size = UDim2.fromOffset(width, height),
 	}, { Duration = 0.4, Easing = "BackOut" })
 	TweenEngine.Play(main, { BackgroundTransparency = 0.02 }, { Duration = 0.32, Easing = "QuadOut" })
-	task.defer(function()
-		window.Width = root.AbsoluteSize.X
-		window.Height = root.AbsoluteSize.Y
-	end)
 
 	cleanup:AddInstance(gui)
 
@@ -3294,73 +3319,58 @@ local function CreateWindow(library, config)
 		refreshWindowTheme()
 	end
 
-	-- REAL minimize: only title bar remains
+	-- Exact original TweenEngine minimize / close
 	function window:ToggleMinimize()
 		minimized = not minimized
 		local grip = main:FindFirstChild("ResizeGrip")
-		local gripV = main:FindFirstChild("Frame") -- visual lines may vary
 		if minimized then
-			-- AspectRatio=1 blocks height collapse — must disable first
 			if aspect then aspect.Enabled = false end
 			if sizeConstraint then sizeConstraint.Enabled = false end
-
-			-- Hide everything below the title bar immediately
 			body.Visible = false
+			if sidebar then sidebar.Visible = false end
+			if contentContainer then contentContainer.Visible = false end
 			if grip then grip.Visible = false end
-			for _, ch in ipairs(main:GetChildren()) do
-				if ch.Name == "ResizeGrip" or ch.Name:find("Grip") then
-					ch.Visible = false
-				end
-			end
-
-			local w = math.max(root.AbsoluteSize.X, 260)
-			window.Width = w
-			window.Height = root.AbsoluteSize.Y
-
-			-- Collapse root to title-bar height only (no leftover body frame)
-			root.ClipsDescendants = true
-			main.ClipsDescendants = true
 			TweenEngine.CancelOnObject(root)
+			TweenEngine.CancelOnObject(main)
 			TweenEngine.Play(root, {
-				Size = UDim2.new(0, w, 0, TITLE_H),
-			}, { Duration = 0.28, Easing = "QuadOut" })
+				Size = UDim2.new(0, window.Width, 0, 40),
+			}, { Duration = 0.3, Easing = "QuadOut" })
 		else
-			-- Expand back to square (equal sides)
-			local s = window.Width or side
+			body.Visible = true
+			if sidebar then sidebar.Visible = true end
+			if contentContainer then contentContainer.Visible = true end
+			if grip then grip.Visible = true end
 			TweenEngine.CancelOnObject(root)
+			TweenEngine.CancelOnObject(main)
 			TweenEngine.Play(root, {
-				Size = UDim2.fromOffset(s, s),
+				Size = UDim2.new(0, window.Width, 0, window.Height),
 			}, {
-				Duration = 0.32,
+				Duration = 0.35,
 				Easing = "BackOut",
 				OnComplete = function()
-					body.Visible = true
-					if grip then grip.Visible = true end
-					for _, ch in ipairs(main:GetChildren()) do
-						if ch.Name == "ResizeGrip" or ch.Name:find("Grip") then
-							ch.Visible = true
-						end
-					end
 					if aspect then aspect.Enabled = true end
 					if sizeConstraint then sizeConstraint.Enabled = true end
-					window.Width = root.AbsoluteSize.X
-					window.Height = root.AbsoluteSize.Y
 				end,
 			})
 		end
 	end
 
 	function window:Close()
+		TweenEngine.CancelOnObject(root)
+		TweenEngine.CancelOnObject(main)
 		TweenEngine.Play(root, {
 			Size = UDim2.new(0, 0, 0, 0),
 		}, {
-			Duration = 0.28,
+			Duration = 0.3,
 			Easing = "QuadIn",
 			OnComplete = function()
 				window:Destroy()
 			end,
 		})
-		TweenEngine.Play(main, { BackgroundTransparency = 1 }, { Duration = 0.22, Easing = "QuadIn" })
+		TweenEngine.Play(main, {
+			Size = UDim2.new(0, 0, 0, 0),
+			BackgroundTransparency = 1,
+		}, { Duration = 0.3, Easing = "QuadIn" })
 	end
 
 	function window:Destroy()
