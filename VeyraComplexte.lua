@@ -5,7 +5,7 @@
 	Notification redesign (merged):
 	- Sharp corners (no UICorner)
 	- Header bar
-	- Soft black â†’ soft white gradient (left â†’ right)
+	- Soft black → soft white gradient (left → right)
 	- Top-right stacking (BocusLuke-inspired)
 	- Type accent strip + progress bar
 	- Typewriter, audio, icon, hard cap, Duration=0 manual close
@@ -1105,7 +1105,7 @@ end
 
 ----------------------------------------------------------------
 -- NOTIFICATION SYSTEM (Merged: Veyra hardened + improved UI)
--- Header bar, large rounded corners, black â†’ soft-white gradient
+-- Header bar, large rounded corners, black → soft-white gradient
 ----------------------------------------------------------------
 local NotificationManager = {}
 NotificationManager.__index = NotificationManager
@@ -1165,7 +1165,7 @@ function NotificationManager:Notify(config)
 	local cleanup = CreateCleanup()
 	local closed = false
 
-	-- Main frame â€” sharp corners + soft blackâ†’white gradient
+	-- Main frame — sharp corners + soft black→white gradient
 	local frame = Instance.new("Frame")
 	frame.Name = "Notification"
 	frame.BackgroundColor3 = Color3.fromRGB(18, 18, 20)
@@ -1177,7 +1177,7 @@ function NotificationManager:Notify(config)
 	frame.ClipsDescendants = true
 	frame.Parent = self.Container
 
-	-- Black â†’ soft white gradient (left to right)
+	-- Black → soft white gradient (left to right)
 	local gradient = Instance.new("UIGradient")
 	gradient.Color = ColorSequence.new({
 		ColorSequenceKeypoint.new(0.00, Color3.fromRGB(12, 12, 14)),
@@ -2191,7 +2191,7 @@ local function CreateDropdown(tab, config)
 	arrow.Font = Enum.Font.GothamBold
 	arrow.TextSize = 12
 	arrow.TextColor3 = Theme.SecondaryText
-	arrow.Text = "â–¼"
+	arrow.Text = "▼"
 	arrow.Parent = header
 
 	local list = Instance.new("Frame")
@@ -2251,7 +2251,7 @@ local function CreateDropdown(tab, config)
 				end
 			})
 		end
-		arrow.Text = "â–¼"
+		arrow.Text = "▼"
 	end
 
 	local function openList()
@@ -2272,7 +2272,7 @@ local function CreateDropdown(tab, config)
 				transitioning = false
 			end
 		})
-		arrow.Text = "â–²"
+		arrow.Text = "▲"
 
 		task.defer(function()
 			if destroyed or not open then return end
@@ -3128,7 +3128,7 @@ local function CreateWindow(library, config)
 	closeBtn.Font = Enum.Font.GothamBold
 	closeBtn.TextSize = 16
 	closeBtn.TextColor3 = Theme.SecondaryText
-	closeBtn.Text = "Ã—"
+	closeBtn.Text = "×"
 	closeBtn.Parent = titleBar
 
 	local minBtn = Instance.new("TextButton")
@@ -3138,7 +3138,7 @@ local function CreateWindow(library, config)
 	minBtn.Font = Enum.Font.GothamBold
 	minBtn.TextSize = 14
 	minBtn.TextColor3 = Theme.SecondaryText
-	minBtn.Text = "âˆ’"
+	minBtn.Text = "−"
 	minBtn.Parent = titleBar
 
 	local tabBar = Instance.new("Frame")
@@ -3181,7 +3181,7 @@ local function CreateWindow(library, config)
 	resizeHandleIcon.Font = Enum.Font.GothamBold
 	resizeHandleIcon.TextSize = 12
 	resizeHandleIcon.TextColor3 = Theme.Text
-	resizeHandleIcon.Text = "âŒ„âŒ„"
+	resizeHandleIcon.Text = "⌄⌄"
 	resizeHandleIcon.TextScaled = true
 	resizeHandleIcon.Parent = resizeHandle
 
@@ -3395,7 +3395,7 @@ end
 -- Alurt-style alias
 function Library:CreateNode(config)
 	config = config or {}
-	-- Map Alurt names â†’ Veyra
+	-- Map Alurt names → Veyra
 	if config.Content and not config.Description then
 		config.Description = config.Content
 	end
