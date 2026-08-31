@@ -1107,12 +1107,15 @@ function NotificationManager.new()
 	local container = Instance.new("Frame")
 	container.Name = "Container"
 	container.BackgroundTransparency = 1
-	container.Size = UDim2.new(0, 360, 1, -40)
-	container.Position = UDim2.new(1, -380, 0, 20) -- top-right stack (BocusLuke-style)
+	container.Size = UDim2.new(0, 360, 1, -24)
+	container.Position = UDim2.new(1, -16, 1, -12)
+	container.AnchorPoint = Vector2.new(1, 1)
 	container.Parent = gui
 
+	-- Stack from bottom-right
 	self.Gui = gui
 	self.Container = container
+	self.Draggable = true -- default; Library.NotifDraggable = false to disable
 	return self
 end
 
@@ -1149,6 +1152,19 @@ function NotificationManager:Notify(config)
 	frame.AutomaticSize = Enum.AutomaticSize.Y
 	frame.ClipsDescendants = true
 	frame.Parent = self.Container
+
+	-- Optional drag (default on; config.Draggable=false or Library.NotifDraggable=false)
+	do
+		local canDrag = true
+		if config.Draggable == false then canDrag = false end
+		if self.Draggable == false then canDrag = false end
+		if canDrag then
+			local dragApi = MakeDraggable(frame, frame)
+			cleanup:AddCallback(function()
+				if dragApi and dragApi.Destroy then dragApi:Destroy() end
+			end)
+		end
+	end
 
 	-- Black → soft white gradient (left to right)
 	local gradient = Instance.new("UIGradient")
@@ -1414,14 +1430,29 @@ function NotificationManager:Notify(config)
 end
 
 function NotificationManager:GetPositionForIndex(index)
-	local y = 0
-	for i = 1, index - 1 do
-		local n = self.Notifications[i]
+	-- Bottom-right stack: index 1 is lowest, newer sit above it
+	local totalH = 0
+	local heights = {}
+	for i, n in ipairs(self.Notifications) do
 		if n and n.Frame and not n.Closed then
-			y += (n.Frame.AbsoluteSize.Y > 0 and n.Frame.AbsoluteSize.Y or 80) + self.Spacing
+			local h = n.Frame.AbsoluteSize.Y > 0 and n.Frame.AbsoluteSize.Y or 80
+			heights[i] = h
+			totalH += h + self.Spacing
+		else
+			heights[i] = 0
 		end
 	end
-	return UDim2.new(0, 0, 0, y)
+	if totalH > 0 then totalH -= self.Spacing end
+
+	local yAbove = 0
+	for i = 1, index - 1 do
+		yAbove += (heights[i] or 0) + self.Spacing
+	end
+	-- Anchor container bottom-right via position math on each frame
+	local frameH = heights[index] or 80
+	local bottomPad = 16
+	local y = (self.Container.AbsoluteSize.Y > 0 and self.Container.AbsoluteSize.Y or 600) - bottomPad - totalH + yAbove
+	return UDim2.new(0, 0, 0, math.max(0, y))
 end
 
 function NotificationManager:RepositionAll(animate)
@@ -2665,22 +2696,19 @@ end
 ----------------------------------------------------------------
 -- TAB
 ----------------------------------------------------------------
+local SIDEBAR_W = 104
+local TITLE_H = 40
+
 local function CreateTab(window, config)
 	config = config or {}
 	local cleanup = CreateCleanup()
 	local name = config.Name or "Tab"
 
-	-- The tab is intentionally a bounded ScrollingFrame.
-	-- Keep the window height fixed; only the content canvas grows.
-	-- Active=true is important on touch devices so finger swipes are
-	-- captured by the ScrollingFrame instead of being ignored.
 	local content = Instance.new("ScrollingFrame")
 	content.Name = "TabContent_" .. name
 	content.BackgroundTransparency = 1
 	content.BorderSizePixel = 0
 	content.Size = UDim2.new(1, 0, 1, 0)
-
-	-- Native scrolling works on both mouse-wheel (PC) and touch (mobile).
 	content.Active = true
 	content.ScrollingEnabled = true
 	content.ScrollingDirection = Enum.ScrollingDirection.Y
@@ -2689,59 +2717,70 @@ local function CreateTab(window, config)
 	content.CanvasPosition = Vector2.new(0, 0)
 	content.CanvasSize = UDim2.new(0, 0, 0, 0)
 	content.AutomaticCanvasSize = Enum.AutomaticSize.None
-	content.ScrollBarThickness = UserInputService.TouchEnabled and 6 or 4
+	content.ScrollBarThickness = UserInputService.TouchEnabled and 5 or 3
 	content.ScrollBarImageColor3 = Theme.Border
-	content.ScrollBarImageTransparency = 0.15
+	content.ScrollBarImageTransparency = 0.2
 	content.Visible = false
 	content.Parent = window.ContentContainer
 
 	local padding = Instance.new("UIPadding")
-	padding.PaddingTop = UDim.new(0, 12)
-	padding.PaddingBottom = UDim.new(0, 12)
-	padding.PaddingLeft = UDim.new(0, 14)
-	padding.PaddingRight = UDim.new(0, 14)
+	padding.PaddingTop = UDim.new(0, 10)
+	padding.PaddingBottom = UDim.new(0, 10)
+	padding.PaddingLeft = UDim.new(0, 12)
+	padding.PaddingRight = UDim.new(0, 12)
 	padding.Parent = content
 
 	local layout = Instance.new("UIListLayout")
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Padding = UDim.new(0, 10)
+	layout.Padding = UDim.new(0, 8)
 	layout.Parent = content
 
-	-- Do not rely on AutomaticCanvasSize here. Explicitly track the list's
-	-- real height so dynamically expanding components (especially dropdowns)
-	-- always increase the scrollable area on mobile and PC.
-	local TOP_BOTTOM_PADDING = 24
+	local TOP_BOTTOM = 20
 	local function updateCanvasSize()
 		if content.Parent == nil then return end
-
-		local contentHeight = layout.AbsoluteContentSize.Y + TOP_BOTTOM_PADDING
-		local viewportHeight = content.AbsoluteSize.Y
-
-		-- Always keep enough canvas for the actual content, while allowing
-		-- ScrollPosition to remain valid when the viewport changes.
-		content.CanvasSize = UDim2.new(0, 0, 0, math.max(contentHeight, viewportHeight))
+		local h = layout.AbsoluteContentSize.Y + TOP_BOTTOM
+		local vh = content.AbsoluteSize.Y
+		content.CanvasSize = UDim2.new(0, 0, 0, math.max(h, vh))
 	end
-
 	cleanup:AddConnection(layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvasSize))
 	cleanup:AddConnection(content:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateCanvasSize))
 	task.defer(updateCanvasSize)
 
+	-- Sidebar tab button (vertical list)
 	local tabBtn = Instance.new("TextButton")
 	tabBtn.Name = "TabBtn_" .. name
 	tabBtn.BackgroundColor3 = Theme.Secondary
 	tabBtn.BackgroundTransparency = 1
 	tabBtn.BorderSizePixel = 0
-	tabBtn.Size = UDim2.new(0, 90, 0, 28)
+	tabBtn.Size = UDim2.new(1, -10, 0, 28)
 	tabBtn.Font = Theme.Font
 	tabBtn.TextSize = 12
 	tabBtn.TextColor3 = Theme.SecondaryText
 	tabBtn.Text = name
+	tabBtn.TextXAlignment = Enum.TextXAlignment.Left
 	tabBtn.AutoButtonColor = false
 	tabBtn.Parent = window.TabBar
 
+	local btnPad = Instance.new("UIPadding")
+	btnPad.PaddingLeft = UDim.new(0, 10)
+	btnPad.Parent = tabBtn
+
 	local btnCorner = Instance.new("UICorner")
-	btnCorner.CornerRadius = UDim.new(0, 4)
+	btnCorner.CornerRadius = UDim.new(0, 5)
 	btnCorner.Parent = tabBtn
+
+	-- Active indicator strip on left of button
+	local indicator = Instance.new("Frame")
+	indicator.Name = "Indicator"
+	indicator.BackgroundColor3 = Theme.Accent
+	indicator.BorderSizePixel = 0
+	indicator.Size = UDim2.new(0, 2, 0.55, 0)
+	indicator.Position = UDim2.new(0, 2, 0.225, 0)
+	indicator.Visible = false
+	indicator.Parent = tabBtn
+	local ic = Instance.new("UICorner")
+	ic.CornerRadius = UDim.new(1, 0)
+	ic.Parent = indicator
 
 	cleanup:AddInstance(content)
 	cleanup:AddInstance(tabBtn)
@@ -2750,6 +2789,7 @@ local function CreateTab(window, config)
 		Name = name,
 		Content = content,
 		Button = tabBtn,
+		Indicator = indicator,
 		Sections = {},
 		Components = {},
 		Cleanup = cleanup,
@@ -2763,13 +2803,15 @@ local function CreateTab(window, config)
 	function tab:SetActive(active)
 		if active then
 			content.Visible = true
-			tabBtn.BackgroundTransparency = 0.3
+			tabBtn.BackgroundTransparency = 0.35
 			tabBtn.BackgroundColor3 = Theme.Secondary
 			tabBtn.TextColor3 = Theme.Text
+			indicator.Visible = true
 		else
 			content.Visible = false
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.SecondaryText
+			indicator.Visible = false
 		end
 	end
 
@@ -2778,12 +2820,15 @@ local function CreateTab(window, config)
 		content.ScrollBarImageColor3 = Theme.Border
 		tabBtn.BackgroundColor3 = Theme.Secondary
 		tabBtn.Font = Theme.Font
+		indicator.BackgroundColor3 = Theme.Accent
 		if content.Visible then
-			tabBtn.BackgroundTransparency = 0.3
+			tabBtn.BackgroundTransparency = 0.35
 			tabBtn.TextColor3 = Theme.Text
+			indicator.Visible = true
 		else
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.SecondaryText
+			indicator.Visible = false
 		end
 		for _, s in ipairs(tab.Sections) do
 			if s.RefreshTheme then s:RefreshTheme() end
@@ -2801,7 +2846,7 @@ local function CreateTab(window, config)
 	function tab:CreateDropdown(c) return CreateDropdown(tab, c) end
 	function tab:CreateTextbox(c) return CreateTextbox(tab, c) end
 	function tab:CreateKeybind(c) return CreateKeybind(tab, c) end
-	function tab:CreateDivider(c) return CreateDivider(tab) end
+	function tab:CreateDivider() return CreateDivider(tab) end
 
 	function tab:Destroy()
 		for _, c in ipairs(tab.Components) do
@@ -2817,86 +2862,89 @@ local function CreateTab(window, config)
 end
 
 ----------------------------------------------------------------
--- WINDOW
+-- WINDOW (sidebar layout — matches expected design)
 ----------------------------------------------------------------
 local function CreateWindow(library, config)
 	config = config or {}
 	local cleanup = CreateCleanup()
-	local width = config.Width or 360
-	local height = config.Height or 360
+	-- Near-square compact defaults
+	local width  = config.Width or 380
+	local height = config.Height or width  -- square: height matches width unless overridden
 	local minimized = false
 	local tabs = {}
 	local activeTab = nil
 
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "VeyraUI_" .. (config.Title or "Window")
-	gui.ResetOnSpawn = false
-	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	gui.DisplayOrder = 50
 	ProtectAndParent(gui)
 
-	-- Root holds main + thin right outline accent
 	local root = Instance.new("Frame")
 	root.Name = "Root"
 	root.BackgroundTransparency = 1
-	root.Size = UDim2.new(0, width + 4, 0, height)
-	root.Position = UDim2.new(0.5, -(width + 4) / 2, 0.5, -height / 2)
+	root.Size = UDim2.new(0, width, 0, height)
+	root.Position = UDim2.new(0.5, -width / 2, 0.5, -height / 2)
+	root.ClipsDescendants = true
 	root.Parent = gui
 
 	local sizeConstraint = Instance.new("UISizeConstraint")
-	sizeConstraint.MinSize = Vector2.new(260, 260)
+	sizeConstraint.MinSize = Vector2.new(300, 300)
 	sizeConstraint.MaxSize = Vector2.new(520, 520)
 	sizeConstraint.Parent = root
+
+	-- Perfect square on all devices (DevForum: UIAspectRatioConstraint AspectRatio = 1)
+	local aspect = Instance.new("UIAspectRatioConstraint")
+	aspect.AspectRatio = 1
+	aspect.AspectType = Enum.AspectType.FitWithinMaxSize
+	aspect.DominantAxis = Enum.DominantAxis.Width
+	aspect.Parent = root
 
 	local main = Instance.new("Frame")
 	main.Name = "Main"
 	main.BackgroundColor3 = Theme.Background
-	main.BackgroundTransparency = 0.05
+	main.BackgroundTransparency = 0.02
 	main.BorderSizePixel = 0
-	main.Size = UDim2.new(0, width, 0, height)
-	main.Position = UDim2.new(0, 0, 0, 0)
+	main.Size = UDim2.new(1, 0, 1, 0)
 	main.Parent = root
 
-	-- Thin white right-side outline accent (aligned, short width)
-	local outline = Instance.new("Frame")
-	outline.Name = "OutlineAccent"
-	outline.BackgroundColor3 = Theme.OutlineAccent or Color3.fromRGB(255, 255, 255)
-	outline.BackgroundTransparency = 0.12
-	outline.BorderSizePixel = 0
-	outline.Size = UDim2.new(0, 3, 1, 0)
-	outline.Position = UDim2.new(1, 1, 0, 0)
-	outline.Parent = root
-
-	local outlineCorner = Instance.new("UICorner")
-	outlineCorner.CornerRadius = UDim.new(0, 2)
-	outlineCorner.Parent = outline
-
 	local mainCorner = Instance.new("UICorner")
-	mainCorner.CornerRadius = UDim.new(0, 8)
+	mainCorner.CornerRadius = UDim.new(0, 10)
 	mainCorner.Parent = main
 
 	local mainStroke = Instance.new("UIStroke")
 	mainStroke.Color = Theme.Border
 	mainStroke.Thickness = 1
-	mainStroke.Transparency = 0.4
+	mainStroke.Transparency = 0.45
 	mainStroke.Parent = main
 
-	-- Title bar
+	-- Left-edge white accent line (matches reference)
+	local outline = Instance.new("Frame")
+	outline.Name = "OutlineAccent"
+	outline.BackgroundColor3 = Theme.OutlineAccent or Color3.fromRGB(255, 255, 255)
+	outline.BackgroundTransparency = 0.05
+	outline.BorderSizePixel = 0
+	outline.Size = UDim2.new(0, 2, 1, 0)
+	outline.Position = UDim2.new(0, 0, 0, 0)
+	outline.ZIndex = 5
+	outline.Parent = main
+
+	-- Title bar (full width)
 	local titleBar = Instance.new("Frame")
 	titleBar.Name = "TitleBar"
 	titleBar.BackgroundColor3 = Theme.Secondary
-	titleBar.BackgroundTransparency = 0.2
+	titleBar.BackgroundTransparency = 0.15
 	titleBar.BorderSizePixel = 0
-	titleBar.Size = UDim2.new(1, 0, 0, 40)
+	titleBar.Size = UDim2.new(1, 0, 0, TITLE_H)
+	titleBar.ZIndex = 3
 	titleBar.Parent = main
 
 	local titleCorner = Instance.new("UICorner")
-	titleCorner.CornerRadius = UDim.new(0, 8)
+	titleCorner.CornerRadius = UDim.new(0, 10)
 	titleCorner.Parent = titleBar
 
 	local titleFix = Instance.new("Frame")
 	titleFix.BackgroundColor3 = Theme.Secondary
-	titleFix.BackgroundTransparency = 0.2
+	titleFix.BackgroundTransparency = 0.15
 	titleFix.BorderSizePixel = 0
 	titleFix.Size = UDim2.new(1, 0, 0, 12)
 	titleFix.Position = UDim2.new(0, 0, 1, -12)
@@ -2904,10 +2952,10 @@ local function CreateWindow(library, config)
 
 	local titleLabel = Instance.new("TextLabel")
 	titleLabel.BackgroundTransparency = 1
-	titleLabel.Size = UDim2.new(1, -80, 0, 18)
-	titleLabel.Position = UDim2.new(0, 14, 0, 6)
+	titleLabel.Size = UDim2.new(1, -90, 0, 16)
+	titleLabel.Position = UDim2.new(0, 14, 0, 5)
 	titleLabel.Font = Theme.FontBold
-	titleLabel.TextSize = 14
+	titleLabel.TextSize = 13
 	titleLabel.TextColor3 = Theme.Text
 	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 	titleLabel.Text = config.Title or "Veyra"
@@ -2915,10 +2963,10 @@ local function CreateWindow(library, config)
 
 	local subtitle = Instance.new("TextLabel")
 	subtitle.BackgroundTransparency = 1
-	subtitle.Size = UDim2.new(1, -80, 0, 14)
-	subtitle.Position = UDim2.new(0, 14, 0, 22)
+	subtitle.Size = UDim2.new(1, -90, 0, 12)
+	subtitle.Position = UDim2.new(0, 14, 0, 21)
 	subtitle.Font = Theme.Font
-	subtitle.TextSize = 11
+	subtitle.TextSize = 10
 	subtitle.TextColor3 = Theme.SecondaryText
 	subtitle.TextXAlignment = Enum.TextXAlignment.Left
 	subtitle.Text = config.Subtitle or ""
@@ -2927,57 +2975,100 @@ local function CreateWindow(library, config)
 	local closeBtn = Instance.new("TextButton")
 	closeBtn.BackgroundTransparency = 1
 	closeBtn.Size = UDim2.new(0, 28, 0, 28)
-	closeBtn.Position = UDim2.new(1, -34, 0.5, -14)
+	closeBtn.Position = UDim2.new(1, -32, 0.5, -14)
 	closeBtn.Font = Enum.Font.GothamBold
-	closeBtn.TextSize = 16
+	closeBtn.TextSize = 15
 	closeBtn.TextColor3 = Theme.SecondaryText
 	closeBtn.Text = "×"
+	closeBtn.ZIndex = 4
 	closeBtn.Parent = titleBar
 
 	local minBtn = Instance.new("TextButton")
 	minBtn.BackgroundTransparency = 1
 	minBtn.Size = UDim2.new(0, 28, 0, 28)
-	minBtn.Position = UDim2.new(1, -62, 0.5, -14)
+	minBtn.Position = UDim2.new(1, -58, 0.5, -14)
 	minBtn.Font = Enum.Font.GothamBold
 	minBtn.TextSize = 14
 	minBtn.TextColor3 = Theme.SecondaryText
 	minBtn.Text = "−"
+	minBtn.ZIndex = 4
 	minBtn.Parent = titleBar
 
-	local tabBarHolder = Instance.new("Frame")
-	tabBarHolder.Name = "TabBarHolder"
-	tabBarHolder.BackgroundTransparency = 1
-	tabBarHolder.Size = UDim2.new(1, -16, 0, 28)
-	tabBarHolder.Position = UDim2.new(0, 8, 0, 40)
-	tabBarHolder.Parent = main
+	-- Body under title: sidebar + content
+	local body = Instance.new("Frame")
+	body.Name = "Body"
+	body.BackgroundTransparency = 1
+	body.Size = UDim2.new(1, 0, 1, -TITLE_H)
+	body.Position = UDim2.new(0, 0, 0, TITLE_H)
+	body.ClipsDescendants = true
+	body.Parent = main
 
+	-- Left sidebar
+	local sidebar = Instance.new("Frame")
+	sidebar.Name = "Sidebar"
+	sidebar.BackgroundColor3 = Theme.Secondary
+	sidebar.BackgroundTransparency = 0.35
+	sidebar.BorderSizePixel = 0
+	sidebar.Size = UDim2.new(0, SIDEBAR_W, 1, 0)
+	sidebar.Parent = body
+
+	local searchBox = Instance.new("TextBox")
+	searchBox.Name = "Search"
+	searchBox.BackgroundColor3 = Theme.Tertiary
+	searchBox.BackgroundTransparency = 0.2
+	searchBox.BorderSizePixel = 0
+	searchBox.Size = UDim2.new(1, -16, 0, 26)
+	searchBox.Position = UDim2.new(0, 8, 0, 8)
+	searchBox.Font = Theme.Font
+	searchBox.TextSize = 11
+	searchBox.TextColor3 = Theme.Text
+	searchBox.PlaceholderColor3 = Theme.MutedText
+	searchBox.PlaceholderText = "Search"
+	searchBox.Text = ""
+	searchBox.ClearTextOnFocus = false
+	searchBox.Parent = sidebar
+	local searchCorner = Instance.new("UICorner")
+	searchCorner.CornerRadius = UDim.new(0, 6)
+	searchCorner.Parent = searchBox
+	local searchPad = Instance.new("UIPadding")
+	searchPad.PaddingLeft = UDim.new(0, 8)
+	searchPad.PaddingRight = UDim.new(0, 8)
+	searchPad.Parent = searchBox
+
+	-- Vertical tab list (scrollable if many)
 	local tabBar = Instance.new("ScrollingFrame")
 	tabBar.Name = "TabBar"
 	tabBar.BackgroundTransparency = 1
 	tabBar.BorderSizePixel = 0
-	tabBar.Size = UDim2.new(1, 0, 1, 0)
+	tabBar.Size = UDim2.new(1, 0, 1, -42)
+	tabBar.Position = UDim2.new(0, 0, 0, 40)
 	tabBar.CanvasSize = UDim2.new(0, 0, 0, 0)
-	tabBar.AutomaticCanvasSize = Enum.AutomaticSize.X
-	tabBar.ScrollingDirection = Enum.ScrollingDirection.X
+	tabBar.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	tabBar.ScrollBarThickness = 0
-	tabBar.ElasticBehavior = Enum.ElasticBehavior.Never
+	tabBar.ScrollingDirection = Enum.ScrollingDirection.Y
 	tabBar.Active = true
-	tabBar.ScrollingEnabled = true
-	tabBar.Parent = tabBarHolder
+	tabBar.Parent = sidebar
 
 	local tabLayout = Instance.new("UIListLayout")
-	tabLayout.FillDirection = Enum.FillDirection.Horizontal
+	tabLayout.FillDirection = Enum.FillDirection.Vertical
 	tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	tabLayout.Padding = UDim.new(0, 4)
+	tabLayout.Padding = UDim.new(0, 3)
+	tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	tabLayout.Parent = tabBar
 
+	local tabPad = Instance.new("UIPadding")
+	tabPad.PaddingTop = UDim.new(0, 2)
+	tabPad.PaddingBottom = UDim.new(0, 6)
+	tabPad.Parent = tabBar
+
+	-- Right content area
 	local contentContainer = Instance.new("Frame")
 	contentContainer.Name = "ContentContainer"
 	contentContainer.BackgroundTransparency = 1
-	contentContainer.Size = UDim2.new(1, 0, 1, -72)
-	contentContainer.Position = UDim2.new(0, 0, 0, 70)
+	contentContainer.Size = UDim2.new(1, -SIDEBAR_W, 1, 0)
+	contentContainer.Position = UDim2.new(0, SIDEBAR_W, 0, 0)
 	contentContainer.ClipsDescendants = true
-	contentContainer.Parent = main
+	contentContainer.Parent = body
 
 	local window = {
 		Gui = gui,
@@ -2985,8 +3076,11 @@ local function CreateWindow(library, config)
 		Main = main,
 		Outline = outline,
 		TitleBar = titleBar,
+		Body = body,
+		Sidebar = sidebar,
 		TabBar = tabBar,
 		ContentContainer = contentContainer,
+		SearchBox = searchBox,
 		Tabs = tabs,
 		Width = width,
 		Height = height,
@@ -2994,27 +3088,95 @@ local function CreateWindow(library, config)
 		Actions = {},
 	}
 
-	-- Drag
+	-- Search filters sidebar tab buttons
+	cleanup:AddConnection(searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+		local q = string.lower(searchBox.Text or "")
+		for _, tab in ipairs(tabs) do
+			if tab.Button then
+				local match = q == "" or string.find(string.lower(tab.Name), q, 1, true)
+				tab.Button.Visible = match and true or false
+			end
+		end
+	end))
+
 	local drag = MakeDraggable(titleBar, root)
 	cleanup:AddCallback(function() drag:Destroy() end)
 
 	cleanup:AddConnection(closeBtn.MouseButton1Click:Connect(function()
 		window:Close()
 	end))
-
 	cleanup:AddConnection(minBtn.MouseButton1Click:Connect(function()
 		window:ToggleMinimize()
 	end))
 
-	-- Open animation (custom TweenEngine)
+	-- Bottom-right resize handle (keeps square via aspect constraint)
+	local resizeGrip = Instance.new("TextButton")
+	resizeGrip.Name = "ResizeGrip"
+	resizeGrip.BackgroundTransparency = 1
+	resizeGrip.Text = ""
+	resizeGrip.Size = UDim2.new(0, 18, 0, 18)
+	resizeGrip.Position = UDim2.new(1, -18, 1, -18)
+	resizeGrip.ZIndex = 20
+	resizeGrip.AutoButtonColor = false
+	resizeGrip.Parent = main
+
+	local gripVisual = Instance.new("Frame")
+	gripVisual.BackgroundColor3 = Theme.Border
+	gripVisual.BackgroundTransparency = 0.35
+	gripVisual.BorderSizePixel = 0
+	gripVisual.Size = UDim2.new(0, 10, 0, 2)
+	gripVisual.Position = UDim2.new(1, -12, 1, -6)
+	gripVisual.Rotation = -45
+	gripVisual.ZIndex = 21
+	gripVisual.Parent = main
+	local grip2 = gripVisual:Clone()
+	grip2.Position = UDim2.new(1, -8, 1, -6)
+	grip2.Parent = main
+
+	do
+		local resizing = false
+		local startInput, startSize
+		local minS, maxS = 300, 520
+		cleanup:AddConnection(resizeGrip.InputBegan:Connect(function(input)
+			if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
+				return
+			end
+			if minimized then return end
+			resizing = true
+			startInput = input.Position
+			startSize = root.AbsoluteSize
+			local moveC, endC
+			moveC = UserInputService.InputChanged:Connect(function(inp)
+				if not resizing then return end
+				if inp.UserInputType ~= Enum.UserInputType.MouseMovement and inp.UserInputType ~= Enum.UserInputType.Touch then
+					return
+				end
+				local dx = inp.Position.X - startInput.X
+				local dy = inp.Position.Y - startInput.Y
+				-- Prefer diagonal scale to keep near-square
+				local delta = math.max(dx, dy)
+				local side = math.clamp(startSize.X + delta, minS, maxS)
+				root.Size = UDim2.new(0, side, 0, side)
+				window.Width = side
+				window.Height = side
+			end)
+			endC = UserInputService.InputEnded:Connect(function(inp)
+				if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+					resizing = false
+					if moveC then moveC:Disconnect() end
+					if endC then endC:Disconnect() end
+				end
+			end)
+		end))
+	end
+
+	-- Open animation
 	root.Size = UDim2.new(0, 0, 0, 0)
 	main.BackgroundTransparency = 1
-	outline.BackgroundTransparency = 1
 	TweenEngine.Play(root, {
-		Size = UDim2.new(0, width + 4, 0, height),
-	}, { Duration = 0.45, Easing = "BackOut" })
-	TweenEngine.Play(main, { BackgroundTransparency = 0.05 }, { Duration = 0.35, Easing = "QuadOut" })
-	TweenEngine.Play(outline, { BackgroundTransparency = 0.12 }, { Duration = 0.4, Delay = 0.08, Easing = "QuadOut" })
+		Size = UDim2.new(0, width, 0, height),
+	}, { Duration = 0.4, Easing = "BackOut" })
+	TweenEngine.Play(main, { BackgroundTransparency = 0.02 }, { Duration = 0.32, Easing = "QuadOut" })
 
 	cleanup:AddInstance(gui)
 
@@ -3030,16 +3192,18 @@ local function CreateWindow(library, config)
 		subtitle.Font = Theme.Font
 		closeBtn.TextColor3 = Theme.SecondaryText
 		minBtn.TextColor3 = Theme.SecondaryText
+		sidebar.BackgroundColor3 = Theme.Secondary
+		searchBox.BackgroundColor3 = Theme.Tertiary
+		searchBox.TextColor3 = Theme.Text
+		searchBox.PlaceholderColor3 = Theme.MutedText
+		searchBox.Font = Theme.Font
+		outline.BackgroundColor3 = Theme.OutlineAccent or Color3.fromRGB(255, 255, 255)
 		for _, tab in ipairs(tabs) do
-			if tab.RefreshTheme then
-				tab:RefreshTheme()
-			end
+			if tab.RefreshTheme then tab:RefreshTheme() end
 		end
 	end
-
 	cleanup:AddCallback(OnThemeChange(refreshWindowTheme))
 
-	
 	function window:AddAction(actionConfig)
 		actionConfig = actionConfig or {}
 		local name = actionConfig.Name or "Action"
@@ -3050,25 +3214,25 @@ local function CreateWindow(library, config)
 			window._ActionBar.Name = "ActionBar"
 			window._ActionBar.BackgroundTransparency = 1
 			window._ActionBar.Size = UDim2.new(0, 0, 0, 26)
-			window._ActionBar.Position = UDim2.new(1, -62, 0.5, -13)
+			window._ActionBar.Position = UDim2.new(1, -64, 0.5, -13)
 			window._ActionBar.AnchorPoint = Vector2.new(1, 0)
+			window._ActionBar.ZIndex = 4
 			window._ActionBar.Parent = titleBar
 			local al = Instance.new("UIListLayout")
 			al.FillDirection = Enum.FillDirection.Horizontal
 			al.HorizontalAlignment = Enum.HorizontalAlignment.Right
-			al.SortOrder = Enum.SortOrder.LayoutOrder
 			al.Padding = UDim.new(0, 4)
 			al.Parent = window._ActionBar
 		end
 		local actionBar = window._ActionBar
 		local btn = Instance.new("TextButton")
-		btn.Name = "Action_" .. name
 		btn.BackgroundColor3 = Theme.Tertiary
 		btn.BackgroundTransparency = 0.3
 		btn.BorderSizePixel = 0
 		btn.Size = UDim2.new(0, 24, 0, 24)
 		btn.AutoButtonColor = false
 		btn.Text = ""
+		btn.ZIndex = 5
 		btn.Parent = actionBar
 		local bc = Instance.new("UICorner")
 		bc.CornerRadius = UDim.new(0, 5)
@@ -3079,7 +3243,6 @@ local function CreateWindow(library, config)
 			img.Size = UDim2.new(0, 14, 0, 14)
 			img.Position = UDim2.new(0.5, -7, 0.5, -7)
 			img.Image = tostring(icon)
-			img.ScaleType = Enum.ScaleType.Fit
 			img.Parent = btn
 		else
 			local lbl = Instance.new("TextLabel")
@@ -3132,20 +3295,19 @@ local function CreateWindow(library, config)
 		refreshWindowTheme()
 	end
 
+	-- REAL minimize: only title bar remains
 	function window:ToggleMinimize()
 		minimized = not minimized
 		if minimized then
+			body.Visible = false
 			TweenEngine.Play(root, {
-				Size = UDim2.new(0, window.Width + 4, 0, 40),
-			}, { Duration = 0.3, Easing = "QuadOut" })
-			contentContainer.Visible = false
-			if tabBarHolder then tabBarHolder.Visible = false else tabBar.Visible = false end
+				Size = UDim2.new(0, window.Width, 0, TITLE_H),
+			}, { Duration = 0.25, Easing = "QuadOut" })
 		else
-			contentContainer.Visible = true
-			if tabBarHolder then tabBarHolder.Visible = true else tabBar.Visible = true end
+			body.Visible = true
 			TweenEngine.Play(root, {
-				Size = UDim2.new(0, window.Width + 4, 0, window.Height),
-			}, { Duration = 0.35, Easing = "BackOut" })
+				Size = UDim2.new(0, window.Width, 0, window.Height),
+			}, { Duration = 0.3, Easing = "BackOut" })
 		end
 	end
 
@@ -3153,14 +3315,13 @@ local function CreateWindow(library, config)
 		TweenEngine.Play(root, {
 			Size = UDim2.new(0, 0, 0, 0),
 		}, {
-			Duration = 0.3,
+			Duration = 0.28,
 			Easing = "QuadIn",
 			OnComplete = function()
 				window:Destroy()
 			end,
 		})
-		TweenEngine.Play(main, { BackgroundTransparency = 1 }, { Duration = 0.25, Easing = "QuadIn" })
-		TweenEngine.Play(outline, { BackgroundTransparency = 1 }, { Duration = 0.22, Easing = "QuadIn" })
+		TweenEngine.Play(main, { BackgroundTransparency = 1 }, { Duration = 0.22, Easing = "QuadIn" })
 	end
 
 	function window:Destroy()
@@ -3172,6 +3333,7 @@ local function CreateWindow(library, config)
 
 	return window
 end
+
 
 
 ----------------------------------------------------------------
@@ -3261,6 +3423,7 @@ local Library = {}
 Library.__index = Library
 
 local NotifManager = NotificationManager.new()
+-- Set Library.NotifDraggable = false to disable dragging notifications
 local Windows = {}
 
 function Library:CreateWindow(config)
@@ -3279,6 +3442,13 @@ end
 function Library:Notify(config)
 	return NotifManager:Notify(config)
 end
+
+-- Toggle notification dragging (default true)
+function Library:SetNotifDraggable(enabled)
+	NotifManager.Draggable = enabled and true or false
+end
+Library.NotifDraggable = true
+
 
 -- Alurt-style alias
 function Library:CreateNode(config)
