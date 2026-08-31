@@ -1,62 +1,55 @@
 --[[
-	VeyraUI v2 Hardened + Mobile/PC Scroll Fix + 92% UI Scale + Bottom-Right Compact Notifications
-	Dark, technical, developer-oriented Roblox UI framework.
-	Kavo-style right-side vertical tabs, square window.
+	VeyraUI v4 — Compact Responsive Framework
+	Your custom TweenEngine + Ethereal separators preserved.
 
-	Notification redesign (merged):
-	- Sharp corners (no UICorner)
-	- Header bar
-	- Soft black → soft white gradient (left → right)
-	- Top-right stacking (BocusLuke-inspired)
-	- Type accent strip + progress bar
-	- Typewriter, audio, icon, hard cap, Duration=0 manual close
-	- Live theme refresh on window + all components
+	Additive upgrades only:
+	• Compact near-square window (default 360×360, ~70% scale)
+	• Thin white right-side outline accent
+	• Scrollable tab bar when many tabs
+	• Reliable content scrolling (PC + mobile)
+	• Optional top-bar actions (Window:AddAction)
+	• Optional intro via Library:Init({ Intro = true, IntroConfig = {...} })
+	• UISizeConstraint for multi-resolution
+	• Slightly tighter element spacing for compact layout
 
-	Stress / leak fixes (v2 Hardened):
-	- Slider: UIS InputChanged/Ended only while dragging (no permanent global hooks)
-	- MakeDraggable: active move/end connections tracked + killed on Destroy
-	- Notifications: hard cap (MAX_NOTIFICATIONS), drop oldest
-	- Windows list: remove on window Close/Destroy
-	- Dropdown expand still pushes content below
-	- Theme presets + ApplyTheme
-	- Signal/Changed, Get/Set, CancelOnObject, gethui/syn.protect_gui
+	Core systems unchanged:
+	• Full custom TweenEngine (scheduler, all easings, Spring, Shake, CancelOnObject)
+	• Ethereal separators
+	• Signal / Cleanup / ProtectAndParent
+	• Slider & drag: UIS hooks only while active
+	• Notification hard cap, typewriter, audio, icon, Duration=0 manual close
+	• Live theme refresh + presets
 
 	Usage:
-		local Library = loadstring(game:HttpGet("YOUR_RAW_URL"))()
+		local Library = loadstring(...)()
+
+		-- Optional one-time init (boolean flags — skip entirely if unused)
+		Library:Init({
+			Intro = false,  -- set true to show intro
+			IntroConfig = { Title = "Veyra", Subtitle = "Loading...", Duration = 1.5 },
+		})
 
 		local Window = Library:CreateWindow({
 			Title = "My UI",
-			Subtitle = "Developer",
-			Width = 400,
-			Height = 400,
+			Subtitle = "v4",
+			Width = 360,
+			Height = 360,
 		})
+
+		-- Optional action buttons (only appear when added)
+		Window:AddAction({ Name = "Discord", Callback = function() end })
 
 		local Tab = Window:CreateTab({ Name = "Main" })
 		Tab:CreateSection({ Name = "Section 1" })
 		Tab:CreateButton({ Name = "Test", Callback = function() end })
-		-- ... Toggle, Slider, Dropdown, Keybind, Textbox, Label, Divider
 
 		Library:Notify({
 			Title = "Ready",
 			Description = "Loaded.",
-			Duration = 5,           -- 0 = stay until :Close()
-			Type = "Success",       -- Info | Success | Warning | Error
+			Duration = 5,
+			Type = "Success",
 			Typewriter = true,
-			Audio = "rbxassetid://...",   -- optional sound
-			Image = "rbxassetid://...",   -- optional icon
-			BarColor = Color3.fromRGB(80, 200, 120),
 		})
-
-		-- Alurt-style alias:
-		local n = Library:CreateNode({
-			Title = "Welcome",
-			Content = "You're using VeyraUI",
-			Length = 8,
-			Audio = "rbxassetid://...",
-			Image = "rbxassetid://...",
-			BarColor = Color3.fromRGB(255, 75, 75),
-		})
-		-- n:Close()
 ]]
 
 local Players = game:GetService("Players")
@@ -180,11 +173,12 @@ local Theme = {
 	NotificationSuccess = Color3.fromRGB(80, 200, 120),
 	NotificationWarning = Color3.fromRGB(255, 180, 60),
 	NotificationError = Color3.fromRGB(255, 80, 80),
+	OutlineAccent = Color3.fromRGB(255, 255, 255),
 	Font = Enum.Font.GothamMedium,
 	FontBold = Enum.Font.GothamBold,
 	FontMono = Enum.Font.Code,
 	CornerRadius = 6,
-	ElementHeight = 36,
+	ElementHeight = 32,
 	AnimationSpeed = 0.35,
 	HoverSpeed = 0.15,
 }
@@ -905,7 +899,6 @@ local function MakeDraggable(handle, target, options)
 	local dragStart, startPos
 	local conns = {}
 	local activeMoveC, activeEndC = nil, nil
-	local clampToScreen = options.ClampToScreen or false
 
 	local function clearDragConns()
 		if activeMoveC then
@@ -919,29 +912,12 @@ local function MakeDraggable(handle, target, options)
 		dragging = false
 	end
 
-	local function clampPosition(pos)
-		if not clampToScreen then return pos end
-		local screenSize = workspace.CurrentCamera.ViewportSize
-		local anchor = target.AnchorPoint
-		local size = target.AbsoluteSize
-		local minX = anchor.X * size.X
-		local minY = anchor.Y * size.Y
-		local maxX = screenSize.X - (1 - anchor.X) * size.X
-		local maxY = screenSize.Y - (1 - anchor.Y) * size.Y
-		local newX = math.clamp(pos.X.Offset, minX, maxX)
-		local newY = math.clamp(pos.Y.Offset, minY, maxY)
-		return UDim2.new(pos.X.Scale, newX, pos.Y.Scale, newY)
-	end
-
 	local function update(input)
 		local delta = input.Position - dragStart
 		local newPos = UDim2.new(
 			startPos.X.Scale, startPos.X.Offset + delta.X,
 			startPos.Y.Scale, startPos.Y.Offset + delta.Y
 		)
-		if clampToScreen then
-			newPos = clampPosition(newPos)
-		end
 		target.Position = newPos
 		if options.OnDrag then options.OnDrag(newPos, delta) end
 	end
@@ -1111,14 +1087,14 @@ local NotificationManager = {}
 NotificationManager.__index = NotificationManager
 
 local MAX_NOTIFICATIONS = 10 -- hard cap; drop oldest under spam
-local NOTIF_CORNER = 12
-local NOTIF_HEADER_H = 26
-local NOTIF_WIDTH = 288 -- smaller notifications
+local NOTIF_CORNER = 16
+local NOTIF_HEADER_H = 30
+local NOTIF_WIDTH = 320
 
 function NotificationManager.new()
 	local self = setmetatable({}, NotificationManager)
 	self.Notifications = {}
-	self.Spacing = 8
+	self.Spacing = 12
 	self.MaxNotifications = MAX_NOTIFICATIONS
 
 	local gui = Instance.new("ScreenGui")
@@ -1131,10 +1107,8 @@ function NotificationManager.new()
 	local container = Instance.new("Frame")
 	container.Name = "Container"
 	container.BackgroundTransparency = 1
-	container.Size = UDim2.new(0, NOTIF_WIDTH, 1, -32)
-	container.AnchorPoint = Vector2.new(1, 1)
-	container.Position = UDim2.new(1, -16, 1, -16) -- bottom-right stack
-	container.ClipsDescendants = false
+	container.Size = UDim2.new(0, 360, 1, -40)
+	container.Position = UDim2.new(1, -380, 0, 20) -- top-right stack (BocusLuke-style)
 	container.Parent = gui
 
 	self.Gui = gui
@@ -1173,7 +1147,6 @@ function NotificationManager:Notify(config)
 	frame.BorderSizePixel = 0
 	frame.Size = UDim2.new(0, NOTIF_WIDTH, 0, 0)
 	frame.AutomaticSize = Enum.AutomaticSize.Y
-	frame.AnchorPoint = Vector2.new(0, 1)
 	frame.ClipsDescendants = true
 	frame.Parent = self.Container
 
@@ -1209,13 +1182,13 @@ function NotificationManager:Notify(config)
 		local icon = Instance.new("ImageLabel")
 		icon.Name = "Icon"
 		icon.BackgroundTransparency = 1
-		icon.Size = UDim2.new(0, 19, 0, 19)
-		icon.Position = UDim2.new(0, 10, 0.5, -9)
+		icon.Size = UDim2.new(0, 22, 0, 22)
+		icon.Position = UDim2.new(0, 12, 0.5, -11)
 		icon.Image = tostring(imageId)
 		icon.ScaleType = Enum.ScaleType.Fit
 		icon.ZIndex = 4
 		icon.Parent = header
-		contentOffset = 34
+		contentOffset = 40
 		cleanup:AddInstance(icon)
 	end
 
@@ -1225,7 +1198,7 @@ function NotificationManager:Notify(config)
 	title.Size = UDim2.new(1, -contentOffset - 12, 1, 0)
 	title.Position = UDim2.new(0, contentOffset, 0, 0)
 	title.Font = Theme.FontBold
-	title.TextSize = 13
+	title.TextSize = 14
 	title.TextColor3 = Theme.NotificationTitle
 	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.Text = config.Title or "Notification"
@@ -1242,15 +1215,15 @@ function NotificationManager:Notify(config)
 	body.Parent = frame
 
 	local bodyPad = Instance.new("UIPadding")
-	bodyPad.PaddingTop = UDim.new(0, 8)
-	bodyPad.PaddingBottom = UDim.new(0, 12)
-	bodyPad.PaddingLeft = UDim.new(0, 12)
-	bodyPad.PaddingRight = UDim.new(0, 12)
+	bodyPad.PaddingTop = UDim.new(0, 10)
+	bodyPad.PaddingBottom = UDim.new(0, 16)
+	bodyPad.PaddingLeft = UDim.new(0, 16)
+	bodyPad.PaddingRight = UDim.new(0, 16)
 	bodyPad.Parent = body
 
 	local bodyLayout = Instance.new("UIListLayout")
 	bodyLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	bodyLayout.Padding = UDim.new(0, 4)
+	bodyLayout.Padding = UDim.new(0, 6)
 	bodyLayout.Parent = body
 
 	local sep = CreateEtherealSeparator(body)
@@ -1263,7 +1236,7 @@ function NotificationManager:Notify(config)
 	desc.Size = UDim2.new(1, 0, 0, 0)
 	desc.AutomaticSize = Enum.AutomaticSize.Y
 	desc.Font = Theme.Font
-	desc.TextSize = 12
+	desc.TextSize = 13
 	desc.TextColor3 = Theme.NotificationDescription
 	desc.TextXAlignment = Enum.TextXAlignment.Left
 	desc.TextYAlignment = Enum.TextYAlignment.Top
@@ -1348,7 +1321,7 @@ function NotificationManager:Notify(config)
 	}
 
 	function notif:PlayEntry(targetPos)
-		frame.Position = UDim2.new(1, 40, 1, targetPos.Y.Offset)
+		frame.Position = UDim2.new(1, 40, 0, targetPos.Y.Offset)
 		frame.BackgroundTransparency = 1
 		TweenEngine.Play(frame, {
 			Position = targetPos,
@@ -1380,7 +1353,7 @@ function NotificationManager:Notify(config)
 		sep:PlayOut(0.2)
 		TweenEngine.CancelOnObject(bar)
 		TweenEngine.Play(frame, {
-			Position = UDim2.new(1, 60, 1, frame.Position.Y.Offset),
+			Position = UDim2.new(1, 60, 0, frame.Position.Y.Offset),
 			BackgroundTransparency = 1,
 		}, {
 			Duration = 0.32,
@@ -1448,7 +1421,7 @@ function NotificationManager:GetPositionForIndex(index)
 			y += (n.Frame.AbsoluteSize.Y > 0 and n.Frame.AbsoluteSize.Y or 80) + self.Spacing
 		end
 	end
-	return UDim2.new(0, 0, 1, -y)
+	return UDim2.new(0, 0, 0, y)
 end
 
 function NotificationManager:RepositionAll(animate)
@@ -2697,16 +2670,17 @@ local function CreateTab(window, config)
 	local cleanup = CreateCleanup()
 	local name = config.Name or "Tab"
 
-	-- Bounded ScrollingFrame:
-	-- We deliberately do NOT use AutomaticCanvasSize. Roblox mobile can
-	-- occasionally stop accepting normal swipe scrolling when the canvas
-	-- is being resized automatically while the contents are changing.
+	-- The tab is intentionally a bounded ScrollingFrame.
+	-- Keep the window height fixed; only the content canvas grows.
+	-- Active=true is important on touch devices so finger swipes are
+	-- captured by the ScrollingFrame instead of being ignored.
 	local content = Instance.new("ScrollingFrame")
 	content.Name = "TabContent_" .. name
 	content.BackgroundTransparency = 1
 	content.BorderSizePixel = 0
 	content.Size = UDim2.new(1, 0, 1, 0)
 
+	-- Native scrolling works on both mouse-wheel (PC) and touch (mobile).
 	content.Active = true
 	content.ScrollingEnabled = true
 	content.ScrollingDirection = Enum.ScrollingDirection.Y
@@ -2733,117 +2707,31 @@ local function CreateTab(window, config)
 	layout.Padding = UDim.new(0, 10)
 	layout.Parent = content
 
-	----------------------------------------------------------------
-	-- MOBILE/PC CANVAS FIX
-	----------------------------------------------------------------
+	-- Do not rely on AutomaticCanvasSize here. Explicitly track the list's
+	-- real height so dynamically expanding components (especially dropdowns)
+	-- always increase the scrollable area on mobile and PC.
 	local TOP_BOTTOM_PADDING = 24
-	local canvasUpdateQueued = false
-	local destroyed = false
-	local heartbeatConn = nil
-	local lastUpdateTime = 0
-	local UPDATE_INTERVAL = 0.1
-
-	local function getCanvasHeight()
-		return math.max(
-			layout.AbsoluteContentSize.Y + TOP_BOTTOM_PADDING,
-			content.AbsoluteSize.Y
-		)
-	end
-
-	local function clampCanvasPosition()
-		if not content.Parent then return end
-
-		local viewportH = content.AbsoluteSize.Y
-		local canvasH = content.CanvasSize.Y.Offset
-		local maxY = math.max(0, canvasH - viewportH)
-		local y = math.clamp(content.CanvasPosition.Y, 0, maxY)
-
-		if math.abs(y - content.CanvasPosition.Y) > 0.01 then
-			content.CanvasPosition = Vector2.new(content.CanvasPosition.X, y)
-		end
-	end
-
 	local function updateCanvasSize()
-		if destroyed or not content.Parent then return end
+		if content.Parent == nil then return end
 
-		local height = getCanvasHeight()
+		local contentHeight = layout.AbsoluteContentSize.Y + TOP_BOTTOM_PADDING
+		local viewportHeight = content.AbsoluteSize.Y
 
-		if math.abs(content.CanvasSize.Y.Offset - height) > 0.5 then
-			content.CanvasSize = UDim2.new(0, 0, 0, height)
-		end
-
-		clampCanvasPosition()
+		-- Always keep enough canvas for the actual content, while allowing
+		-- ScrollPosition to remain valid when the viewport changes.
+		content.CanvasSize = UDim2.new(0, 0, 0, math.max(contentHeight, viewportHeight))
 	end
 
-	-- Periodic update while tab is active to catch any size changes missed by events.
-	local function startHeartbeat()
-		if heartbeatConn then return end
-		heartbeatConn = RunService.Heartbeat:Connect(function(dt)
-			if destroyed or not content.Visible then
-				stopHeartbeat()
-				return
-			end
-			lastUpdateTime += dt
-			if lastUpdateTime >= UPDATE_INTERVAL then
-				lastUpdateTime = 0
-				updateCanvasSize()
-			end
-		end)
-	end
-
-	local function stopHeartbeat()
-		if heartbeatConn then
-			heartbeatConn:Disconnect()
-			heartbeatConn = nil
-		end
-		lastUpdateTime = 0
-	end
-
-	-- Initial layout may not be calculated immediately.
-	cleanup:AddConnection(
-		layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-			if content.Visible then
-				updateCanvasSize()
-			end
-		end)
-	)
-	cleanup:AddConnection(
-		content:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-			if content.Visible then
-				updateCanvasSize()
-			end
-		end)
-	)
-	cleanup:AddConnection(
-		content:GetPropertyChangedSignal("CanvasSize"):Connect(function()
-			clampCanvasPosition()
-		end)
-	)
-
-	-- Re-check after dynamic UI changes.
-	cleanup:AddConnection(content.DescendantAdded:Connect(function()
-		if content.Visible then
-			updateCanvasSize()
-		end
-	end))
-	cleanup:AddConnection(content.DescendantRemoving:Connect(function()
-		if content.Visible then
-			updateCanvasSize()
-		end
-	end))
-
-	task.defer(function()
-		if not destroyed then
-			updateCanvasSize()
-		end
-	end)
+	cleanup:AddConnection(layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvasSize))
+	cleanup:AddConnection(content:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateCanvasSize))
+	task.defer(updateCanvasSize)
 
 	local tabBtn = Instance.new("TextButton")
 	tabBtn.Name = "TabBtn_" .. name
 	tabBtn.BackgroundColor3 = Theme.Secondary
 	tabBtn.BackgroundTransparency = 1
 	tabBtn.BorderSizePixel = 0
-	tabBtn.Size = UDim2.new(1, -8, 0, 30)  -- fill vertical bar with margin
+	tabBtn.Size = UDim2.new(0, 90, 0, 28)
 	tabBtn.Font = Theme.Font
 	tabBtn.TextSize = 12
 	tabBtn.TextColor3 = Theme.SecondaryText
@@ -2878,14 +2766,10 @@ local function CreateTab(window, config)
 			tabBtn.BackgroundTransparency = 0.3
 			tabBtn.BackgroundColor3 = Theme.Secondary
 			tabBtn.TextColor3 = Theme.Text
-			updateCanvasSize()
-			startHeartbeat()
 		else
 			content.Visible = false
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.SecondaryText
-			stopHeartbeat()
-			content.CanvasPosition = Vector2.new(0, 0)
 		end
 	end
 
@@ -2907,33 +2791,6 @@ local function CreateTab(window, config)
 		for _, c in ipairs(tab.Components) do
 			if c.RefreshTheme then c:RefreshTheme() end
 		end
-		updateCanvasSize()
-	end
-
-	function tab:RefreshScroll()
-		updateCanvasSize()
-	end
-
-	function tab:ScrollTo(y, animate)
-		local canvasH = content.CanvasSize.Y.Offset
-		local viewportH = content.AbsoluteSize.Y
-		local maxY = math.max(0, canvasH - viewportH)
-		local targetY = math.clamp(tonumber(y) or 0, 0, maxY)
-
-		if animate then
-			TweenEngine.Play(content, {
-				CanvasPosition = Vector2.new(content.CanvasPosition.X, targetY)
-			}, {
-				Duration = 0.25,
-				Easing = "QuadOut"
-			})
-		else
-			content.CanvasPosition = Vector2.new(content.CanvasPosition.X, targetY)
-		end
-	end
-
-	function tab:GetScroll()
-		return content.CanvasPosition.Y
 	end
 
 	function tab:CreateSection(c) return CreateSection(tab, c) end
@@ -2947,8 +2804,6 @@ local function CreateTab(window, config)
 	function tab:CreateDivider(c) return CreateDivider(tab) end
 
 	function tab:Destroy()
-		destroyed = true
-		stopHeartbeat()
 		for _, c in ipairs(tab.Components) do
 			if c.Destroy then c:Destroy() end
 		end
@@ -2967,8 +2822,8 @@ end
 local function CreateWindow(library, config)
 	config = config or {}
 	local cleanup = CreateCleanup()
-	local width = config.Width or 400   -- square default
-	local height = config.Height or 400
+	local width = config.Width or 360
+	local height = config.Height or 360
 	local minimized = false
 	local tabs = {}
 	local activeTab = nil
@@ -2980,21 +2835,41 @@ local function CreateWindow(library, config)
 	gui.DisplayOrder = 50
 	ProtectAndParent(gui)
 
+	-- Root holds main + thin right outline accent
+	local root = Instance.new("Frame")
+	root.Name = "Root"
+	root.BackgroundTransparency = 1
+	root.Size = UDim2.new(0, width + 4, 0, height)
+	root.Position = UDim2.new(0.5, -(width + 4) / 2, 0.5, -height / 2)
+	root.Parent = gui
+
+	local sizeConstraint = Instance.new("UISizeConstraint")
+	sizeConstraint.MinSize = Vector2.new(260, 260)
+	sizeConstraint.MaxSize = Vector2.new(520, 520)
+	sizeConstraint.Parent = root
+
 	local main = Instance.new("Frame")
 	main.Name = "Main"
 	main.BackgroundColor3 = Theme.Background
 	main.BackgroundTransparency = 0.05
 	main.BorderSizePixel = 0
 	main.Size = UDim2.new(0, width, 0, height)
-	main.AnchorPoint = Vector2.new(0.5, 0.5)
-	main.Position = UDim2.new(0.5, 0, 0.5, 0)
-	main.Parent = gui
+	main.Position = UDim2.new(0, 0, 0, 0)
+	main.Parent = root
 
-	-- Scale the entire UI uniformly to 92% (8% smaller) without changing layout ratios.
-	local uiScale = Instance.new("UIScale")
-	uiScale.Name = "VeyraUIScale"
-	uiScale.Scale = 0.92
-	uiScale.Parent = main
+	-- Thin white right-side outline accent (aligned, short width)
+	local outline = Instance.new("Frame")
+	outline.Name = "OutlineAccent"
+	outline.BackgroundColor3 = Theme.OutlineAccent or Color3.fromRGB(255, 255, 255)
+	outline.BackgroundTransparency = 0.12
+	outline.BorderSizePixel = 0
+	outline.Size = UDim2.new(0, 3, 1, 0)
+	outline.Position = UDim2.new(1, 1, 0, 0)
+	outline.Parent = root
+
+	local outlineCorner = Instance.new("UICorner")
+	outlineCorner.CornerRadius = UDim.new(0, 2)
+	outlineCorner.Parent = outline
 
 	local mainCorner = Instance.new("UICorner")
 	mainCorner.CornerRadius = UDim.new(0, 8)
@@ -3069,122 +2944,46 @@ local function CreateWindow(library, config)
 	minBtn.Text = "−"
 	minBtn.Parent = titleBar
 
-	-- Tab bar (right side vertical)
-	local tabBar = Instance.new("Frame")
+	local tabBarHolder = Instance.new("Frame")
+	tabBarHolder.Name = "TabBarHolder"
+	tabBarHolder.BackgroundTransparency = 1
+	tabBarHolder.Size = UDim2.new(1, -16, 0, 28)
+	tabBarHolder.Position = UDim2.new(0, 8, 0, 40)
+	tabBarHolder.Parent = main
+
+	local tabBar = Instance.new("ScrollingFrame")
 	tabBar.Name = "TabBar"
 	tabBar.BackgroundTransparency = 1
-	tabBar.Size = UDim2.new(0, 100, 1, -80)  -- 100px wide, full height minus title
-	tabBar.Position = UDim2.new(1, -100, 0, 76)  -- right side, below title
-	tabBar.Parent = main
+	tabBar.BorderSizePixel = 0
+	tabBar.Size = UDim2.new(1, 0, 1, 0)
+	tabBar.CanvasSize = UDim2.new(0, 0, 0, 0)
+	tabBar.AutomaticCanvasSize = Enum.AutomaticSize.X
+	tabBar.ScrollingDirection = Enum.ScrollingDirection.X
+	tabBar.ScrollBarThickness = 0
+	tabBar.ElasticBehavior = Enum.ElasticBehavior.Never
+	tabBar.Active = true
+	tabBar.ScrollingEnabled = true
+	tabBar.Parent = tabBarHolder
 
 	local tabLayout = Instance.new("UIListLayout")
-	tabLayout.FillDirection = Enum.FillDirection.Vertical
+	tabLayout.FillDirection = Enum.FillDirection.Horizontal
 	tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	tabLayout.Padding = UDim.new(0, 4)
 	tabLayout.Parent = tabBar
 
-	-- Content container (left of tab bar)
 	local contentContainer = Instance.new("Frame")
 	contentContainer.Name = "ContentContainer"
 	contentContainer.BackgroundTransparency = 1
-	contentContainer.Size = UDim2.new(1, -100, 1, -80)  -- subtract tab bar width
-	contentContainer.Position = UDim2.new(0, 0, 0, 76)   -- same Y as before
+	contentContainer.Size = UDim2.new(1, 0, 1, -72)
+	contentContainer.Position = UDim2.new(0, 0, 0, 70)
 	contentContainer.ClipsDescendants = true
 	contentContainer.Parent = main
 
-	-- Resize handle (bottom-right corner)
-	local resizeHandle = Instance.new("Frame")
-	resizeHandle.Name = "ResizeHandle"
-	resizeHandle.BackgroundColor3 = Theme.Border
-	resizeHandle.BackgroundTransparency = 0.5
-	resizeHandle.BorderSizePixel = 0
-	resizeHandle.Size = UDim2.new(0, 16, 0, 16)
-	resizeHandle.Position = UDim2.new(1, -16, 1, -16)
-	resizeHandle.AnchorPoint = Vector2.new(0.5, 0.5)
-	resizeHandle.ZIndex = 10
-	resizeHandle.Parent = main
-
-	local resizeHandleIcon = Instance.new("TextLabel")
-	resizeHandleIcon.BackgroundTransparency = 1
-	resizeHandleIcon.Size = UDim2.new(1, 0, 1, 0)
-	resizeHandleIcon.Position = UDim2.new(0, 0, 0, 0)
-	resizeHandleIcon.Font = Enum.Font.GothamBold
-	resizeHandleIcon.TextSize = 12
-	resizeHandleIcon.TextColor3 = Theme.Text
-	resizeHandleIcon.Text = "⌄⌄"
-	resizeHandleIcon.TextScaled = true
-	resizeHandleIcon.Parent = resizeHandle
-
-	-- Clamp window position to screen
-	local function clampWindowPosition(pos)
-		local screenSize = workspace.CurrentCamera.ViewportSize
-		local anchor = main.AnchorPoint
-		local size = main.AbsoluteSize
-		local minX = anchor.X * size.X
-		local minY = anchor.Y * size.Y
-		local maxX = screenSize.X - (1 - anchor.X) * size.X
-		local maxY = screenSize.Y - (1 - anchor.Y) * size.Y
-		local newX = math.clamp(pos.X.Offset, minX, maxX)
-		local newY = math.clamp(pos.Y.Offset, minY, maxY)
-		return UDim2.new(pos.X.Scale, newX, pos.Y.Scale, newY)
-	end
-
-	-- Drag window with clamping
-	local dragOptions = {
-		ClampToScreen = true,
-	}
-	local drag = MakeDraggable(titleBar, main, dragOptions)
-	cleanup:AddCallback(function() drag:Destroy() end)
-
-	-- Resize logic
-	local resizing = false
-	local resizeStartMouse = nil
-	local startSize = nil
-	local minWidth, minHeight = 320, 320
-	local maxWidth, maxHeight = 800, 800
-
-	local function updateResize(input)
-		if not resizing then return end
-		local delta = input.Position - resizeStartMouse
-		local newWidth = math.clamp(startSize.X.Offset + delta.X, minWidth, maxWidth)
-		local newHeight = math.clamp(startSize.Y.Offset + delta.Y, minHeight, maxHeight)
-		main.Size = UDim2.new(0, newWidth, 0, newHeight)
-		-- Reclamp window position to keep within screen
-		main.Position = clampWindowPosition(main.Position)
-	end
-
-	local resizeMoveConn, resizeEndConn = nil, nil
-	local function stopResize()
-		if resizing then
-			resizing = false
-			if resizeMoveConn then resizeMoveConn:Disconnect() resizeMoveConn = nil end
-			if resizeEndConn then resizeEndConn:Disconnect() resizeEndConn = nil end
-		end
-	end
-
-	resizeHandle.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			stopResize()
-			resizing = true
-			resizeStartMouse = input.Position
-			startSize = main.Size
-			resizeMoveConn = UserInputService.InputChanged:Connect(function(inp)
-				if inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch then
-					updateResize(inp)
-				end
-			end)
-			resizeEndConn = UserInputService.InputEnded:Connect(function(inp)
-				if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
-					stopResize()
-				end
-			end)
-		end
-	end)
-	cleanup:AddCallback(stopResize)
-
 	local window = {
 		Gui = gui,
+		Root = root,
 		Main = main,
+		Outline = outline,
 		TitleBar = titleBar,
 		TabBar = tabBar,
 		ContentContainer = contentContainer,
@@ -3192,8 +2991,12 @@ local function CreateWindow(library, config)
 		Width = width,
 		Height = height,
 		Cleanup = cleanup,
-		ResizeHandle = resizeHandle,
+		Actions = {},
 	}
+
+	-- Drag
+	local drag = MakeDraggable(titleBar, root)
+	cleanup:AddCallback(function() drag:Destroy() end)
 
 	cleanup:AddConnection(closeBtn.MouseButton1Click:Connect(function()
 		window:Close()
@@ -3203,13 +3006,15 @@ local function CreateWindow(library, config)
 		window:ToggleMinimize()
 	end))
 
-	-- Open animation
-	main.Size = UDim2.new(0, 0, 0, 0)
+	-- Open animation (custom TweenEngine)
+	root.Size = UDim2.new(0, 0, 0, 0)
 	main.BackgroundTransparency = 1
-	TweenEngine.Play(main, {
-		Size = UDim2.new(0, width, 0, height),
-		BackgroundTransparency = 0.05,
+	outline.BackgroundTransparency = 1
+	TweenEngine.Play(root, {
+		Size = UDim2.new(0, width + 4, 0, height),
 	}, { Duration = 0.45, Easing = "BackOut" })
+	TweenEngine.Play(main, { BackgroundTransparency = 0.05 }, { Duration = 0.35, Easing = "QuadOut" })
+	TweenEngine.Play(outline, { BackgroundTransparency = 0.12 }, { Duration = 0.4, Delay = 0.08, Easing = "QuadOut" })
 
 	cleanup:AddInstance(gui)
 
@@ -3225,8 +3030,6 @@ local function CreateWindow(library, config)
 		subtitle.Font = Theme.Font
 		closeBtn.TextColor3 = Theme.SecondaryText
 		minBtn.TextColor3 = Theme.SecondaryText
-		resizeHandle.BackgroundColor3 = Theme.Border
-		resizeHandleIcon.TextColor3 = Theme.Text
 		for _, tab in ipairs(tabs) do
 			if tab.RefreshTheme then
 				tab:RefreshTheme()
@@ -3235,6 +3038,79 @@ local function CreateWindow(library, config)
 	end
 
 	cleanup:AddCallback(OnThemeChange(refreshWindowTheme))
+
+	
+	function window:AddAction(actionConfig)
+		actionConfig = actionConfig or {}
+		local name = actionConfig.Name or "Action"
+		local icon = actionConfig.Icon
+		local callback = actionConfig.Callback
+		if not window._ActionBar then
+			window._ActionBar = Instance.new("Frame")
+			window._ActionBar.Name = "ActionBar"
+			window._ActionBar.BackgroundTransparency = 1
+			window._ActionBar.Size = UDim2.new(0, 0, 0, 26)
+			window._ActionBar.Position = UDim2.new(1, -62, 0.5, -13)
+			window._ActionBar.AnchorPoint = Vector2.new(1, 0)
+			window._ActionBar.Parent = titleBar
+			local al = Instance.new("UIListLayout")
+			al.FillDirection = Enum.FillDirection.Horizontal
+			al.HorizontalAlignment = Enum.HorizontalAlignment.Right
+			al.SortOrder = Enum.SortOrder.LayoutOrder
+			al.Padding = UDim.new(0, 4)
+			al.Parent = window._ActionBar
+		end
+		local actionBar = window._ActionBar
+		local btn = Instance.new("TextButton")
+		btn.Name = "Action_" .. name
+		btn.BackgroundColor3 = Theme.Tertiary
+		btn.BackgroundTransparency = 0.3
+		btn.BorderSizePixel = 0
+		btn.Size = UDim2.new(0, 24, 0, 24)
+		btn.AutoButtonColor = false
+		btn.Text = ""
+		btn.Parent = actionBar
+		local bc = Instance.new("UICorner")
+		bc.CornerRadius = UDim.new(0, 5)
+		bc.Parent = btn
+		if icon and tostring(icon) ~= "" then
+			local img = Instance.new("ImageLabel")
+			img.BackgroundTransparency = 1
+			img.Size = UDim2.new(0, 14, 0, 14)
+			img.Position = UDim2.new(0.5, -7, 0.5, -7)
+			img.Image = tostring(icon)
+			img.ScaleType = Enum.ScaleType.Fit
+			img.Parent = btn
+		else
+			local lbl = Instance.new("TextLabel")
+			lbl.BackgroundTransparency = 1
+			lbl.Size = UDim2.new(1, 0, 1, 0)
+			lbl.Font = Theme.FontBold
+			lbl.TextSize = 10
+			lbl.TextColor3 = Theme.Text
+			lbl.Text = string.sub(name, 1, 1)
+			lbl.Parent = btn
+		end
+		btn.MouseEnter:Connect(function()
+			TweenEngine.Play(btn, { BackgroundTransparency = 0.1 }, { Duration = 0.1 })
+		end)
+		btn.MouseLeave:Connect(function()
+			TweenEngine.Play(btn, { BackgroundTransparency = 0.3 }, { Duration = 0.1 })
+		end)
+		btn.MouseButton1Click:Connect(function()
+			if callback then task.spawn(callback) end
+		end)
+		task.defer(function()
+			local total = 0
+			for _, ch in ipairs(actionBar:GetChildren()) do
+				if ch:IsA("GuiObject") then total += ch.AbsoluteSize.X + 4 end
+			end
+			actionBar.Size = UDim2.new(0, math.max(total, 0), 0, 26)
+		end)
+		local act = { Button = btn, Name = name }
+		table.insert(window.Actions, act)
+		return act
+	end
 
 	function window:CreateTab(c)
 		local tab = CreateTab(window, c)
@@ -3259,24 +3135,23 @@ local function CreateWindow(library, config)
 	function window:ToggleMinimize()
 		minimized = not minimized
 		if minimized then
-			TweenEngine.Play(main, {
-				Size = UDim2.new(0, window.Width, 0, 40),
+			TweenEngine.Play(root, {
+				Size = UDim2.new(0, window.Width + 4, 0, 40),
 			}, { Duration = 0.3, Easing = "QuadOut" })
 			contentContainer.Visible = false
-			tabBar.Visible = false
+			if tabBarHolder then tabBarHolder.Visible = false else tabBar.Visible = false end
 		else
 			contentContainer.Visible = true
-			tabBar.Visible = true
-			TweenEngine.Play(main, {
-				Size = UDim2.new(0, window.Width, 0, window.Height),
+			if tabBarHolder then tabBarHolder.Visible = true else tabBar.Visible = true end
+			TweenEngine.Play(root, {
+				Size = UDim2.new(0, window.Width + 4, 0, window.Height),
 			}, { Duration = 0.35, Easing = "BackOut" })
 		end
 	end
 
 	function window:Close()
-		TweenEngine.Play(main, {
+		TweenEngine.Play(root, {
 			Size = UDim2.new(0, 0, 0, 0),
-			BackgroundTransparency = 1,
 		}, {
 			Duration = 0.3,
 			Easing = "QuadIn",
@@ -3284,6 +3159,8 @@ local function CreateWindow(library, config)
 				window:Destroy()
 			end,
 		})
+		TweenEngine.Play(main, { BackgroundTransparency = 1 }, { Duration = 0.25, Easing = "QuadIn" })
+		TweenEngine.Play(outline, { BackgroundTransparency = 1 }, { Duration = 0.22, Easing = "QuadIn" })
 	end
 
 	function window:Destroy()
@@ -3294,6 +3171,87 @@ local function CreateWindow(library, config)
 	end
 
 	return window
+end
+
+
+----------------------------------------------------------------
+-- INTRO (optional)
+----------------------------------------------------------------
+local function PlayIntro(config)
+	config = config or {}
+	local duration = config.Duration or 1.5
+	local titleText = config.Title or "Veyra"
+	local subtitleText = config.Subtitle or ""
+	local logoId = config.Logo
+	local cleanup = CreateCleanup()
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "VeyraIntro"
+	gui.DisplayOrder = 2147483647
+	gui.IgnoreGuiInset = true
+	ProtectAndParent(gui)
+	cleanup:AddInstance(gui)
+	local overlay = Instance.new("Frame")
+	overlay.BackgroundColor3 = Color3.fromRGB(8, 8, 12)
+	overlay.BorderSizePixel = 0
+	overlay.Size = UDim2.new(1, 0, 1, 0)
+	overlay.Parent = gui
+	local center = Instance.new("Frame")
+	center.BackgroundTransparency = 1
+	center.Size = UDim2.new(0, 220, 0, 120)
+	center.Position = UDim2.new(0.5, -110, 0.5, -60)
+	center.Parent = overlay
+	if logoId and tostring(logoId) ~= "" then
+		local logo = Instance.new("ImageLabel")
+		logo.BackgroundTransparency = 1
+		logo.Size = UDim2.new(0, 48, 0, 48)
+		logo.Position = UDim2.new(0.5, -24, 0, 0)
+		logo.Image = tostring(logoId)
+		logo.ScaleType = Enum.ScaleType.Fit
+		logo.ImageTransparency = 1
+		logo.Parent = center
+		TweenEngine.Play(logo, { ImageTransparency = 0 }, { Duration = 0.4, Easing = "QuadOut" })
+	end
+	local title = Instance.new("TextLabel")
+	title.BackgroundTransparency = 1
+	title.Size = UDim2.new(1, 0, 0, 28)
+	title.Position = UDim2.new(0, 0, 0, logoId and 56 or 20)
+	title.Font = Theme.FontBold
+	title.TextSize = 22
+	title.TextColor3 = Theme.Text
+	title.Text = titleText
+	title.TextTransparency = 1
+	title.Parent = center
+	local subtitle = Instance.new("TextLabel")
+	subtitle.BackgroundTransparency = 1
+	subtitle.Size = UDim2.new(1, 0, 0, 18)
+	subtitle.Position = UDim2.new(0, 0, 0, logoId and 86 or 50)
+	subtitle.Font = Theme.Font
+	subtitle.TextSize = 13
+	subtitle.TextColor3 = Theme.SecondaryText
+	subtitle.Text = subtitleText
+	subtitle.TextTransparency = 1
+	subtitle.Parent = center
+	TweenEngine.Play(title, { TextTransparency = 0 }, { Duration = 0.45, Delay = 0.1, Easing = "QuadOut" })
+	TweenEngine.Play(subtitle, { TextTransparency = 0 }, { Duration = 0.4, Delay = 0.2, Easing = "QuadOut" })
+	local finished = false
+	local function finish()
+		if finished then return end
+		finished = true
+		TweenEngine.Play(overlay, { BackgroundTransparency = 1 }, {
+			Duration = 0.35, Easing = "QuadIn",
+			OnComplete = function() cleanup:Destroy() end,
+		})
+		TweenEngine.Play(title, { TextTransparency = 1 }, { Duration = 0.25, Easing = "QuadIn" })
+		TweenEngine.Play(subtitle, { TextTransparency = 1 }, { Duration = 0.25, Easing = "QuadIn" })
+	end
+	cleanup:AddTask(task.delay(duration, finish))
+	local skipBtn = Instance.new("TextButton")
+	skipBtn.BackgroundTransparency = 1
+	skipBtn.Size = UDim2.new(1, 0, 1, 0)
+	skipBtn.Text = ""
+	skipBtn.Parent = overlay
+	cleanup:AddConnection(skipBtn.MouseButton1Click:Connect(finish))
+	return { Skip = finish, Destroy = finish }
 end
 
 ----------------------------------------------------------------
@@ -3349,6 +3307,20 @@ end
 
 Library.ThemePresets = ThemePresets
 
+local InitDone = false
+function Library:Init(options)
+	options = options or {}
+	if InitDone then return end
+	InitDone = true
+	if options.Intro == true then
+		PlayIntro(options.IntroConfig or {})
+	end
+end
+
+function Library:PlayIntro(config)
+	return PlayIntro(config)
+end
+
 function Library:Destroy()
 	-- copy because win:Destroy mutates Windows
 	local snap = table.clone(Windows)
@@ -3364,4 +3336,11 @@ end
 -- Expose animation engine
 Library.Animation = TweenEngine
 
+-- Optional: stash for safe re-exec
+-- if getgenv then
+--   if getgenv().VeyraUI then pcall(function() getgenv().VeyraUI:Destroy() end) end
+--   getgenv().VeyraUI = Library
+-- end
+
+-- Convenience so loadstring(...)() returns the library
 return Library
