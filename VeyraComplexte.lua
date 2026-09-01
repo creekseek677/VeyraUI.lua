@@ -2734,7 +2734,7 @@ end
 ----------------------------------------------------------------
 -- TAB
 ----------------------------------------------------------------
-local SIDEBAR_W = 104
+local SIDEBAR_W_DEFAULT = 104
 local TITLE_H = 40
 
 local function CreateTab(window, config)
@@ -2803,17 +2803,17 @@ local function CreateTab(window, config)
 
 	-- Padding so long text never overlaps the left indicator
 	local btnPad = Instance.new("UIPadding")
-	btnPad.PaddingLeft = UDim.new(0, 14)
+	btnPad.PaddingLeft = UDim.new(0, 16)
 	btnPad.PaddingRight = UDim.new(0, 4)
 	btnPad.Parent = tabBtn
 
-	-- Indicator further left, outside text area
+	-- White indicator further left, clear of tab text
 	local indicator = Instance.new("Frame")
 	indicator.Name = "Indicator"
 	indicator.BackgroundColor3 = Theme.Accent
 	indicator.BorderSizePixel = 0
-	indicator.Size = UDim2.new(0, 2, 0.6, 0)
-	indicator.Position = UDim2.new(0, -2, 0.15, 0)
+	indicator.Size = UDim2.new(0, 2, 0.55, 0)
+	indicator.Position = UDim2.new(0, -6, 0.225, 0)
 	indicator.Visible = false
 	indicator.ZIndex = 2
 	indicator.Parent = tabBtn
@@ -2900,38 +2900,97 @@ end
 ----------------------------------------------------------------
 -- WINDOW (sidebar layout — matches expected design)
 ----------------------------------------------------------------
+-- Fit window size to the player's screen (phone portrait / landscape / tablet / PC)
+local function ComputeResponsiveSize(config)
+	config = config or {}
+	local cam = workspace.CurrentCamera
+	local vp = (cam and cam.ViewportSize) or Vector2.new(1280, 720)
+	local vw, vh = vp.X, vp.Y
+	local isTouch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+	local isPortrait = vh > vw
+	local shortest = math.min(vw, vh)
+	local longest = math.max(vw, vh)
+
+	-- User override always wins
+	if config.Width and config.Height then
+		local w = math.clamp(config.Width, 280, vw - 16)
+		local h = math.clamp(config.Height, 180, vh - 16)
+		return w, h, isTouch, isPortrait
+	end
+
+	local w, h
+	if isTouch then
+		if isPortrait then
+			-- Phone upright: almost full width, moderate height (not a tall strip)
+			w = math.floor(vw * 0.92)
+			h = math.floor(math.clamp(vh * 0.42, 240, math.min(360, vh * 0.5)))
+		else
+			-- Phone / tablet landscape (flat game phones)
+			w = math.floor(math.clamp(vw * 0.55, 400, math.min(620, vw - 24)))
+			h = math.floor(math.clamp(vh * 0.72, 220, math.min(340, vh - 24)))
+		end
+	else
+		-- PC / large display
+		w = config.Width or 540
+		h = config.Height or 300
+		w = math.clamp(w, 400, math.min(720, vw - 40))
+		h = math.clamp(h, 260, math.min(420, vh - 40))
+	end
+
+	-- Never taller than wide on landscape devices; allow slightly tall only in true portrait
+	if not isPortrait and h > w * 0.75 then
+		h = math.floor(w * 0.55)
+	end
+
+	w = math.floor(math.clamp(w, 280, vw - 12))
+	h = math.floor(math.clamp(h, 180, vh - 12))
+	return w, h, isTouch, isPortrait
+end
+
 local function CreateWindow(library, config)
 	config = config or {}
 	local cleanup = CreateCleanup()
-	-- Wider + shorter (flat game UI). Free resize on sides/bottom — no locked aspect.
-	local width  = config.Width  or 540
-	local height = config.Height or 300
-	if height > width then
-		height = math.floor(width * 0.55)
-	end
+	local width, height, isTouch, isPortrait = ComputeResponsiveSize(config)
 	local minimized = false
 	local tabs = {}
 	local activeTab = nil
-	local aspect = nil -- no aspect lock so side/bottom resize works independently
+	local aspect = nil
 
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "VeyraUI_" .. (config.Title or "Window")
 	gui.DisplayOrder = 50
+	gui.IgnoreGuiInset = true
 	ProtectAndParent(gui)
 
 	local root = Instance.new("Frame")
 	root.Name = "Root"
 	root.BackgroundTransparency = 1
 	root.Size = UDim2.fromOffset(width, height)
-	-- Top-left anchor so right/bottom resize keeps top-left fixed
 	root.AnchorPoint = Vector2.new(0, 0)
 	root.Position = UDim2.new(0.5, -width / 2, 0.5, -height / 2)
 	root.ClipsDescendants = true
 	root.Parent = gui
 
+	-- Soft UI scale on very small phones so text/controls stay usable
+	local uiScale = Instance.new("UIScale")
+	uiScale.Name = "VeyraScale"
+	local shortest = math.min(
+		(workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize.X) or 1280,
+		(workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize.Y) or 720
+	)
+	if isTouch and shortest < 500 then
+		uiScale.Scale = 0.92
+	elseif isTouch then
+		uiScale.Scale = 0.96
+	else
+		uiScale.Scale = 1
+	end
+	uiScale.Parent = root
+
 	local sizeConstraint = Instance.new("UISizeConstraint")
-	sizeConstraint.MinSize = Vector2.new(360, 220)
-	sizeConstraint.MaxSize = Vector2.new(900, 560)
+	local vp = (workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize) or Vector2.new(1280, 720)
+	sizeConstraint.MinSize = Vector2.new(math.min(300, vp.X - 8), math.min(180, vp.Y - 8))
+	sizeConstraint.MaxSize = Vector2.new(math.min(900, vp.X - 8), math.min(560, vp.Y - 8))
 	sizeConstraint.Parent = root
 
 	local main = Instance.new("Frame")
@@ -3035,6 +3094,16 @@ local function CreateWindow(library, config)
 	body.Position = UDim2.new(0, 0, 0, TITLE_H)
 	body.ClipsDescendants = true
 	body.Parent = main
+
+	-- Sidebar width scales down on narrow phones
+	local SIDEBAR_W = SIDEBAR_W_DEFAULT
+	if isTouch then
+		if width < 400 then
+			SIDEBAR_W = 88
+		elseif width < 480 then
+			SIDEBAR_W = 96
+		end
+	end
 
 	-- Left sidebar
 	local sidebar = Instance.new("Frame")
@@ -3214,6 +3283,53 @@ local function CreateWindow(library, config)
 	TweenEngine.Play(main, { BackgroundTransparency = 0.02 }, { Duration = 0.32, Easing = "QuadOut" })
 
 	cleanup:AddInstance(gui)
+
+	-- Re-fit when phone rotates or resolution changes
+	local function refitToViewport(forceSize)
+		if minimized or cleanup:IsDestroyed() then return end
+		local cam = workspace.CurrentCamera
+		if not cam then return end
+		local vp = cam.ViewportSize
+		if forceSize then
+			local nw, nh = ComputeResponsiveSize(config)
+			width, height = nw, nh
+			window.Width, window.Height = nw, nh
+			root.Size = UDim2.fromOffset(nw, nh)
+		else
+			-- Clamp current size into new viewport
+			local nw = math.clamp(root.AbsoluteSize.X, 280, math.max(280, vp.X - 12))
+			local nh = math.clamp(root.AbsoluteSize.Y, 180, math.max(180, vp.Y - 12))
+			root.Size = UDim2.fromOffset(nw, nh)
+			window.Width, window.Height = nw, nh
+		end
+		-- Keep centered
+		local aw = root.AbsoluteSize.X
+		local ah = root.AbsoluteSize.Y
+		root.Position = UDim2.new(0.5, -aw / 2, 0.5, -ah / 2)
+		if sizeConstraint then
+			sizeConstraint.MinSize = Vector2.new(math.min(300, vp.X - 8), math.min(180, vp.Y - 8))
+			sizeConstraint.MaxSize = Vector2.new(math.min(900, vp.X - 8), math.min(560, vp.Y - 8))
+		end
+	end
+
+	if workspace.CurrentCamera then
+		cleanup:AddConnection(workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+			task.defer(function()
+				refitToViewport(true)
+			end)
+		end))
+	end
+	cleanup:AddConnection(workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+		local cam = workspace.CurrentCamera
+		if cam then
+			cleanup:AddConnection(cam:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+				task.defer(function()
+					refitToViewport(true)
+				end)
+			end))
+			task.defer(function() refitToViewport(true) end)
+		end
+	end))
 
 	local function refreshWindowTheme()
 		if cleanup:IsDestroyed() then return end
@@ -3545,39 +3661,223 @@ end
 Library.ThemePresets = ThemePresets
 
 local InitDone = false
+
+-- Wipe leftover Veyra ScreenGuis on re-exec (no getgenv)
+local function KillPrevious()
+	pcall(function()
+		local parents = {}
+		pcall(function() table.insert(parents, game:GetService("CoreGui")) end)
+		pcall(function()
+			if type(gethui) == "function" then table.insert(parents, gethui()) end
+		end)
+		pcall(function()
+			local lp = game:GetService("Players").LocalPlayer
+			if lp then table.insert(parents, lp:FindFirstChildOfClass("PlayerGui")) end
+		end)
+		for _, parent in ipairs(parents) do
+			if parent then
+				for _, child in ipairs(parent:GetChildren()) do
+					if child:IsA("ScreenGui") and (string.find(child.Name, "Veyra") or string.find(child.Name, "veyra")) then
+						pcall(function() child:Destroy() end)
+					end
+				end
+			end
+		end
+	end)
+end
+
+--[[
+	UI:Init() or UI:Init({ Theme = "Dark", Intro = true })
+
+	Call once at the top of your script.
+	Safe to call every time the script runs — cleans old UI first.
+]]
 function Library:Init(options)
 	options = options or {}
-	if InitDone then return end
+	-- Always clean previous run so loadstring twice doesn't stack UIs
+	KillPrevious()
+	pcall(function()
+		self:Destroy()
+	end)
 	InitDone = true
-	if options.Intro == true then
-		PlayIntro(options.IntroConfig or {})
+
+	if type(options.Theme) == "string" then
+		ApplyThemePreset(options.Theme)
+	elseif type(options.Theme) == "table" then
+		SetTheme(options.Theme)
 	end
+
+	if options.NotifDraggable ~= nil then
+		NotifManager.Draggable = options.NotifDraggable and true or false
+	end
+
+	if options.Intro == true then
+		task.spawn(function()
+			PlayIntro(options.IntroConfig or {
+				Title = options.Title or "Veyra",
+				Subtitle = options.Subtitle or "",
+			})
+		end)
+	end
+
+	return Library
 end
 
 function Library:PlayIntro(config)
 	return PlayIntro(config)
 end
 
+function Library:IsInit()
+	return InitDone
+end
+
 function Library:Destroy()
-	-- copy because win:Destroy mutates Windows
 	local snap = table.clone(Windows)
 	table.clear(Windows)
 	for _, win in ipairs(snap) do
 		pcall(function() win:Destroy() end)
 	end
 	pcall(function() NotifManager:Destroy() end)
+	-- Rebuild notif manager so next Init/New still works
+	pcall(function()
+		NotifManager = NotificationManager.new()
+	end)
 	TweenEngine.CancelAll()
 	table.clear(ThemeListeners)
+	InitDone = false
 end
 
 -- Expose animation engine
 Library.Animation = TweenEngine
 
--- Optional: stash for safe re-exec
--- if getgenv then
---   if getgenv().VeyraUI then pcall(function() getgenv().VeyraUI:Destroy() end) end
---   getgenv().VeyraUI = Library
--- end
+----------------------------------------------------------------
+-- SIMPLE API (same GUI, way less boilerplate)
+--
+--   local UI = loadstring(...)()
+--   local Win = UI:New("My Hub", "v1")
+--   local Tab = Win:Tab("Main")
+--   Tab:Toggle("Speed", false, function(on) end)
+--   Tab:Slider("WalkSpeed", 16, 200, 16, function(v) end)
+--   Tab:Button("Click", function() end)
+--   Tab:Drop("Theme", {"Dark","Light"}, "Dark", function(v) end)
+--   UI:Notify("Hi", "Loaded", 3)
+----------------------------------------------------------------
 
--- Convenience so loadstring(...)() returns the library
-return Library
+local function wrapTab(tab)
+	local t = tab
+	function t:Section(name, desc)
+		return self:CreateSection({ Name = name, Description = desc })
+	end
+	function t:Toggle(name, default, callback)
+		if type(default) == "function" then
+			callback = default
+			default = false
+		end
+		return self:CreateToggle({ Name = name, Default = default == true, Callback = callback })
+	end
+	function t:Slider(name, min, max, default, callback)
+		if type(min) == "function" then
+			callback = min
+			min, max, default = 0, 100, 0
+		elseif type(default) == "function" then
+			callback = default
+			default = min
+		end
+		return self:CreateSlider({
+			Name = name,
+			Min = min or 0,
+			Max = max or 100,
+			Default = default or min or 0,
+			Callback = callback,
+		})
+	end
+	function t:Button(name, callback)
+		return self:CreateButton({ Name = name, Callback = callback })
+	end
+	function t:Drop(name, options, default, callback)
+		if type(options) == "function" then
+			callback = options
+			options, default = {}, nil
+		elseif type(default) == "function" then
+			callback = default
+			default = options and options[1]
+		end
+		return self:CreateDropdown({
+			Name = name,
+			Options = options or {},
+			Default = default or (options and options[1]) or "",
+			Callback = callback,
+		})
+	end
+	function t:Key(name, key, callback)
+		if type(key) == "function" then
+			callback = key
+			key = Enum.KeyCode.Unknown
+		end
+		return self:CreateKeybind({ Name = name, Default = key or Enum.KeyCode.Unknown, Callback = callback })
+	end
+	function t:Input(name, placeholder, callback)
+		if type(placeholder) == "function" then
+			callback = placeholder
+			placeholder = ""
+		end
+		return self:CreateTextbox({ Name = name, Placeholder = placeholder or "", Callback = callback })
+	end
+	function t:Label(name, desc)
+		return self:CreateLabel({ Name = name, Description = desc })
+	end
+	function t:Line()
+		return self:CreateDivider()
+	end
+	return t
+end
+
+local function wrapWindow(win)
+	local w = win
+	function w:Tab(name)
+		return wrapTab(self:CreateTab({ Name = name or "Tab" }))
+	end
+	function w:Action(name, callback)
+		return self:AddAction({ Name = name, Callback = callback })
+	end
+	return w
+end
+
+-- UI:New("Title") or UI:New("Title", "Subtitle") or UI:New({ Title = "...", Width = 500 })
+function Library:New(title, subtitle)
+	if not InitDone then
+		self:Init()
+	end
+	local config
+	if type(title) == "table" then
+		config = title
+	else
+		config = {
+			Title = title or "Veyra",
+			Subtitle = subtitle or "",
+		}
+	end
+	return wrapWindow(self:CreateWindow(config))
+end
+
+-- Keep CreateWindow returning simple-wrapped window too
+local _CreateWindow = Library.CreateWindow
+function Library:CreateWindow(config)
+	return wrapWindow(_CreateWindow(self, config))
+end
+
+-- UI:Notify("Title", "Desc", 3) or UI:Notify({ Title = "...", ... })
+local _Notify = Library.Notify
+function Library:Notify(a, b, c)
+	if type(a) == "table" then
+		return _Notify(self, a)
+	end
+	return _Notify(self, {
+		Title = tostring(a or "Notice"),
+		Description = tostring(b or ""),
+		Duration = tonumber(c) or 3,
+		Type = "Info",
+	})
+end
+
+return Library -- yes. finally.
