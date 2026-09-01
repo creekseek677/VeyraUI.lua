@@ -1,5 +1,5 @@
 --[[
-	VeyraUI v4 — Compact Responsive Framework (if ts doesn't work idek...) 
+	VeyraUI v4 — Compact Responsive Framework
 	Your custom TweenEngine + Ethereal separators preserved.
 
 	Additive upgrades only:
@@ -1142,20 +1142,25 @@ function NotificationManager:Notify(config)
 	local cleanup = CreateCleanup()
 	local closed = false
 
-	-- Main frame — sharp corners + soft black→white gradient
+	-- Full theme chrome (bg + border + text) — readable in Dark / Light / Neon
+	local bg = Theme.NotificationBackground or Theme.Background
+	local bd = Theme.NotificationBorder or Theme.Border
+	local titleCol = Theme.NotificationTitle or Theme.Text
+	local descCol = Theme.NotificationDescription or Theme.SecondaryText
+	local headBg = Theme.Secondary or bg
+
 	local frame = Instance.new("Frame")
 	frame.Name = "Notification"
-	frame.BackgroundColor3 = Color3.fromRGB(18, 18, 20)
+	frame.BackgroundColor3 = bg
 	frame.BackgroundTransparency = 0
 	frame.BorderSizePixel = 0
 	frame.Size = UDim2.new(0, NOTIF_WIDTH, 0, 0)
 	frame.AutomaticSize = Enum.AutomaticSize.Y
-	frame.AnchorPoint = Vector2.new(0, 1) -- bottom of frame is the anchor → stack upward
+	frame.AnchorPoint = Vector2.new(0, 1)
 	frame.Position = UDim2.new(0, 0, 1, 0)
 	frame.ClipsDescendants = true
 	frame.Parent = self.Container
 
-	-- Optional drag (default on; config.Draggable=false or Library.NotifDraggable=false)
 	do
 		local canDrag = true
 		if config.Draggable == false then canDrag = false end
@@ -1168,27 +1173,33 @@ function NotificationManager:Notify(config)
 		end
 	end
 
-	-- Black → soft white gradient (left to right)
+	-- Subtle theme gradient (follows bg — never stuck on black)
+	local function shade(c, mul)
+		return Color3.new(
+			math.clamp(c.R * mul, 0, 1),
+			math.clamp(c.G * mul, 0, 1),
+			math.clamp(c.B * mul, 0, 1)
+		)
+	end
 	local gradient = Instance.new("UIGradient")
 	gradient.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0.00, Color3.fromRGB(12, 12, 14)),
-		ColorSequenceKeypoint.new(0.65, Color3.fromRGB(28, 28, 32)),
-		ColorSequenceKeypoint.new(1.00, Color3.fromRGB(52, 52, 58)),
+		ColorSequenceKeypoint.new(0.00, shade(bg, 0.92)),
+		ColorSequenceKeypoint.new(0.50, bg),
+		ColorSequenceKeypoint.new(1.00, shade(bg, 1.08)),
 	})
 	gradient.Rotation = 0
 	gradient.Parent = frame
 
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(255, 255, 255)
+	stroke.Color = bd
 	stroke.Thickness = 1
-	stroke.Transparency = 0.88
+	stroke.Transparency = 0.3
 	stroke.Parent = frame
 
-	-- Header bar (no corners)
 	local header = Instance.new("Frame")
 	header.Name = "Header"
-	header.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-	header.BackgroundTransparency = 0.93
+	header.BackgroundColor3 = headBg
+	header.BackgroundTransparency = 0.15
 	header.BorderSizePixel = 0
 	header.Size = UDim2.new(1, 0, 0, NOTIF_HEADER_H)
 	header.ZIndex = 2
@@ -1217,7 +1228,7 @@ function NotificationManager:Notify(config)
 	title.Position = UDim2.new(0, contentOffset, 0, 0)
 	title.Font = Theme.FontBold
 	title.TextSize = 14
-	title.TextColor3 = Theme.NotificationTitle
+	title.TextColor3 = titleCol
 	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.Text = config.Title or "Notification"
 	title.ZIndex = 4
@@ -1255,7 +1266,7 @@ function NotificationManager:Notify(config)
 	desc.AutomaticSize = Enum.AutomaticSize.Y
 	desc.Font = Theme.Font
 	desc.TextSize = 13
-	desc.TextColor3 = Theme.NotificationDescription
+	desc.TextColor3 = descCol
 	desc.TextXAlignment = Enum.TextXAlignment.Left
 	desc.TextYAlignment = Enum.TextYAlignment.Top
 	desc.TextWrapped = true
@@ -1280,8 +1291,8 @@ function NotificationManager:Notify(config)
 	-- Progress bar (depletes over duration; hidden if Duration = 0)
 	local barBg = Instance.new("Frame")
 	barBg.Name = "ProgressBG"
-	barBg.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-	barBg.BackgroundTransparency = 0.9
+	barBg.BackgroundColor3 = Theme.Border or Color3.fromRGB(80, 80, 90)
+	barBg.BackgroundTransparency = 0.7
 	barBg.BorderSizePixel = 0
 	barBg.Size = UDim2.new(1, 0, 0, 3)
 	barBg.Position = UDim2.new(0, 0, 1, -3)
@@ -1400,6 +1411,31 @@ function NotificationManager:Notify(config)
 		if twDesc and not twDesc:IsFinished() then twDesc:Finish() end
 		desc.Text = text
 	end
+
+	function notif:RefreshTheme()
+		if closed or not frame or not frame.Parent then return end
+		local nbg = Theme.NotificationBackground or Theme.Background
+		local nbd = Theme.NotificationBorder or Theme.Border
+		local nt = Theme.NotificationTitle or Theme.Text
+		local nd = Theme.NotificationDescription or Theme.SecondaryText
+		frame.BackgroundColor3 = nbg
+		stroke.Color = nbd
+		header.BackgroundColor3 = Theme.Secondary or nbg
+		title.TextColor3 = nt
+		desc.TextColor3 = nd
+		local function shade(c, mul)
+			return Color3.new(math.clamp(c.R*mul,0,1), math.clamp(c.G*mul,0,1), math.clamp(c.B*mul,0,1))
+		end
+		gradient.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0.00, shade(nbg, 0.92)),
+			ColorSequenceKeypoint.new(0.50, nbg),
+			ColorSequenceKeypoint.new(1.00, shade(nbg, 1.08)),
+		})
+	end
+	local unhookTheme = OnThemeChange(function()
+		if notif.RefreshTheme then notif:RefreshTheme() end
+	end)
+	cleanup:AddCallback(unhookTheme)
 
 	notif.Manager = self
 	table.insert(self.Notifications, 1, notif)
@@ -2201,41 +2237,23 @@ local function CreateDropdown(tab, config)
 	arrow.Text = "▼"
 	arrow.Parent = header
 
-	-- Overlay host: parent list to ScreenGui so ScrollingFrame never clips options
-	local overlayGui = nil
-	local function getOverlay()
-		local p = frame
-		while p and p.Parent do
-			if p:IsA("ScreenGui") then
-				overlayGui = p
-				break
-			end
-			p = p.Parent
-		end
-		return overlayGui
-	end
-
-	local list = Instance.new("ScrollingFrame")
+	-- List stays INSIDE frame (attached to header) — expands with tween
+	local list = Instance.new("Frame")
 	list.Name = "List"
 	list.BackgroundColor3 = Theme.Tertiary
 	list.BackgroundTransparency = 0
 	list.BorderSizePixel = 0
-	list.Size = UDim2.new(0, 0, 0, 0)
-	list.Visible = false
-	list.ZIndex = 200
-	list.Active = true
-	list.ScrollingEnabled = true
-	list.ScrollBarThickness = 4
-	list.ScrollBarImageColor3 = Theme.Border
-	list.CanvasSize = UDim2.new(0, 0, 0, 0)
-	list.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	list.Size = UDim2.new(1, 0, 0, 0)
+	list.Position = UDim2.new(0, 0, 0, closedHeight)
+	list.Visible = true
+	list.ZIndex = 3
 	list.ClipsDescendants = true
-	list.Parent = frame -- moved to overlay on open
+	list.Parent = frame
 
 	local ls = Instance.new("UIStroke")
 	ls.Color = Theme.Border
 	ls.Thickness = 1
-	ls.Transparency = 0.25
+	ls.Transparency = 0.35
 	ls.Parent = list
 
 	local ll = Instance.new("UIListLayout")
@@ -2244,84 +2262,129 @@ local function CreateDropdown(tab, config)
 	ll.Parent = list
 
 	local function getListHeight()
-		return math.min(#options * optionH, maxListH)
+		return math.min(math.max(#options, 1) * optionH, maxListH)
+	end
+
+	local function bumpParentCanvas()
+		local p = frame.Parent
+		while p do
+			if p:IsA("ScrollingFrame") then
+				local lay = p:FindFirstChildOfClass("UIListLayout")
+				if lay then
+					p.CanvasSize = UDim2.new(0, 0, 0, math.max(lay.AbsoluteContentSize.Y + 24, p.AbsoluteSize.Y))
+				end
+				break
+			end
+			p = p.Parent
+		end
 	end
 
 	local function forceClose(instant)
 		if destroyed then return end
 		open = false
-		transitioning = false
 		if outsideConn then
 			outsideConn:Disconnect()
 			outsideConn = nil
 		end
 		TweenEngine.CancelOnObject(list)
 		TweenEngine.CancelOnObject(frame)
-		local function finishClose()
-			list.Visible = false
-			list.Size = UDim2.new(0, 0, 0, 0)
-			list.Parent = frame
+		arrow.Text = "▼"
+		if instant then
+			list.Size = UDim2.new(1, 0, 0, 0)
 			frame.Size = UDim2.new(1, 0, 0, closedHeight)
+			frame.ClipsDescendants = true
 			frame.ZIndex = 1
 			transitioning = false
-		end
-		if instant then
-			finishClose()
+			bumpParentCanvas()
 		else
 			transitioning = true
-			TweenEngine.Play(list, { BackgroundTransparency = 1 }, {
-				Duration = 0.15, Easing = "QuadIn",
+			TweenEngine.Play(list, { Size = UDim2.new(1, 0, 0, 0) }, {
+				Duration = 0.18, Easing = "QuadIn",
+			})
+			TweenEngine.Play(frame, { Size = UDim2.new(1, 0, 0, closedHeight) }, {
+				Duration = 0.2, Easing = "QuadIn",
 				OnComplete = function()
-					if not destroyed then finishClose() end
-				end
+					if not destroyed then
+						frame.ClipsDescendants = true
+						frame.ZIndex = 1
+						transitioning = false
+						bumpParentCanvas()
+					end
+				end,
 			})
 		end
-		arrow.Text = "▼"
 	end
 
 	local function openList()
 		if destroyed or transitioning or open then return end
 		if #options == 0 then return end
+		if tab and tab.Components then
+			for _, c in ipairs(tab.Components) do
+				if c ~= dd and c.Close then pcall(function() c:Close() end) end
+			end
+		end
 		transitioning = true
 		open = true
-		local height = math.max(getListHeight(), optionH)
-		local host = getOverlay() or frame
-		local abs = frame.AbsolutePosition
-		local absSize = frame.AbsoluteSize
-		list.Parent = host
+		local height = getListHeight()
+		local totalH = closedHeight + height
+
+		-- Keep top fixed — growth is DOWN only (never upward)
+		frame.AnchorPoint = Vector2.new(0, 0)
+		frame.ClipsDescendants = true
+		frame.ZIndex = 30
+		-- snap closed height first so tween has a clear start
+		frame.Size = UDim2.new(1, 0, 0, closedHeight)
+
+		list.Parent = frame
+		list.AnchorPoint = Vector2.new(0, 0)
+		list.Position = UDim2.new(0, 0, 0, closedHeight) -- glued under header
+		list.Size = UDim2.new(1, 0, 0, 0)
+		list.Visible = true
 		list.BackgroundTransparency = 0
 		list.BackgroundColor3 = Theme.Tertiary
-		list.Visible = true
-		list.ZIndex = 500
-		list.Size = UDim2.fromOffset(math.max(absSize.X, 120), height)
-		list.Position = UDim2.fromOffset(abs.X, abs.Y + absSize.Y + 2)
-		list.CanvasSize = UDim2.new(0, 0, 0, #options * optionH)
-		-- Ensure every option is visible
+		list.ZIndex = 31
+		list.ClipsDescendants = true
+
 		for _, child in ipairs(list:GetChildren()) do
 			if child:IsA("TextButton") then
 				child.Visible = true
-				child.ZIndex = 501
+				child.ZIndex = 32
 				child.BackgroundTransparency = 0
 				child.TextTransparency = 0
 			end
 		end
+
+		TweenEngine.CancelOnObject(list)
+		TweenEngine.CancelOnObject(frame)
+
+		TweenEngine.Play(frame, {
+			Size = UDim2.new(1, 0, 0, totalH),
+		}, { Duration = 0.28, Easing = "QuadOut" })
+		TweenEngine.Play(list, {
+			Size = UDim2.new(1, 0, 0, height),
+		}, {
+			Duration = 0.28,
+			Easing = "QuadOut",
+			OnComplete = function()
+				transitioning = false
+				bumpParentCanvas()
+			end,
+		})
 		arrow.Text = "▲"
-		transitioning = false
+		task.defer(bumpParentCanvas)
 
 		task.defer(function()
 			if destroyed or not open then return end
 			outsideConn = UserInputService.InputBegan:Connect(function(input)
-				if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
+				if input.UserInputType ~= Enum.UserInputType.MouseButton1
+					and input.UserInputType ~= Enum.UserInputType.Touch then
 					return
 				end
 				local pos = input.Position
-				local lp = list.AbsolutePosition
-				local ls = list.AbsoluteSize
-				local fp = frame.AbsolutePosition
-				local fs = frame.AbsoluteSize
-				local inList = pos.X >= lp.X and pos.X <= lp.X + ls.X and pos.Y >= lp.Y and pos.Y <= lp.Y + ls.Y
-				local inHeader = pos.X >= fp.X and pos.X <= fp.X + fs.X and pos.Y >= fp.Y and pos.Y <= fp.Y + fs.Y
-				if not inList and not inHeader then
+				local absPos = frame.AbsolutePosition
+				local absSize = frame.AbsoluteSize
+				if pos.X < absPos.X or pos.X > absPos.X + absSize.X
+					or pos.Y < absPos.Y or pos.Y > absPos.Y + absSize.Y then
 					forceClose(false)
 				end
 			end)
@@ -2344,7 +2407,7 @@ local function CreateDropdown(tab, config)
 		btn.TextXAlignment = Enum.TextXAlignment.Left
 		btn.AutoButtonColor = false
 		btn.Visible = true
-		btn.ZIndex = 501
+		btn.ZIndex = 4
 		btn.LayoutOrder = i
 		btn.Parent = list
 
@@ -2845,6 +2908,10 @@ local function CreateTab(window, config)
 			indicator.Visible = true
 		else
 			content.Visible = false
+			-- close dropdowns so list never floats on another tab
+			for _, c in ipairs(tab.Components) do
+				if c.Close then pcall(function() c:Close() end) end
+			end
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.SecondaryText
 			indicator.Visible = false
@@ -3189,16 +3256,28 @@ local function CreateWindow(library, config)
 		Actions = {},
 	}
 
-	-- Search filters sidebar tab buttons
-	cleanup:AddConnection(searchBox:GetPropertyChangedSignal("Text"):Connect(function()
-		local q = string.lower(searchBox.Text or "")
+	-- Search filters sidebar tab buttons (works while typing)
+	local function filterTabs()
+		local raw = searchBox.Text or ""
+		local q = string.lower((string.gsub(raw, "^%s+", "")))
+		q = (string.gsub(q, "%s+$", ""))
 		for _, tab in ipairs(tabs) do
-			if tab.Button then
-				local match = q == "" or string.find(string.lower(tab.Name), q, 1, true)
-				tab.Button.Visible = match and true or false
+			local btn = tab.Button
+			if btn and btn.Parent then
+				local name = string.lower(tostring(tab.Name or btn.Text or ""))
+				local show = (q == "") or (string.find(name, q, 1, true) ~= nil)
+				btn.Visible = show
 			end
 		end
+	end
+	cleanup:AddConnection(searchBox:GetPropertyChangedSignal("Text"):Connect(filterTabs))
+	cleanup:AddConnection(searchBox.FocusLost:Connect(filterTabs))
+	-- Mobile keyboards sometimes only fire on change + defer
+	cleanup:AddConnection(searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+		task.defer(filterTabs)
 	end))
+	searchBox.ClearTextOnFocus = false
+	searchBox.TextEditable = true
 
 	local drag = MakeDraggable(titleBar, root)
 	cleanup:AddCallback(function() drag:Destroy() end)
