@@ -1787,11 +1787,12 @@ local function CreateToggle(tab, config)
 	local title = Instance.new("TextLabel")
 	title.BackgroundTransparency = 1
 	title.Size = UDim2.new(1, -60, 0, 16)
-	title.Position = UDim2.new(0, 12, 0.5, config.Description and -8 or 0)
+	title.Position = UDim2.new(0, 0, 0.5, config.Description and -8 or -8)
 	title.Font = Theme.Font
 	title.TextSize = 13
 	title.TextColor3 = Theme.Text
-	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.TextXAlignment = Enum.TextXAlignment.Center
+	title.TextYAlignment = Enum.TextYAlignment.Center
 	title.Text = config.Name or "Toggle"
 	title.Parent = frame
 
@@ -1799,11 +1800,12 @@ local function CreateToggle(tab, config)
 		local d = Instance.new("TextLabel")
 		d.BackgroundTransparency = 1
 		d.Size = UDim2.new(1, -60, 0, 14)
-		d.Position = UDim2.new(0, 12, 0.5, 4)
+		d.Position = UDim2.new(0, 0, 0.5, 4)
 		d.Font = Theme.Font
 		d.TextSize = 11
 		d.TextColor3 = Theme.SecondaryText
-		d.TextXAlignment = Enum.TextXAlignment.Left
+		d.TextXAlignment = Enum.TextXAlignment.Center
+		d.TextYAlignment = Enum.TextYAlignment.Center
 		d.Text = config.Description
 		d.Parent = frame
 	end
