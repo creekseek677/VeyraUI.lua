@@ -3186,8 +3186,9 @@ local function CreateWindow(library, config)
 	searchBox.BackgroundColor3 = Theme.Tertiary
 	searchBox.BackgroundTransparency = 0.2
 	searchBox.BorderSizePixel = 0
-	searchBox.Size = UDim2.new(1, -16, 0, 26)
-	searchBox.Position = UDim2.new(0, 8, 0, 8)
+	-- Same width as tab buttons (1, -8)
+	searchBox.Size = UDim2.new(1, -8, 0, 26)
+	searchBox.Position = UDim2.new(0, 4, 0, 8)
 	searchBox.Font = Theme.Font
 	searchBox.TextSize = 11
 	searchBox.TextColor3 = Theme.Text
@@ -3336,9 +3337,8 @@ local function CreateWindow(library, config)
 		return btn
 	end
 
-	makeResizeHandle("ResizeRight", UDim2.new(0, 8, 1, -16), UDim2.new(1, -8, 0, 8), "right")
-	makeResizeHandle("ResizeBottom", UDim2.new(1, -16, 0, 8), UDim2.new(0, 8, 1, -8), "bottom")
-	local resizeGrip = makeResizeHandle("ResizeGrip", UDim2.new(0, 16, 0, 16), UDim2.new(1, -16, 1, -16), "corner")
+	-- Mobile-friendly: ONLY bottom-right corner (no side/bottom edge grips)
+	local resizeGrip = makeResizeHandle("ResizeGrip", UDim2.new(0, 22, 0, 22), UDim2.new(1, -22, 1, -22), "corner")
 
 	local gripVisual = Instance.new("Frame")
 	gripVisual.BackgroundColor3 = Theme.Border
@@ -3596,10 +3596,31 @@ local function CreateWindow(library, config)
 	end
 
 	function window:Destroy()
+		-- cancel tweens on this window tree
+		pcall(function() TweenEngine.CancelOnObject(root) end)
+		pcall(function() TweenEngine.CancelOnObject(main) end)
 		for _, tab in ipairs(tabs) do
-			tab:Destroy()
+			pcall(function()
+				if tab.Destroy then tab:Destroy() end
+			end)
 		end
-		cleanup:Destroy()
+		table.clear(tabs)
+		pcall(function() cleanup:Destroy() end)
+		-- destroy gui root
+		pcall(function()
+			if gui then gui:Destroy() end
+		end)
+		-- drop from global Windows list
+		pcall(function()
+			local idx = table.find(Windows, window)
+			if idx then table.remove(Windows, idx) end
+		end)
+		-- if no windows left, wipe notifications to prevent leaks
+		pcall(function()
+			if #Windows == 0 and NotifManager then
+				NotifManager:Clear()
+			end
+		end)
 	end
 
 	return window
@@ -3750,9 +3771,28 @@ Library.ThemePresets = ThemePresets
 
 local InitDone = false
 
--- Wipe leftover Veyra ScreenGuis on re-exec (no getgenv)
+-- Full restart: kill every previous Veyra UI + notifs (re-exec / second script)
 local function KillPrevious()
 	pcall(function()
+		-- destroy tracked windows
+		local snap = table.clone(Windows)
+		table.clear(Windows)
+		for _, win in ipairs(snap) do
+			pcall(function()
+				if win.Destroy then win:Destroy() end
+			end)
+		end
+		-- clear notifications
+		if NotifManager then
+			pcall(function() NotifManager:Clear() end)
+			pcall(function()
+				if NotifManager.Gui then NotifManager.Gui:Destroy() end
+			end)
+			NotifManager = NotificationManager.new()
+		end
+		-- cancel leftover tweens
+		pcall(function() TweenEngine.CancelAll() end)
+		-- wipe any leftover ScreenGuis named Veyra*
 		local parents = {}
 		pcall(function() table.insert(parents, game:GetService("CoreGui")) end)
 		pcall(function()
@@ -3765,8 +3805,11 @@ local function KillPrevious()
 		for _, parent in ipairs(parents) do
 			if parent then
 				for _, child in ipairs(parent:GetChildren()) do
-					if child:IsA("ScreenGui") and (string.find(child.Name, "Veyra") or string.find(child.Name, "veyra")) then
-						pcall(function() child:Destroy() end)
+					if child:IsA("ScreenGui") then
+						local n = child.Name
+						if string.find(n, "Veyra") or string.find(n, "veyra") then
+							pcall(function() child:Destroy() end)
+						end
 					end
 				end
 			end
