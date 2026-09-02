@@ -1657,27 +1657,36 @@ local function CreateButton(tab, config)
 
 	local title = Instance.new("TextLabel")
 	title.BackgroundTransparency = 1
-	title.Size = UDim2.new(1, -24, 0, 16)
-	title.Position = UDim2.new(0, 12, 0.5, config.Description and -8 or 0)
+	title.BorderSizePixel = 0
 	title.Font = Theme.Font
 	title.TextSize = 13
 	title.TextColor3 = Theme.Text
-	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.TextXAlignment = Enum.TextXAlignment.Center
+	title.TextYAlignment = Enum.TextYAlignment.Center
 	title.Text = config.Name or "Button"
 	title.Parent = frame
 
 	local desc
 	if config.Description then
+		-- Title + description: title upper-center, desc lower-center
+		title.Size = UDim2.new(1, -16, 0, 16)
+		title.Position = UDim2.new(0, 8, 0.5, -10)
+		title.TextXAlignment = Enum.TextXAlignment.Left
 		desc = Instance.new("TextLabel")
 		desc.BackgroundTransparency = 1
-		desc.Size = UDim2.new(1, -24, 0, 14)
-		desc.Position = UDim2.new(0, 12, 0.5, 4)
+		desc.Size = UDim2.new(1, -16, 0, 14)
+		desc.Position = UDim2.new(0, 8, 0.5, 2)
 		desc.Font = Theme.Font
 		desc.TextSize = 11
 		desc.TextColor3 = Theme.SecondaryText
 		desc.TextXAlignment = Enum.TextXAlignment.Left
+		desc.TextYAlignment = Enum.TextYAlignment.Center
 		desc.Text = config.Description
 		desc.Parent = frame
+	else
+		-- Single-line button: text fully centered
+		title.Size = UDim2.new(1, 0, 1, 0)
+		title.Position = UDim2.new(0, 0, 0, 0)
 	end
 
 	cleanup:AddConnection(frame.MouseEnter:Connect(function()
