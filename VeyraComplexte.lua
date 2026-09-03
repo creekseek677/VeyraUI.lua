@@ -3257,7 +3257,7 @@ end
 
 local function ComputeResponsiveSize(config)
 	config = config or {}
-	local w = tonumber(config.Width) or 360
+	local w = tonumber(config.Width) or 420
 	local h = tonumber(config.Height) or 360
 	w = math.max(280, math.floor(w))
 	h = math.max(180, math.floor(h))
@@ -3619,7 +3619,7 @@ local function CreateWindow(library, config)
 		local cam = workspace.CurrentCamera
 		if not cam then return end
 		local vp = cam.ViewportSize
-		local currentW = root.Size.X.Offset > 0 and root.Size.X.Offset or window.Width or 360
+		local currentW = root.Size.X.Offset > 0 and root.Size.X.Offset or window.Width or 420
 		local currentH = root.Size.Y.Offset > 0 and root.Size.Y.Offset or window.Height or 360
 		local nw = math.max(280, math.floor(currentW))
 		local nh = math.max(180, math.floor(currentH))
