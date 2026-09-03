@@ -16,8 +16,6 @@ local DefaultSettings = {
 	Theme = "Dark",
 	ToggleUIKey = "X",
 	UIVisible = true,
-	Width = 360,
-	Height = 360,
 }
 
 local Settings = {}
@@ -3259,25 +3257,17 @@ end
 
 local function ComputeResponsiveSize(config)
 	config = config or {}
-	local cam = workspace.CurrentCamera
-	local vp = (cam and cam.ViewportSize) or Vector2.new(1280, 720)
-	local vw, vh = vp.X, vp.Y
-	local isTouch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
-	local isPortrait = vh > vw
-
-	local w = config.Width or 360
-	local h = config.Height or 360
-	w = math.floor(math.clamp(w, 280, math.max(280, vw - 12)))
-	h = math.floor(math.clamp(h, 180, math.max(180, vh - 12)))
-	return w, h, isTouch, isPortrait
+	local w = tonumber(config.Width) or 360
+	local h = tonumber(config.Height) or 360
+	w = math.max(280, math.floor(w))
+	h = math.max(180, math.floor(h))
+	return w, h, UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 end
 
 local function CreateWindow(library, config)
 	config = config or {}
-	config.Width = config.Width or Settings.Width or 360
-	config.Height = config.Height or Settings.Height or 360
 	local cleanup = CreateCleanup()
-	local width, height, isTouch, isPortrait = ComputeResponsiveSize(config)
+	local width, height, isTouch = ComputeResponsiveSize(config)
 	local minimized = false
 	local tabs = {}
 	local activeTab = nil
@@ -3316,8 +3306,8 @@ local function CreateWindow(library, config)
 
 	local sizeConstraint = Instance.new("UISizeConstraint")
 	local vp = (workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize) or Vector2.new(1280, 720)
-	sizeConstraint.MinSize = Vector2.new(math.min(300, vp.X - 8), math.min(180, vp.Y - 8))
-	sizeConstraint.MaxSize = Vector2.new(math.min(900, vp.X - 8), math.min(560, vp.Y - 8))
+	sizeConstraint.MinSize = Vector2.new(280, 180)
+	sizeConstraint.MaxSize = Vector2.new(math.max(360, math.min(900, math.max(360, vp.X - 8))), math.max(360, math.min(560, math.max(360, vp.Y - 8))))
 	sizeConstraint.Parent = root
 
 	local main = Instance.new("Frame")
@@ -3629,25 +3619,25 @@ local function CreateWindow(library, config)
 		local cam = workspace.CurrentCamera
 		if not cam then return end
 		local vp = cam.ViewportSize
+		local currentW = root.Size.X.Offset > 0 and root.Size.X.Offset or window.Width or 360
+		local currentH = root.Size.Y.Offset > 0 and root.Size.Y.Offset or window.Height or 360
+		local nw = math.max(280, math.floor(currentW))
+		local nh = math.max(180, math.floor(currentH))
 		if forceSize then
-			local nw, nh = ComputeResponsiveSize(config)
 			width, height = nw, nh
-			window.Width, window.Height = nw, nh
-			root.Size = UDim2.fromOffset(nw, nh)
-		else
-
-			local nw = math.clamp(root.AbsoluteSize.X, 280, math.max(280, vp.X - 12))
-			local nh = math.clamp(root.AbsoluteSize.Y, 180, math.max(180, vp.Y - 12))
-			root.Size = UDim2.fromOffset(nw, nh)
-			window.Width, window.Height = nw, nh
 		end
+		root.Size = UDim2.fromOffset(nw, nh)
+		window.Width, window.Height = nw, nh
 
 		local aw = root.AbsoluteSize.X
 		local ah = root.AbsoluteSize.Y
 		root.Position = UDim2.new(0.5, -aw / 2, 0.5, -ah / 2)
 		if sizeConstraint then
-			sizeConstraint.MinSize = Vector2.new(math.min(300, vp.X - 8), math.min(180, vp.Y - 8))
-			sizeConstraint.MaxSize = Vector2.new(math.min(900, vp.X - 8), math.min(560, vp.Y - 8))
+			sizeConstraint.MinSize = Vector2.new(280, 180)
+			sizeConstraint.MaxSize = Vector2.new(
+				math.max(360, math.min(900, math.max(360, vp.X - 8))),
+				math.max(360, math.min(560, math.max(360, vp.Y - 8)))
+			)
 		end
 	end
 
