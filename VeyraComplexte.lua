@@ -2390,10 +2390,11 @@ local function CreateDropdown(tab, config)
 		local p = frame.Parent
 		while p do
 			if p:IsA("ScrollingFrame") then
-				local lay = p:FindFirstChildOfClass("UIListLayout")
-				if lay then
-					p.CanvasSize = UDim2.new(0, 0, 0, math.max(lay.AbsoluteContentSize.Y + 24, p.AbsoluteSize.Y))
-				end
+				-- Let Roblox calculate the scrollable canvas from the complete
+				-- descendant hierarchy. This avoids stale/manual CanvasSize
+				-- values when nested sections or expanding controls change size.
+				p.AutomaticCanvasSize = Enum.AutomaticSize.Y
+				p.CanvasSize = UDim2.new(0, 0, 0, 0)
 				break
 			end
 			p = p.Parent
@@ -2942,7 +2943,7 @@ local function CreateTab(window, config)
 	content.ClipsDescendants = true
 	content.CanvasPosition = Vector2.new(0, 0)
 	content.CanvasSize = UDim2.new(0, 0, 0, 0)
-	content.AutomaticCanvasSize = Enum.AutomaticSize.None
+	content.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	content.ScrollBarThickness = UserInputService.TouchEnabled and 5 or 3
 	content.ScrollBarImageColor3 = Theme.Border
 	content.ScrollBarImageTransparency = 0.2
@@ -2961,15 +2962,25 @@ local function CreateTab(window, config)
 	layout.Padding = UDim.new(0, 8)
 	layout.Parent = content
 
-	local TOP_BOTTOM = 20
+	-- Roblox handles the canvas size from all descendants, including nested
+	-- section contents and dynamically expanding controls. Keep a deferred
+	-- refresh for layout changes so the final scroll extent is recalculated
+	-- after Roblox finishes its UI layout pass.
+	local canvasRefreshPending = false
 	local function updateCanvasSize()
-		if content.Parent == nil then return end
-		local h = layout.AbsoluteContentSize.Y + TOP_BOTTOM
-		local vh = content.AbsoluteSize.Y
-		content.CanvasSize = UDim2.new(0, 0, 0, math.max(h, vh))
+		if content.Parent == nil or canvasRefreshPending then return end
+		canvasRefreshPending = true
+		task.defer(function()
+			canvasRefreshPending = false
+			if content.Parent == nil then return end
+			content.AutomaticCanvasSize = Enum.AutomaticSize.Y
+			content.CanvasSize = UDim2.new(0, 0, 0, 0)
+		end)
 	end
 	cleanup:AddConnection(layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvasSize))
 	cleanup:AddConnection(content:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateCanvasSize))
+	cleanup:AddConnection(content.DescendantAdded:Connect(updateCanvasSize))
+	cleanup:AddConnection(content.DescendantRemoving:Connect(updateCanvasSize))
 	task.defer(updateCanvasSize)
 
 	-- Sidebar tab button (vertical list)
