@@ -16,6 +16,8 @@ local DefaultSettings = {
 	Theme = "Dark",
 	ToggleUIKey = "X",
 	UIVisible = true,
+	Width = 360,
+	Height = 360,
 }
 
 local Settings = {}
@@ -3272,6 +3274,8 @@ end
 
 local function CreateWindow(library, config)
 	config = config or {}
+	config.Width = config.Width or Settings.Width or 360
+	config.Height = config.Height or Settings.Height or 360
 	local cleanup = CreateCleanup()
 	local width, height, isTouch, isPortrait = ComputeResponsiveSize(config)
 	local minimized = false
