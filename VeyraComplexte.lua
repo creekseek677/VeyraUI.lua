@@ -1,48 +1,3 @@
---[[
-	VeyraUI v4 — Compact Responsive Framework
-	Your custom TweenEngine + Ethereal separators preserved. Uploaded on RScripts
-
-	Additive upgrades only:
-	• Compact near-square window (default 360×360, ~70% scale)
-	• Thin white right-side outline accent
-	• Scrollable tab bar when many tabs
-	• Reliable content scrolling (PC + mobile)
-	• Optional top-bar actions (Window:AddAction)
-	• Optional intro via Library:Init({ Intro = true, IntroConfig = {...} })
-	• Optional key system: covers UI → splits apart on correct key (TweenEngine) → reveals UI
-	• UISizeConstraint for multi-resolution
-	• Slightly tighter element spacing for compact layout
-
-	Core systems unchanged:
-	• Full custom TweenEngine (scheduler, all easings, Spring, Shake, CancelOnObject)
-	• Ethereal separators
-	• Signal / Cleanup / ProtectAndParent
-	• Slider & drag: UIS hooks only while active
-	• Notification hard cap, typewriter, audio, icon, Duration=0 manual close
-	• Live theme refresh + presets
-
-	Usage (key gate → split → main UI):
-		local Library = loadstring(...)()
-
-		Library:CreateKeySystem({
-			Title = "Key System",
-			BottomLabel = "Get the key from our Discord",
-			Link = "https://discord.gg/invite",
-			Key = "secret",
-			OnSuccess = function()
-				-- fires as split starts so UI is under the gate while halves fly apart
-				local Window = Library:CreateWindow({
-					Title = "My UI",
-					Subtitle = "v4",
-					Width = 360,
-					Height = 360,
-				})
-				local Tab = Window:CreateTab({ Name = "Main" })
-				Tab:CreateButton({ Name = "Test", Callback = function() end })
-			end,
-		})
-]]
-
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -54,15 +9,12 @@ local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local HttpService = game:GetService("HttpService")
 local LocalizationService = game:GetService("LocalizationService")
 
-----------------------------------------------------------------
--- CONFIG (persist with exploit writefile / readfile)
-----------------------------------------------------------------
 local CONFIG_FOLDER = "VeyraUI"
 local CONFIG_FILE = "VeyraUI/settings.json"
 
 local DefaultSettings = {
 	Theme = "Dark",
-	ToggleUIKey = "X", -- KeyCode name
+	ToggleUIKey = "X",
 	UIVisible = true,
 }
 
@@ -76,7 +28,7 @@ local function ConfigEncode(tbl)
 		return HttpService:JSONEncode(tbl)
 	end)
 	if ok and encoded then return encoded end
-	-- fallback minimal encoder
+
 	local parts = {}
 	for k, v in pairs(tbl) do
 		local vs = tostring(v)
@@ -132,7 +84,6 @@ local function ConfigSave()
 	return ok
 end
 
--- Load once at library start
 pcall(ConfigLoad)
 
 local function KeyCodeFromName(name)
@@ -147,9 +98,6 @@ local function KeyCodeFromName(name)
 	return Enum.KeyCode.Unknown
 end
 
-----------------------------------------------------------------
--- SIGNAL (Changed events for components)
-----------------------------------------------------------------
 local function CreateSignal()
 	local handlers = {}
 	local destroyed = false
@@ -213,7 +161,6 @@ local function CreateSignal()
 	return api
 end
 
--- Executor-friendly GUI parenting (gethui / syn.protect_gui / CoreGui fallback)
 local function ProtectAndParent(sg)
 	sg.ResetOnSpawn = false
 	pcall(function()
@@ -234,9 +181,6 @@ local function ProtectAndParent(sg)
 	sg.Parent = PlayerGui
 end
 
-----------------------------------------------------------------
--- THEME
-----------------------------------------------------------------
 local Theme = {
 	Background = Color3.fromRGB(12, 12, 14),
 	Secondary = Color3.fromRGB(18, 18, 22),
@@ -263,13 +207,12 @@ local Theme = {
 	Font = Enum.Font.GothamMedium,
 	FontBold = Enum.Font.GothamBold,
 	FontMono = Enum.Font.Code,
-	CornerRadius = 0,  -- sharp; toggles keep own radius
+	CornerRadius = 0,
 	ElementHeight = 32,
 	AnimationSpeed = 0.35,
 	HoverSpeed = 0.15,
 }
 
--- Built-in presets (use Library:ApplyTheme("Light") or SetTheme(ThemePresets.Light))
 local ThemePresets = {
 	Dark = {
 		Background = Color3.fromRGB(12, 12, 14),
@@ -376,9 +319,6 @@ local function OnThemeChange(fn)
 	end
 end
 
-----------------------------------------------------------------
--- CLEANUP
-----------------------------------------------------------------
 local function CreateCleanup()
 	local connections, instances, tasks, callbacks = {}, {}, {}, {}
 	local destroyed = false
@@ -417,7 +357,7 @@ local function CreateCleanup()
 	function api:Destroy()
 		if destroyed then return end
 		destroyed = true
-		-- Cancel any running animations on tracked instances first
+
 		for _, i in ipairs(instances) do
 			if i then
 				pcall(function() TweenEngine.CancelOnObject(i) end)
@@ -448,9 +388,6 @@ local function CreateCleanup()
 	return api
 end
 
-----------------------------------------------------------------
--- EASING
-----------------------------------------------------------------
 local Easing = {}
 
 function Easing.Linear(t) return t end
@@ -585,9 +522,6 @@ local function GetEasing(name)
 	return EasingNamed[name] or Easing.Linear
 end
 
-----------------------------------------------------------------
--- ANIMATION SCHEDULER + ENGINE (Hardened)
-----------------------------------------------------------------
 local ActiveAnims = {}
 local SchedulerConn = nil
 local AnimIdCounter = 0
@@ -605,7 +539,7 @@ local function SchedulerUpdate(dt)
 				anim._finished = true
 				table.insert(remove, id)
 				if ok and anim.OnComplete and not anim.Cancelled then
-					-- Only fire OnComplete if not cancelled
+
 					task.spawn(anim.OnComplete)
 				end
 			end
@@ -645,7 +579,6 @@ local function SchedulerRemove(anim)
 	end
 end
 
--- Lerp helpers
 local function LerpNumber(a, b, t) return a + (b - a) * t end
 local function LerpColor3(a, b, t)
 	return Color3.new(LerpNumber(a.R, b.R, t), LerpNumber(a.G, b.G, t), LerpNumber(a.B, b.B, t))
@@ -766,7 +699,7 @@ function Animation:Cancel()
 	if self.Cancelled or self._finished then return end
 	self.Cancelled = true
 	self._finished = true
-	-- Do not fire OnComplete on cancel
+
 	self.OnComplete = nil
 	SchedulerRemove(self)
 end
@@ -974,9 +907,6 @@ function TweenEngine.CancelOnObject(object)
 	end
 end
 
-----------------------------------------------------------------
--- INPUT / DRAG
-----------------------------------------------------------------
 local function MakeDraggable(handle, target, options)
 	options = options or {}
 	target = target or handle
@@ -1044,9 +974,6 @@ local function MakeDraggable(handle, target, options)
 	}
 end
 
-----------------------------------------------------------------
--- TYPEWRITER
-----------------------------------------------------------------
 local function CreateTypewriter(label, options)
 	options = options or {}
 	local speed = options.Speed or 0.025
@@ -1101,9 +1028,6 @@ local function CreateTypewriter(label, options)
 	return api
 end
 
-----------------------------------------------------------------
--- ETHEREAL SEPARATOR
-----------------------------------------------------------------
 local function CreateEtherealSeparator(parent)
 	local container = Instance.new("Frame")
 	container.Name = "EtherealSeparator"
@@ -1165,14 +1089,10 @@ local function CreateEtherealSeparator(parent)
 	return api
 end
 
-----------------------------------------------------------------
--- NOTIFICATION SYSTEM (Merged: Veyra hardened + improved UI)
--- Header bar, large rounded corners, black → soft-white gradient
-----------------------------------------------------------------
 local NotificationManager = {}
 NotificationManager.__index = NotificationManager
 
-local MAX_NOTIFICATIONS = 10 -- hard cap; drop oldest under spam
+local MAX_NOTIFICATIONS = 10
 local NOTIF_CORNER = 16
 local NOTIF_HEADER_H = 30
 local NOTIF_WIDTH = 320
@@ -1198,10 +1118,10 @@ function NotificationManager.new()
 	container.AnchorPoint = Vector2.new(1, 1)
 	container.Parent = gui
 
-	-- Stack from bottom-right
+
 	self.Gui = gui
 	self.Container = container
-	self.Draggable = true -- default; Library.NotifDraggable = false to disable
+	self.Draggable = true
 	return self
 end
 
@@ -1215,7 +1135,7 @@ local TYPE_COLORS = {
 
 function NotificationManager:Notify(config)
 	config = config or {}
-	-- Duration = 0 or Length = 0 means stay until manual Close()
+
 	local duration = config.Duration
 	if duration == nil then duration = config.Length end
 	if duration == nil then duration = 5 end
@@ -1228,7 +1148,7 @@ function NotificationManager:Notify(config)
 	local cleanup = CreateCleanup()
 	local closed = false
 
-	-- Full theme chrome (bg + border + text) — readable in Dark / Light / Neon
+
 	local bg = Theme.NotificationBackground or Theme.Background
 	local bd = Theme.NotificationBorder or Theme.Border
 	local titleCol = Theme.NotificationTitle or Theme.Text
@@ -1259,7 +1179,7 @@ function NotificationManager:Notify(config)
 		end
 	end
 
-	-- Subtle theme gradient (follows bg — never stuck on black)
+
 	local function shade(c, mul)
 		return Color3.new(
 			math.clamp(c.R * mul, 0, 1),
@@ -1291,7 +1211,7 @@ function NotificationManager:Notify(config)
 	header.ZIndex = 2
 	header.Parent = frame
 
-	-- Optional icon
+
 	local contentOffset = 14
 	if imageId and tostring(imageId) ~= "" then
 		local icon = Instance.new("ImageLabel")
@@ -1320,7 +1240,7 @@ function NotificationManager:Notify(config)
 	title.ZIndex = 4
 	title.Parent = header
 
-	-- Body padding + layout
+
 	local body = Instance.new("Frame")
 	body.Name = "Body"
 	body.BackgroundTransparency = 1
@@ -1360,7 +1280,7 @@ function NotificationManager:Notify(config)
 	desc.LayoutOrder = 2
 	desc.Parent = body
 
-	-- Thin left type accent
+
 	local accent = Instance.new("Frame")
 	accent.Name = "Accent"
 	accent.BackgroundColor3 = barColor
@@ -1374,7 +1294,7 @@ function NotificationManager:Notify(config)
 	accentCorner.CornerRadius = UDim.new(0, 2)
 	accentCorner.Parent = accent
 
-	-- Progress bar (depletes over duration; hidden if Duration = 0)
+
 	local barBg = Instance.new("Frame")
 	barBg.Name = "ProgressBG"
 	barBg.BackgroundColor3 = Theme.Border or Color3.fromRGB(80, 80, 90)
@@ -1403,7 +1323,7 @@ function NotificationManager:Notify(config)
 
 	cleanup:AddInstance(frame)
 
-	-- Optional sound
+
 	if audioId and tostring(audioId) ~= "" then
 		local sound = Instance.new("Sound")
 		sound.SoundId = tostring(audioId)
@@ -1526,7 +1446,7 @@ function NotificationManager:Notify(config)
 	notif.Manager = self
 	table.insert(self.Notifications, 1, notif)
 
-	-- Drop oldest when over cap (stress protection)
+
 	local maxN = self.MaxNotifications or MAX_NOTIFICATIONS
 	while #self.Notifications > maxN do
 		local oldest = self.Notifications[#self.Notifications]
@@ -1554,8 +1474,8 @@ function NotificationManager:Notify(config)
 end
 
 function NotificationManager:GetPositionForIndex(index)
-	-- Bottom-up stack: index 1 is lowest (newest). Offset grows upward.
-	-- When stack exceeds screen, older notifs sit higher (still stacked).
+
+
 	local y = 0
 	for i = 1, index - 1 do
 		local n = self.Notifications[i]
@@ -1565,13 +1485,13 @@ function NotificationManager:GetPositionForIndex(index)
 			y = y + h + self.Spacing
 		end
 	end
-	-- Clamp so top of stack never goes past top of container
+
 	local maxY = math.max(0, (self.Container.AbsoluteSize.Y > 0 and self.Container.AbsoluteSize.Y or 600) - 40)
 	if y > maxY then
-		-- Still return position; hard-cap drops oldest. Offset stays valid.
+
 		y = math.min(y, maxY + 200)
 	end
-	-- AnchorPoint (0,1) on frame → Position Y scale 1, offset -y stacks upward
+
 	return UDim2.new(0, 0, 1, -y)
 end
 
@@ -1588,7 +1508,7 @@ function NotificationManager:RepositionAll(animate)
 		end
 	end
 	apply()
-	-- Second pass after layout settles (AbsoluteSize becomes real)
+
 	task.defer(apply)
 end
 
@@ -1612,9 +1532,6 @@ function NotificationManager:Destroy()
 	if self.Gui then self.Gui:Destroy() end
 end
 
-----------------------------------------------------------------
--- COMPONENTS
-----------------------------------------------------------------
 local function GetParentForComponent(tab)
 	if #tab.Sections > 0 then
 		return tab.Sections[#tab.Sections].Content
@@ -1622,7 +1539,6 @@ local function GetParentForComponent(tab)
 	return tab.Content
 end
 
--- SECTION
 local function CreateSection(tab, config)
 	config = config or {}
 	local cleanup = CreateCleanup()
@@ -1681,7 +1597,7 @@ local function CreateSection(tab, config)
 	local descLabel = nil
 	if config.Description then
 		descLabel = container:FindFirstChildWhichIsA("TextLabel")
-		-- title is first, description is second TextLabel
+
 		for _, ch in ipairs(container:GetChildren()) do
 			if ch:IsA("TextLabel") and ch ~= title then
 				descLabel = ch
@@ -1714,7 +1630,6 @@ local function CreateSection(tab, config)
 	return section
 end
 
--- BUTTON (supports Callback and optional Script / Code via loadstring)
 local function CreateButton(tab, config)
 	config = config or {}
 	local cleanup = CreateCleanup()
@@ -1799,7 +1714,7 @@ local function CreateButton(tab, config)
 	cleanup:AddConnection(frame.MouseButton1Click:Connect(function()
 		if not enabled then return end
 
-		-- Optional loadstring / Script support
+
 		local code = config.Script or config.Code
 		if type(code) == "string" and #code > 0 then
 			local ok, err = pcall(function()
@@ -1855,7 +1770,6 @@ local function CreateButton(tab, config)
 	return btn
 end
 
--- TOGGLE
 local function CreateToggle(tab, config)
 	config = config or {}
 	local cleanup = CreateCleanup()
@@ -2014,7 +1928,6 @@ local function CreateToggle(tab, config)
 	return toggle
 end
 
--- SLIDER
 local function CreateSlider(tab, config)
 	config = config or {}
 	local cleanup = CreateCleanup()
@@ -2160,7 +2073,7 @@ local function CreateSlider(tab, config)
 			clearSliderDrag()
 			dragging = true
 			updateFromInput(input.Position)
-			-- only live while dragging (avoids N permanent global UIS hooks)
+
 			moveConn = UserInputService.InputChanged:Connect(function(inp)
 				if not dragging then return end
 				if inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch then
@@ -2222,7 +2135,6 @@ local function CreateSlider(tab, config)
 	return slider
 end
 
--- LABEL
 local function CreateLabel(tab, config)
 	config = config or {}
 	local cleanup = CreateCleanup()
@@ -2279,7 +2191,6 @@ local function CreateLabel(tab, config)
 	return label
 end
 
--- DROPDOWN (expands frame so content below sinks via UIListLayout)
 local function CreateDropdown(tab, config)
 	config = config or {}
 	local cleanup = CreateCleanup()
@@ -2295,7 +2206,7 @@ local function CreateDropdown(tab, config)
 	local optionH = 28
 	local maxListH = 140
 
-	-- Declare early so closures can safely reference them
+
 	local changed = CreateSignal()
 	local dd = { Frame = nil, Cleanup = cleanup, Changed = changed }
 
@@ -2305,7 +2216,7 @@ local function CreateDropdown(tab, config)
 	frame.BackgroundTransparency = 0.15
 	frame.BorderSizePixel = 0
 	frame.Size = UDim2.new(1, 0, 0, closedHeight)
-	frame.ClipsDescendants = true -- clip list while animating height
+	frame.ClipsDescendants = true
 	frame.Parent = parent
 	dd.Frame = frame
 
@@ -2319,7 +2230,7 @@ local function CreateDropdown(tab, config)
 	stroke.Transparency = 0.5
 	stroke.Parent = frame
 
-	-- Header row (always visible)
+
 	local header = Instance.new("Frame")
 	header.Name = "Header"
 	header.BackgroundTransparency = 1
@@ -2349,7 +2260,7 @@ local function CreateDropdown(tab, config)
 	arrow.Text = "▼"
 	arrow.Parent = header
 
-	-- List stays INSIDE frame (attached to header) — expands with tween
+
 	local list = Instance.new("Frame")
 	list.Name = "List"
 	list.BackgroundColor3 = Theme.Tertiary
@@ -2381,9 +2292,9 @@ local function CreateDropdown(tab, config)
 		local p = frame.Parent
 		while p do
 			if p:IsA("ScrollingFrame") then
-				-- Let Roblox calculate the scrollable canvas from the complete
-				-- descendant hierarchy. This avoids stale/manual CanvasSize
-				-- values when nested sections or expanding controls change size.
+
+
+
 				p.AutomaticCanvasSize = Enum.AutomaticSize.Y
 				p.CanvasSize = UDim2.new(0, 0, 0, 0)
 				break
@@ -2441,16 +2352,16 @@ local function CreateDropdown(tab, config)
 		local height = getListHeight()
 		local totalH = closedHeight + height
 
-		-- Keep top fixed — growth is DOWN only (never upward)
+
 		frame.AnchorPoint = Vector2.new(0, 0)
 		frame.ClipsDescendants = true
 		frame.ZIndex = 30
-		-- snap closed height first so tween has a clear start
+
 		frame.Size = UDim2.new(1, 0, 0, closedHeight)
 
 		list.Parent = frame
 		list.AnchorPoint = Vector2.new(0, 0)
-		list.Position = UDim2.new(0, 0, 0, closedHeight) -- glued under header
+		list.Position = UDim2.new(0, 0, 0, closedHeight)
 		list.Size = UDim2.new(1, 0, 0, 0)
 		list.Visible = true
 		list.BackgroundTransparency = 0
@@ -2619,7 +2530,6 @@ local function CreateDropdown(tab, config)
 	return dd
 end
 
--- TEXTBOX
 local function CreateTextbox(tab, config)
 	config = config or {}
 	local cleanup = CreateCleanup()
@@ -2711,12 +2621,11 @@ local function CreateTextbox(tab, config)
 	return tb
 end
 
--- KEYBIND (Hardened Toggle / Hold)
 local function CreateKeybind(tab, config)
 	config = config or {}
 	local cleanup = CreateCleanup()
 	local key = config.Default or Enum.KeyCode.Unknown
-	local mode = config.Mode or "Toggle" -- "Toggle" or "Hold"
+	local mode = config.Mode or "Toggle"
 	local active = false
 	local listening = false
 	local destroyed = false
@@ -2794,9 +2703,9 @@ local function CreateKeybind(tab, config)
 		if processed then return end
 
 		if listening then
-			-- Accept keyboard or gamepad buttons for binding
+
 			if input.UserInputType == Enum.UserInputType.Keyboard or input.UserInputType == Enum.UserInputType.Gamepad1 then
-				-- Escape cancels rebinding without changing
+
 				if input.KeyCode == Enum.KeyCode.Escape then
 					stopListening()
 					return
@@ -2805,7 +2714,7 @@ local function CreateKeybind(tab, config)
 				keyLabel.Text = key.Name
 				listening = false
 				TweenEngine.Play(stroke, { Color = Theme.Border }, { Duration = 0.15 })
-				-- Persist toggle-UI key when rebound from Settings
+
 				if config.Name == "Toggle UI" then
 					Settings.ToggleUIKey = key.Name
 				end
@@ -2881,7 +2790,6 @@ local function CreateKeybind(tab, config)
 	return kb
 end
 
--- DIVIDER
 local function CreateDivider(tab)
 	local cleanup = CreateCleanup()
 	local parent = GetParentForComponent(tab)
@@ -2911,9 +2819,6 @@ local function CreateDivider(tab)
 	return div
 end
 
-----------------------------------------------------------------
--- TAB
-----------------------------------------------------------------
 local SIDEBAR_W_DEFAULT = 104
 local TITLE_H = 40
 
@@ -2953,10 +2858,10 @@ local function CreateTab(window, config)
 	layout.Padding = UDim.new(0, 8)
 	layout.Parent = content
 
-	-- Roblox handles the canvas size from all descendants, including nested
-	-- section contents and dynamically expanding controls. Keep a deferred
-	-- refresh for layout changes so the final scroll extent is recalculated
-	-- after Roblox finishes its UI layout pass.
+
+
+
+
 	local canvasRefreshPending = false
 	local function updateCanvasSize()
 		if content.Parent == nil or canvasRefreshPending then return end
@@ -2974,7 +2879,7 @@ local function CreateTab(window, config)
 	cleanup:AddConnection(content.DescendantRemoving:Connect(updateCanvasSize))
 	task.defer(updateCanvasSize)
 
-	-- Sidebar tab button (vertical list)
+
 	local tabBtn = Instance.new("TextButton")
 	tabBtn.Name = "TabBtn_" .. name
 	tabBtn.BackgroundColor3 = Theme.Secondary
@@ -2991,13 +2896,13 @@ local function CreateTab(window, config)
 	tabBtn.ClipsDescendants = true
 	tabBtn.Parent = window.TabBar
 
-	-- Padding so long text never overlaps the left indicator
+
 	local btnPad = Instance.new("UIPadding")
 	btnPad.PaddingLeft = UDim.new(0, 16)
 	btnPad.PaddingRight = UDim.new(0, 4)
 	btnPad.Parent = tabBtn
 
-	-- White indicator further left, clear of tab text
+
 	local indicator = Instance.new("Frame")
 	indicator.Name = "Indicator"
 	indicator.BackgroundColor3 = Theme.Accent
@@ -3035,7 +2940,7 @@ local function CreateTab(window, config)
 			indicator.Visible = true
 		else
 			content.Visible = false
-			-- close dropdowns so list never floats on another tab
+
 			for _, c in ipairs(tab.Components) do
 				if c.Close then pcall(function() c:Close() end) end
 			end
@@ -3091,9 +2996,6 @@ local function CreateTab(window, config)
 	return tab
 end
 
-----------------------------------------------------------------
--- SETTINGS TAB (auto-attached to every window)
-----------------------------------------------------------------
 local function SetupSettingsTab(window)
 	if not window or window._SettingsReady then return end
 	window._SettingsReady = true
@@ -3101,7 +3003,7 @@ local function SetupSettingsTab(window)
 	local settingsTab = window:CreateTab({ Name = "Settings" })
 	settingsTab:CreateSection({ Name = "Profile" })
 
-	-- Profile card (avatar + name + country)
+
 	do
 		local parent = GetParentForComponent(settingsTab)
 		local card = Instance.new("Frame")
@@ -3191,7 +3093,7 @@ local function SetupSettingsTab(window)
 			end
 		end)
 
-		-- theme refresh hook for card
+
 		local unhook = OnThemeChange(function()
 			if not card or not card.Parent then return end
 			card.BackgroundColor3 = Theme.Secondary
@@ -3210,13 +3112,13 @@ local function SetupSettingsTab(window)
 
 	settingsTab:CreateSection({ Name = "Appearance" })
 
-	-- Theme dropdown
+
 	local themeNames = { "Dark", "Light", "Neon" }
 	local currentTheme = Settings.Theme or "Dark"
 	if not table.find(themeNames, currentTheme) then
 		currentTheme = "Dark"
 	end
-	-- apply saved theme once
+
 	pcall(function() ApplyThemePreset(currentTheme) end)
 
 	settingsTab:CreateDropdown({
@@ -3237,7 +3139,7 @@ local function SetupSettingsTab(window)
 
 	settingsTab:CreateSection({ Name = "Controls" })
 
-	-- UI visibility (full hide / show — not minimize)
+
 	window._UIVisible = Settings.UIVisible ~= false
 	if window.Gui then
 		window.Gui.Enabled = window._UIVisible
@@ -3265,13 +3167,13 @@ local function SetupSettingsTab(window)
 		Default = defaultKey,
 		Mode = "Toggle",
 		Callback = function()
-			-- Keybind component fires with active bool for Toggle mode;
-			-- we always just flip visibility.
+
+
 			window:ToggleUIVisible()
 		end,
 	})
 
-	-- Keep Settings in sync when user rebinds
+
 	do
 		local oldSet = kb.Set
 		function kb:Set(k)
@@ -3281,8 +3183,8 @@ local function SetupSettingsTab(window)
 		end
 	end
 
-	-- Also listen at window level so hide/show works even when keybind component is destroyed
-	-- (covers the case where UI is hidden and we need the same key to bring it back)
+
+
 	local uiKey = defaultKey
 	local function refreshUiKey()
 		uiKey = KeyCodeFromName(Settings.ToggleUIKey or "X")
@@ -3297,8 +3199,8 @@ local function SetupSettingsTab(window)
 		if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
 		refreshUiKey()
 		if input.KeyCode == uiKey then
-			-- Avoid double-fire with keybind callback when UI is visible:
-			-- only handle here when GUI is currently disabled (hidden)
+
+
 			if window.Gui and not window.Gui.Enabled then
 				window:SetUIVisible(true)
 			end
@@ -3306,14 +3208,14 @@ local function SetupSettingsTab(window)
 	end)
 	window.Cleanup:AddConnection(uiToggleConn)
 
-	-- When keybind fires while visible it toggles via Callback above.
-	-- Patch keybind so Settings.ToggleUIKey always updates on rebind via InputBegan inside CreateKeybind.
-	-- Hook after key is set by listening to the key label changes is fragile; instead wrap Get.
-	-- Save button
+
+
+
+
 	settingsTab:CreateButton({
 		Name = "Save Settings",
 		Callback = function()
-			-- pull current key from keybind if possible
+
 			if kb and kb.Get then
 				local k = kb:Get()
 				if k and k ~= Enum.KeyCode.Unknown then
@@ -3353,10 +3255,6 @@ local function SetupSettingsTab(window)
 	return settingsTab
 end
 
-----------------------------------------------------------------
--- WINDOW (sidebar layout — matches expected design)
-----------------------------------------------------------------
--- Fit window size to the player's screen (phone portrait / landscape / tablet / PC)
 local function ComputeResponsiveSize(config)
 	config = config or {}
 	local cam = workspace.CurrentCamera
@@ -3367,7 +3265,7 @@ local function ComputeResponsiveSize(config)
 	local shortest = math.min(vw, vh)
 	local longest = math.max(vw, vh)
 
-	-- User override always wins
+
 	if config.Width and config.Height then
 		local w = math.clamp(config.Width, 280, vw - 16)
 		local h = math.clamp(config.Height, 180, vh - 16)
@@ -3377,23 +3275,23 @@ local function ComputeResponsiveSize(config)
 	local w, h
 	if isTouch then
 		if isPortrait then
-			-- Phone upright: almost full width, moderate height (not a tall strip)
+
 			w = math.floor(vw * 0.92)
 			h = math.floor(math.clamp(vh * 0.42, 240, math.min(360, vh * 0.5)))
 		else
-			-- Phone / tablet landscape (flat game phones)
+
 			w = math.floor(math.clamp(vw * 0.55, 400, math.min(620, vw - 24)))
 			h = math.floor(math.clamp(vh * 0.72, 220, math.min(340, vh - 24)))
 		end
 	else
-		-- PC / large display
+
 		w = config.Width or 540
 		h = config.Height or 300
 		w = math.clamp(w, 400, math.min(720, vw - 40))
 		h = math.clamp(h, 260, math.min(420, vh - 40))
 	end
 
-	-- Never taller than wide on landscape devices; allow slightly tall only in true portrait
+
 	if not isPortrait and h > w * 0.75 then
 		h = math.floor(w * 0.55)
 	end
@@ -3427,7 +3325,7 @@ local function CreateWindow(library, config)
 	root.ClipsDescendants = true
 	root.Parent = gui
 
-	-- Soft UI scale on very small phones so text/controls stay usable
+
 	local uiScale = Instance.new("UIScale")
 	uiScale.Name = "VeyraScale"
 	local shortest = math.min(
@@ -3457,7 +3355,7 @@ local function CreateWindow(library, config)
 	main.Size = UDim2.new(1, 0, 1, 0)
 	main.Parent = root
 
-	-- No main corner (sharp frame)
+
 
 	local mainStroke = Instance.new("UIStroke")
 	mainStroke.Color = Theme.Border
@@ -3465,7 +3363,7 @@ local function CreateWindow(library, config)
 	mainStroke.Transparency = 0.45
 	mainStroke.Parent = main
 
-	-- Left-edge white accent line (matches reference)
+
 	local outline = Instance.new("Frame")
 	outline.Name = "OutlineAccent"
 	outline.BackgroundColor3 = Theme.OutlineAccent or Color3.fromRGB(255, 255, 255)
@@ -3476,7 +3374,7 @@ local function CreateWindow(library, config)
 	outline.ZIndex = 5
 	outline.Parent = main
 
-	-- Title bar (full width)
+
 	local titleBar = Instance.new("Frame")
 	titleBar.Name = "TitleBar"
 	titleBar.BackgroundColor3 = Theme.Secondary
@@ -3486,7 +3384,7 @@ local function CreateWindow(library, config)
 	titleBar.ZIndex = 3
 	titleBar.Parent = main
 
-	-- No title corner
+
 
 	local titleFix = Instance.new("Frame")
 	titleFix.BackgroundColor3 = Theme.Secondary
@@ -3542,7 +3440,7 @@ local function CreateWindow(library, config)
 	minBtn.Active = true
 	minBtn.Parent = titleBar
 
-	-- Body under title: sidebar + content
+
 	local body = Instance.new("Frame")
 	body.Name = "Body"
 	body.BackgroundTransparency = 1
@@ -3551,7 +3449,7 @@ local function CreateWindow(library, config)
 	body.ClipsDescendants = true
 	body.Parent = main
 
-	-- Sidebar width scales down on narrow phones
+
 	local SIDEBAR_W = SIDEBAR_W_DEFAULT
 	if isTouch then
 		if width < 400 then
@@ -3561,7 +3459,7 @@ local function CreateWindow(library, config)
 		end
 	end
 
-	-- Left sidebar
+
 	local sidebar = Instance.new("Frame")
 	sidebar.Name = "Sidebar"
 	sidebar.BackgroundColor3 = Theme.Secondary
@@ -3575,7 +3473,7 @@ local function CreateWindow(library, config)
 	searchBox.BackgroundColor3 = Theme.Tertiary
 	searchBox.BackgroundTransparency = 0.2
 	searchBox.BorderSizePixel = 0
-	-- Same width as tab buttons (1, -8)
+
 	searchBox.Size = UDim2.new(1, -8, 0, 26)
 	searchBox.Position = UDim2.new(0, 4, 0, 8)
 	searchBox.Font = Theme.Font
@@ -3586,13 +3484,13 @@ local function CreateWindow(library, config)
 	searchBox.Text = ""
 	searchBox.ClearTextOnFocus = false
 	searchBox.Parent = sidebar
-	-- No search corner
+
 	local searchPad = Instance.new("UIPadding")
 	searchPad.PaddingLeft = UDim.new(0, 8)
 	searchPad.PaddingRight = UDim.new(0, 8)
 	searchPad.Parent = searchBox
 
-	-- Vertical tab list (scrollable if many)
+
 	local tabBar = Instance.new("ScrollingFrame")
 	tabBar.Name = "TabBar"
 	tabBar.BackgroundTransparency = 1
@@ -3618,7 +3516,7 @@ local function CreateWindow(library, config)
 	tabPad.PaddingBottom = UDim.new(0, 6)
 	tabPad.Parent = tabBar
 
-	-- Right content area
+
 	local contentContainer = Instance.new("Frame")
 	contentContainer.Name = "ContentContainer"
 	contentContainer.BackgroundTransparency = 1
@@ -3646,7 +3544,7 @@ local function CreateWindow(library, config)
 		Actions = {},
 	}
 
-	-- Search filters sidebar tab buttons (works while typing)
+
 	local function filterTabs()
 		local raw = searchBox.Text or ""
 		local q = string.lower((string.gsub(raw, "^%s+", "")))
@@ -3662,7 +3560,7 @@ local function CreateWindow(library, config)
 	end
 	cleanup:AddConnection(searchBox:GetPropertyChangedSignal("Text"):Connect(filterTabs))
 	cleanup:AddConnection(searchBox.FocusLost:Connect(filterTabs))
-	-- Mobile keyboards sometimes only fire on change + defer
+
 	cleanup:AddConnection(searchBox:GetPropertyChangedSignal("Text"):Connect(function()
 		task.defer(filterTabs)
 	end))
@@ -3679,7 +3577,7 @@ local function CreateWindow(library, config)
 		window:ToggleMinimize()
 	end))
 
-	-- Resize: right edge (width), bottom edge (height), corner (both)
+
 	local function makeResizeHandle(name, size, pos, mode)
 		local btn = Instance.new("TextButton")
 		btn.Name = name
@@ -3726,7 +3624,7 @@ local function CreateWindow(library, config)
 		return btn
 	end
 
-	-- Mobile-friendly: ONLY bottom-right corner (no side/bottom edge grips)
+
 	local resizeGrip = makeResizeHandle("ResizeGrip", UDim2.new(0, 22, 0, 22), UDim2.new(1, -22, 1, -22), "corner")
 
 	local gripVisual = Instance.new("Frame")
@@ -3742,7 +3640,7 @@ local function CreateWindow(library, config)
 	grip2.Position = UDim2.new(1, -8, 1, -6)
 	grip2.Parent = main
 
-	-- Open animation (original TweenEngine)
+
 	root.Size = UDim2.fromOffset(0, 0)
 	main.BackgroundTransparency = 1
 	TweenEngine.Play(root, {
@@ -3752,7 +3650,7 @@ local function CreateWindow(library, config)
 
 	cleanup:AddInstance(gui)
 
-	-- Re-fit when phone rotates or resolution changes
+
 	local function refitToViewport(forceSize)
 		if minimized or cleanup:IsDestroyed() then return end
 		local cam = workspace.CurrentCamera
@@ -3764,13 +3662,13 @@ local function CreateWindow(library, config)
 			window.Width, window.Height = nw, nh
 			root.Size = UDim2.fromOffset(nw, nh)
 		else
-			-- Clamp current size into new viewport
+
 			local nw = math.clamp(root.AbsoluteSize.X, 280, math.max(280, vp.X - 12))
 			local nh = math.clamp(root.AbsoluteSize.Y, 180, math.max(180, vp.Y - 12))
 			root.Size = UDim2.fromOffset(nw, nh)
 			window.Width, window.Height = nw, nh
 		end
-		-- Keep centered
+
 		local aw = root.AbsoluteSize.X
 		local ah = root.AbsoluteSize.Y
 		root.Position = UDim2.new(0.5, -aw / 2, 0.5, -ah / 2)
@@ -3853,7 +3751,7 @@ local function CreateWindow(library, config)
 		btn.Text = ""
 		btn.ZIndex = 5
 		btn.Parent = actionBar
-		-- sharp action buttons
+
 		if icon and tostring(icon) ~= "" then
 			local img = Instance.new("ImageLabel")
 			img.BackgroundTransparency = 1
@@ -3912,14 +3810,14 @@ local function CreateWindow(library, config)
 		refreshWindowTheme()
 	end
 
-	-- Exact original TweenEngine minimize / close
+
 	function window:ToggleMinimize()
 		minimized = not minimized
 		local grip = main:FindFirstChild("ResizeGrip")
 		local gripR = main:FindFirstChild("ResizeRight")
 		local gripB = main:FindFirstChild("ResizeBottom")
 		if minimized then
-			-- Use Size offsets (NOT AbsoluteSize) so UIScale does not shrink width
+
 			local w = root.Size.X.Offset
 			if w < 100 then
 				w = window.Width or 540
@@ -3939,7 +3837,7 @@ local function CreateWindow(library, config)
 			if gripB then gripB.Visible = false end
 			TweenEngine.CancelOnObject(root)
 			TweenEngine.CancelOnObject(main)
-			-- Width stays EXACTLY the same — only height collapses to title bar
+
 			TweenEngine.Play(root, {
 				Size = UDim2.new(0, w, 0, TITLE_H),
 			}, { Duration = 0.3, Easing = "QuadOut" })
@@ -3985,7 +3883,7 @@ local function CreateWindow(library, config)
 	end
 
 	function window:Destroy()
-		-- cancel tweens on this window tree
+
 		pcall(function() TweenEngine.CancelOnObject(root) end)
 		pcall(function() TweenEngine.CancelOnObject(main) end)
 		for _, tab in ipairs(tabs) do
@@ -3995,16 +3893,16 @@ local function CreateWindow(library, config)
 		end
 		table.clear(tabs)
 		pcall(function() cleanup:Destroy() end)
-		-- destroy gui root
+
 		pcall(function()
 			if gui then gui:Destroy() end
 		end)
-		-- drop from global Windows list
+
 		pcall(function()
 			local idx = table.find(Windows, window)
 			if idx then table.remove(Windows, idx) end
 		end)
-		-- if no windows left, wipe notifications to prevent leaks
+
 		pcall(function()
 			if #Windows == 0 and NotifManager then
 				NotifManager:Clear()
@@ -4012,7 +3910,7 @@ local function CreateWindow(library, config)
 		end)
 	end
 
-	-- Auto Settings tab (theme, toggle-UI keybind, profile)
+
 	pcall(function()
 		SetupSettingsTab(window)
 	end)
@@ -4020,11 +3918,6 @@ local function CreateWindow(library, config)
 	return window
 end
 
-
-
-----------------------------------------------------------------
--- INTRO (optional)
-----------------------------------------------------------------
 local function PlayIntro(config)
 	config = config or {}
 	local duration = config.Duration or 1.5
@@ -4102,26 +3995,6 @@ local function PlayIntro(config)
 	return { Skip = finish, Destroy = finish }
 end
 
-----------------------------------------------------------------
--- KEY SYSTEM (covers UI → splits apart on correct key → reveals real UI)
-----------------------------------------------------------------
---[[
-	Flow:
-	  1. Optionally create main window first (or open it in OnSuccess)
-	  2. Key system sits above (DisplayOrder max + dim) and covers everything
-	  3. Correct key → OnSuccess fires immediately (UI under gate) + halves split with TweenEngine
-	  4. Dim fades, panels fly apart → real UI revealed
-
-	Library:CreateKeySystem({
-		Title = "Key System",
-		BottomLabel = "Get the key from our Discord",
-		Link = "https://discord.gg/invite",
-		Key = "secret",
-		OnSuccess = function()
-			-- create / show main UI here (already covered until split finishes)
-		end,
-	})
-]]
 local function CreateKeySystem(config)
 	config = config or {}
 	local cleanup = CreateCleanup()
@@ -4425,7 +4298,7 @@ local function CreateKeySystem(config)
 		end
 	end
 
-	-- Correct key: open real UI under the gate, then split halves with TweenEngine
+
 	local function playSplitAndOpen()
 		if closed or splitting then return end
 		splitting = true
@@ -4437,7 +4310,7 @@ local function CreateKeySystem(config)
 		enterBtn.Active = false
 		closeBtn.Active = false
 
-		-- Real UI opens NOW (still covered by dim + key frame)
+
 		if onSuccess then
 			task.spawn(onSuccess)
 		end
@@ -4648,20 +4521,17 @@ local function CreateKeySystem(config)
 	return api
 end
 
-----------------------------------------------------------------
--- LIBRARY
-----------------------------------------------------------------
 local Library = {}
 Library.__index = Library
 
 local NotifManager = NotificationManager.new()
--- Set Library.NotifDraggable = false to disable dragging notifications
+
 local Windows = {}
 
 function Library:CreateWindow(config)
 	local win = CreateWindow(Library, config)
 	table.insert(Windows, win)
-	-- ensure list entry is dropped when this window dies
+
 	local oldDestroy = win.Destroy
 	function win:Destroy()
 		local idx = table.find(Windows, self)
@@ -4675,17 +4545,14 @@ function Library:Notify(config)
 	return NotifManager:Notify(config)
 end
 
--- Toggle notification dragging (default true)
 function Library:SetNotifDraggable(enabled)
 	NotifManager.Draggable = enabled and true or false
 end
 Library.NotifDraggable = true
 
-
--- Alurt-style alias
 function Library:CreateNode(config)
 	config = config or {}
-	-- Map Alurt names → Veyra
+
 	if config.Content and not config.Description then
 		config.Description = config.Content
 	end
@@ -4724,10 +4591,9 @@ Library.Settings = Settings
 
 local InitDone = false
 
--- Full restart: kill every previous Veyra UI + notifs (re-exec / second script)
 local function KillPrevious()
 	pcall(function()
-		-- destroy tracked windows
+
 		local snap = table.clone(Windows)
 		table.clear(Windows)
 		for _, win in ipairs(snap) do
@@ -4735,7 +4601,7 @@ local function KillPrevious()
 				if win.Destroy then win:Destroy() end
 			end)
 		end
-		-- clear notifications
+
 		if NotifManager then
 			pcall(function() NotifManager:Clear() end)
 			pcall(function()
@@ -4743,9 +4609,9 @@ local function KillPrevious()
 			end)
 			NotifManager = NotificationManager.new()
 		end
-		-- cancel leftover tweens
+
 		pcall(function() TweenEngine.CancelAll() end)
-		-- wipe any leftover ScreenGuis named Veyra*
+
 		local parents = {}
 		pcall(function() table.insert(parents, game:GetService("CoreGui")) end)
 		pcall(function()
@@ -4770,15 +4636,9 @@ local function KillPrevious()
 	end)
 end
 
---[[
-	UI:Init() or UI:Init({ Theme = "Dark", Intro = true })
-
-	Call once at the top of your script.
-	Safe to call every time the script runs — cleans old UI first.
-]]
 function Library:Init(options)
 	options = options or {}
-	-- Always clean previous run so loadstring twice doesn't stack UIs
+
 	KillPrevious()
 	pcall(function()
 		self:Destroy()
@@ -4804,7 +4664,7 @@ function Library:Init(options)
 		end)
 	end
 
-	-- Optional key gate: covers UI, splits open on correct key, reveals real UI
+
 	if type(options.KeySystem) == "table" then
 		task.spawn(function()
 			CreateKeySystem(options.KeySystem)
@@ -4861,21 +4721,7 @@ function Library:Destroy()
 	end)
 end
 
--- Expose animation engine
 Library.Animation = TweenEngine
-
-----------------------------------------------------------------
--- SIMPLE API (same GUI, way less boilerplate)
---
---   local UI = loadstring(...)()
---   local Win = UI:New("My Hub", "v1")
---   local Tab = Win:Tab("Main")
---   Tab:Toggle("Speed", false, function(on) end)
---   Tab:Slider("WalkSpeed", 16, 200, 16, function(v) end)
---   Tab:Button("Click", function() end)
---   Tab:Drop("Theme", {"Dark","Light"}, "Dark", function(v) end)
---   UI:Notify("Hi", "Loaded", 3)
-----------------------------------------------------------------
 
 local function wrapTab(tab)
 	local t = tab
@@ -4957,7 +4803,6 @@ local function wrapWindow(win)
 	return w
 end
 
--- UI:New("Title") or UI:New("Title", "Subtitle") or UI:New({ Title = "...", Width = 500 })
 function Library:New(title, subtitle)
 	if not InitDone then
 		self:Init()
@@ -4974,13 +4819,11 @@ function Library:New(title, subtitle)
 	return wrapWindow(self:CreateWindow(config))
 end
 
--- Keep CreateWindow returning simple-wrapped window too
 local _CreateWindow = Library.CreateWindow
 function Library:CreateWindow(config)
 	return wrapWindow(_CreateWindow(self, config))
 end
 
--- UI:Notify("Title", "Desc", 3) or UI:Notify({ Title = "...", ... })
 local _Notify = Library.Notify
 function Library:Notify(a, b, c)
 	if type(a) == "table" then
