@@ -1,6 +1,6 @@
 --[[
 	VeyraUI v4 — Compact Responsive Framework
-	Your custom TweenEngine + Ethereal separators preserved.
+	Your custom TweenEngine + Ethereal separators preserved. Uploaded on RScripts
 
 	Additive upgrades only:
 	• Compact near-square window (default 360×360, ~70% scale)
@@ -9,6 +9,7 @@
 	• Reliable content scrolling (PC + mobile)
 	• Optional top-bar actions (Window:AddAction)
 	• Optional intro via Library:Init({ Intro = true, IntroConfig = {...} })
+	• Optional key system: covers UI → splits apart on correct key (TweenEngine) → reveals UI
 	• UISizeConstraint for multi-resolution
 	• Slightly tighter element spacing for compact layout
 
@@ -20,35 +21,25 @@
 	• Notification hard cap, typewriter, audio, icon, Duration=0 manual close
 	• Live theme refresh + presets
 
-	Usage:
+	Usage (key gate → split → main UI):
 		local Library = loadstring(...)()
 
-		-- Optional one-time init (boolean flags — skip entirely if unused)
-		Library:Init({
-			Intro = false,  -- set true to show intro
-			IntroConfig = { Title = "Veyra", Subtitle = "Loading...", Duration = 1.5 },
-		})
-
-		local Window = Library:CreateWindow({
-			Title = "My UI",
-			Subtitle = "v4",
-			Width = 360,
-			Height = 360,
-		})
-
-		-- Optional action buttons (only appear when added)
-		Window:AddAction({ Name = "Discord", Callback = function() end })
-
-		local Tab = Window:CreateTab({ Name = "Main" })
-		Tab:CreateSection({ Name = "Section 1" })
-		Tab:CreateButton({ Name = "Test", Callback = function() end })
-
-		Library:Notify({
-			Title = "Ready",
-			Description = "Loaded.",
-			Duration = 5,
-			Type = "Success",
-			Typewriter = true,
+		Library:CreateKeySystem({
+			Title = "Key System",
+			BottomLabel = "Get the key from our Discord",
+			Link = "https://discord.gg/invite",
+			Key = "secret",
+			OnSuccess = function()
+				-- fires as split starts so UI is under the gate while halves fly apart
+				local Window = Library:CreateWindow({
+					Title = "My UI",
+					Subtitle = "v4",
+					Width = 360,
+					Height = 360,
+				})
+				local Tab = Window:CreateTab({ Name = "Main" })
+				Tab:CreateButton({ Name = "Test", Callback = function() end })
+			end,
 		})
 ]]
 
@@ -4112,6 +4103,552 @@ local function PlayIntro(config)
 end
 
 ----------------------------------------------------------------
+-- KEY SYSTEM (covers UI → splits apart on correct key → reveals real UI)
+----------------------------------------------------------------
+--[[
+	Flow:
+	  1. Optionally create main window first (or open it in OnSuccess)
+	  2. Key system sits above (DisplayOrder max + dim) and covers everything
+	  3. Correct key → OnSuccess fires immediately (UI under gate) + halves split with TweenEngine
+	  4. Dim fades, panels fly apart → real UI revealed
+
+	Library:CreateKeySystem({
+		Title = "Key System",
+		BottomLabel = "Get the key from our Discord",
+		Link = "https://discord.gg/invite",
+		Key = "secret",
+		OnSuccess = function()
+			-- create / show main UI here (already covered until split finishes)
+		end,
+	})
+]]
+local function CreateKeySystem(config)
+	config = config or {}
+	local cleanup = CreateCleanup()
+	local closed = false
+	local splitting = false
+
+	local titleText = config.Title or "Key System"
+	local bottomText = config.BottomLabel or config.BottomText or config.Footer or ""
+	local link = config.Link or config.KeyLink
+	local fixedKey = config.Key
+	local validateFn = config.Validate
+	local getKeyFn = config.GetKey or config.OnGetKey
+	local onSuccess = config.OnSuccess or config.Callback
+	local onFail = config.OnFail
+	local width = math.clamp(tonumber(config.Width) or 320, 260, 420)
+	local height = math.clamp(tonumber(config.Height) or 210, 180, 280)
+
+	local function doValidate(key)
+		if type(validateFn) == "function" then
+			local ok, result = pcall(validateFn, key)
+			return ok and result == true
+		end
+		if fixedKey ~= nil then
+			return tostring(key) == tostring(fixedKey)
+		end
+		return type(key) == "string" and #key > 0
+	end
+
+	local function tryClipboard(text)
+		if type(text) ~= "string" or #text == 0 then return false end
+		local ok = false
+		pcall(function()
+			if type(setclipboard) == "function" then
+				setclipboard(text)
+				ok = true
+			elseif type(toclipboard) == "function" then
+				toclipboard(text)
+				ok = true
+			elseif type(set_clipboard) == "function" then
+				set_clipboard(text)
+				ok = true
+			elseif type(Clipboard) == "table" and type(Clipboard.set) == "function" then
+				Clipboard.set(text)
+				ok = true
+			end
+		end)
+		return ok
+	end
+
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "VeyraKeySystem"
+	gui.DisplayOrder = 2147483646
+	gui.IgnoreGuiInset = true
+	gui.ResetOnSpawn = false
+	ProtectAndParent(gui)
+	cleanup:AddInstance(gui)
+
+	local dim = Instance.new("Frame")
+	dim.Name = "Dim"
+	dim.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	dim.BackgroundTransparency = 1
+	dim.BorderSizePixel = 0
+	dim.Size = UDim2.new(1, 0, 1, 0)
+	dim.ZIndex = 1
+	dim.Parent = gui
+
+	local root = Instance.new("Frame")
+	root.Name = "Root"
+	root.BackgroundTransparency = 1
+	root.Size = UDim2.fromOffset(0, 0)
+	root.AnchorPoint = Vector2.new(0.5, 0.5)
+	root.Position = UDim2.new(0.5, 0, 0.5, 0)
+	root.ClipsDescendants = true
+	root.ZIndex = 2
+	root.Parent = gui
+
+	local main = Instance.new("Frame")
+	main.Name = "Main"
+	main.BackgroundColor3 = Theme.Background
+	main.BackgroundTransparency = 0.02
+	main.BorderSizePixel = 0
+	main.Size = UDim2.new(1, 0, 1, 0)
+	main.ClipsDescendants = true
+	main.Parent = root
+
+	local mainStroke = Instance.new("UIStroke")
+	mainStroke.Color = Theme.Border
+	mainStroke.Thickness = 1
+	mainStroke.Transparency = 0.45
+	mainStroke.Parent = main
+
+	local outline = Instance.new("Frame")
+	outline.Name = "OutlineAccent"
+	outline.BackgroundColor3 = Theme.OutlineAccent or Color3.fromRGB(255, 255, 255)
+	outline.BackgroundTransparency = 0.05
+	outline.BorderSizePixel = 0
+	outline.Size = UDim2.new(0, 2, 1, 0)
+	outline.ZIndex = 5
+	outline.Parent = main
+
+	local titleBar = Instance.new("Frame")
+	titleBar.Name = "TitleBar"
+	titleBar.BackgroundColor3 = Theme.Secondary
+	titleBar.BackgroundTransparency = 0.15
+	titleBar.BorderSizePixel = 0
+	titleBar.Size = UDim2.new(1, 0, 0, 36)
+	titleBar.ZIndex = 3
+	titleBar.Parent = main
+
+	local titleLabel = Instance.new("TextLabel")
+	titleLabel.BackgroundTransparency = 1
+	titleLabel.Size = UDim2.new(1, -40, 1, 0)
+	titleLabel.Position = UDim2.new(0, 14, 0, 0)
+	titleLabel.Font = Theme.FontBold
+	titleLabel.TextSize = 14
+	titleLabel.TextColor3 = Theme.Text
+	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	titleLabel.Text = titleText
+	titleLabel.Parent = titleBar
+
+	local closeBtn = Instance.new("TextButton")
+	closeBtn.BackgroundTransparency = 1
+	closeBtn.Size = UDim2.new(0, 28, 0, 28)
+	closeBtn.Position = UDim2.new(1, -30, 0.5, -14)
+	closeBtn.Font = Enum.Font.GothamBold
+	closeBtn.TextSize = 15
+	closeBtn.TextColor3 = Theme.SecondaryText
+	closeBtn.Text = "×"
+	closeBtn.ZIndex = 10
+	closeBtn.Parent = titleBar
+
+	local body = Instance.new("Frame")
+	body.Name = "Body"
+	body.BackgroundTransparency = 1
+	body.Size = UDim2.new(1, 0, 1, -36)
+	body.Position = UDim2.new(0, 0, 0, 36)
+	body.Parent = main
+
+	local bodyPad = Instance.new("UIPadding")
+	bodyPad.PaddingTop = UDim.new(0, 14)
+	bodyPad.PaddingBottom = UDim.new(0, 12)
+	bodyPad.PaddingLeft = UDim.new(0, 16)
+	bodyPad.PaddingRight = UDim.new(0, 16)
+	bodyPad.Parent = body
+
+	local bodyLayout = Instance.new("UIListLayout")
+	bodyLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	bodyLayout.Padding = UDim.new(0, 10)
+	bodyLayout.Parent = body
+
+	local boxFrame = Instance.new("Frame")
+	boxFrame.BackgroundColor3 = Theme.Secondary
+	boxFrame.BackgroundTransparency = 0.15
+	boxFrame.BorderSizePixel = 0
+	boxFrame.Size = UDim2.new(1, 0, 0, Theme.ElementHeight)
+	boxFrame.LayoutOrder = 1
+	boxFrame.Parent = body
+
+	local boxStroke = Instance.new("UIStroke")
+	boxStroke.Color = Theme.Border
+	boxStroke.Thickness = 1
+	boxStroke.Transparency = 0.5
+	boxStroke.Parent = boxFrame
+
+	local keyBox = Instance.new("TextBox")
+	keyBox.BackgroundTransparency = 1
+	keyBox.Size = UDim2.new(1, -24, 1, 0)
+	keyBox.Position = UDim2.new(0, 12, 0, 0)
+	keyBox.Font = Theme.FontMono
+	keyBox.TextSize = 13
+	keyBox.TextColor3 = Theme.Text
+	keyBox.PlaceholderColor3 = Theme.MutedText
+	keyBox.PlaceholderText = config.Placeholder or "Enter key..."
+	keyBox.Text = ""
+	keyBox.ClearTextOnFocus = false
+	keyBox.TextXAlignment = Enum.TextXAlignment.Left
+	keyBox.Parent = boxFrame
+
+	cleanup:AddConnection(keyBox.Focused:Connect(function()
+		if closed or splitting then return end
+		TweenEngine.Play(boxStroke, { Color = Theme.Accent, Transparency = 0.2 }, { Duration = 0.15 })
+	end))
+	cleanup:AddConnection(keyBox.FocusLost:Connect(function()
+		if closed or splitting then return end
+		TweenEngine.Play(boxStroke, { Color = Theme.Border, Transparency = 0.5 }, { Duration = 0.15 })
+	end))
+
+	local btnRow = Instance.new("Frame")
+	btnRow.BackgroundTransparency = 1
+	btnRow.Size = UDim2.new(1, 0, 0, Theme.ElementHeight)
+	btnRow.LayoutOrder = 2
+	btnRow.Parent = body
+
+	local btnLayout = Instance.new("UIListLayout")
+	btnLayout.FillDirection = Enum.FillDirection.Horizontal
+	btnLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	btnLayout.Padding = UDim.new(0, 8)
+	btnLayout.Parent = btnRow
+
+	local function makeBtn(name, order)
+		local btn = Instance.new("TextButton")
+		btn.Name = name
+		btn.BackgroundColor3 = Theme.Secondary
+		btn.BackgroundTransparency = 0.1
+		btn.BorderSizePixel = 0
+		btn.Size = UDim2.new(0.5, -4, 1, 0)
+		btn.AutoButtonColor = false
+		btn.Font = Theme.Font
+		btn.TextSize = 13
+		btn.TextColor3 = Theme.Text
+		btn.Text = name
+		btn.LayoutOrder = order
+		btn.Parent = btnRow
+
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = Theme.Border
+		stroke.Thickness = 1
+		stroke.Transparency = 0.5
+		stroke.Parent = btn
+
+		btn.MouseEnter:Connect(function()
+			if closed or splitting then return end
+			TweenEngine.Play(btn, { BackgroundColor3 = Theme.Hover }, { Duration = Theme.HoverSpeed, Easing = "QuadOut" })
+		end)
+		btn.MouseLeave:Connect(function()
+			if closed or splitting then return end
+			TweenEngine.Play(btn, { BackgroundColor3 = Theme.Secondary }, { Duration = Theme.HoverSpeed, Easing = "QuadOut" })
+		end)
+		btn.MouseButton1Down:Connect(function()
+			if closed or splitting then return end
+			TweenEngine.Play(btn, { BackgroundColor3 = Theme.Tertiary }, { Duration = 0.08 })
+		end)
+		btn.MouseButton1Up:Connect(function()
+			if closed or splitting then return end
+			TweenEngine.Play(btn, { BackgroundColor3 = Theme.Hover }, { Duration = 0.1 })
+		end)
+
+		return btn
+	end
+
+	local getBtn = makeBtn("Get Key", 1)
+	local enterBtn = makeBtn("Enter Key", 2)
+
+	local bottomLabel = Instance.new("TextLabel")
+	bottomLabel.BackgroundTransparency = 1
+	bottomLabel.Size = UDim2.new(1, 0, 0, 28)
+	bottomLabel.Font = Theme.Font
+	bottomLabel.TextSize = 11
+	bottomLabel.TextColor3 = Theme.SecondaryText
+	bottomLabel.TextXAlignment = Enum.TextXAlignment.Center
+	bottomLabel.TextYAlignment = Enum.TextYAlignment.Center
+	bottomLabel.TextWrapped = true
+	bottomLabel.Text = bottomText
+	bottomLabel.LayoutOrder = 3
+	bottomLabel.Parent = body
+	bottomLabel.Visible = (bottomText ~= "")
+
+	local function refreshTheme()
+		if closed or cleanup:IsDestroyed() then return end
+		main.BackgroundColor3 = Theme.Background
+		mainStroke.Color = Theme.Border
+		titleBar.BackgroundColor3 = Theme.Secondary
+		titleLabel.TextColor3 = Theme.Text
+		titleLabel.Font = Theme.FontBold
+		closeBtn.TextColor3 = Theme.SecondaryText
+		outline.BackgroundColor3 = Theme.OutlineAccent or Color3.fromRGB(255, 255, 255)
+		boxFrame.BackgroundColor3 = Theme.Secondary
+		boxStroke.Color = Theme.Border
+		keyBox.Font = Theme.FontMono
+		keyBox.TextColor3 = Theme.Text
+		keyBox.PlaceholderColor3 = Theme.MutedText
+		bottomLabel.TextColor3 = Theme.SecondaryText
+		bottomLabel.Font = Theme.Font
+		getBtn.BackgroundColor3 = Theme.Secondary
+		getBtn.TextColor3 = Theme.Text
+		getBtn.Font = Theme.Font
+		enterBtn.BackgroundColor3 = Theme.Secondary
+		enterBtn.TextColor3 = Theme.Text
+		enterBtn.Font = Theme.Font
+	end
+	cleanup:AddCallback(OnThemeChange(refreshTheme))
+
+	local function finishClose()
+		if closed or splitting then return end
+		closed = true
+		TweenEngine.CancelOnObject(root)
+		TweenEngine.CancelOnObject(main)
+		TweenEngine.Play(dim, { BackgroundTransparency = 1 }, { Duration = 0.25, Easing = "QuadIn" })
+		TweenEngine.Play(root, {
+			Size = UDim2.fromOffset(0, 0),
+		}, {
+			Duration = 0.28,
+			Easing = "QuadIn",
+			OnComplete = function()
+				cleanup:Destroy()
+			end,
+		})
+		TweenEngine.Play(main, { BackgroundTransparency = 1 }, { Duration = 0.25, Easing = "QuadIn" })
+		if config.OnClose then
+			task.spawn(config.OnClose)
+		end
+	end
+
+	-- Correct key: open real UI under the gate, then split halves with TweenEngine
+	local function playSplitAndOpen()
+		if closed or splitting then return end
+		splitting = true
+		closed = true
+
+		keyBox.TextEditable = false
+		pcall(function() keyBox:ReleaseFocus() end)
+		getBtn.Active = false
+		enterBtn.Active = false
+		closeBtn.Active = false
+
+		-- Real UI opens NOW (still covered by dim + key frame)
+		if onSuccess then
+			task.spawn(onSuccess)
+		end
+
+		local absW = root.AbsoluteSize.X
+		local absH = root.AbsoluteSize.Y
+		if absW < 10 then absW = width end
+		if absH < 10 then absH = height end
+		local halfW = math.floor(absW / 2)
+
+		TweenEngine.Play(titleLabel, { TextTransparency = 1 }, { Duration = 0.15, Easing = "QuadIn" })
+		TweenEngine.Play(closeBtn, { TextTransparency = 1 }, { Duration = 0.15, Easing = "QuadIn" })
+		TweenEngine.Play(keyBox, { TextTransparency = 1 }, { Duration = 0.15, Easing = "QuadIn" })
+		TweenEngine.Play(getBtn, { TextTransparency = 1, BackgroundTransparency = 1 }, { Duration = 0.15, Easing = "QuadIn" })
+		TweenEngine.Play(enterBtn, { TextTransparency = 1, BackgroundTransparency = 1 }, { Duration = 0.15, Easing = "QuadIn" })
+		TweenEngine.Play(bottomLabel, { TextTransparency = 1 }, { Duration = 0.15, Easing = "QuadIn" })
+		TweenEngine.Play(boxFrame, { BackgroundTransparency = 1 }, { Duration = 0.15, Easing = "QuadIn" })
+		TweenEngine.Play(boxStroke, { Transparency = 1 }, { Duration = 0.15, Easing = "QuadIn" })
+		TweenEngine.Play(titleBar, { BackgroundTransparency = 1 }, { Duration = 0.18, Easing = "QuadIn" })
+		TweenEngine.Play(mainStroke, { Transparency = 1 }, { Duration = 0.18, Easing = "QuadIn" })
+		TweenEngine.Play(outline, { BackgroundTransparency = 1 }, { Duration = 0.12, Easing = "QuadIn" })
+
+		local function makeHalf(name, side)
+			local half = Instance.new("Frame")
+			half.Name = name
+			half.BackgroundColor3 = Theme.Background
+			half.BackgroundTransparency = 0.02
+			half.BorderSizePixel = 0
+			half.ClipsDescendants = true
+			half.ZIndex = 20
+			half.Size = UDim2.fromOffset(halfW + 1, absH)
+			half.AnchorPoint = Vector2.new(0, 0)
+			half.Position = (side == "left") and UDim2.fromOffset(0, 0) or UDim2.fromOffset(halfW, 0)
+			half.Parent = root
+
+			local stroke = Instance.new("UIStroke")
+			stroke.Color = Theme.Border
+			stroke.Thickness = 1
+			stroke.Transparency = 0.45
+			stroke.Parent = half
+
+			local edge = Instance.new("Frame")
+			edge.BackgroundColor3 = Theme.OutlineAccent or Color3.fromRGB(255, 255, 255)
+			edge.BackgroundTransparency = 0.05
+			edge.BorderSizePixel = 0
+			edge.Size = UDim2.new(0, 2, 1, 0)
+			edge.ZIndex = 21
+			edge.Position = (side == "left") and UDim2.new(0, 0, 0, 0) or UDim2.new(1, -2, 0, 0)
+			edge.Parent = half
+
+			local seam = Instance.new("Frame")
+			seam.BackgroundColor3 = Theme.Accent or Color3.fromRGB(255, 255, 255)
+			seam.BackgroundTransparency = 0.55
+			seam.BorderSizePixel = 0
+			seam.Size = UDim2.new(0, 2, 1, 0)
+			seam.ZIndex = 22
+			seam.Position = (side == "left") and UDim2.new(1, -2, 0, 0) or UDim2.new(0, 0, 0, 0)
+			seam.Parent = half
+
+			return half, stroke, seam, edge
+		end
+
+		local leftHalf, leftStroke, leftSeam, leftEdge = makeHalf("LeftHalf", "left")
+		local rightHalf, rightStroke, rightSeam, rightEdge = makeHalf("RightHalf", "right")
+		main.Visible = false
+
+		local travel = math.max(absW * 0.85, 200)
+		local splitDur = 0.55
+
+		TweenEngine.Play(leftSeam, { BackgroundTransparency = 0.1 }, { Duration = 0.1, Easing = "QuadOut" })
+		TweenEngine.Play(rightSeam, { BackgroundTransparency = 0.1 }, { Duration = 0.1, Easing = "QuadOut" })
+		TweenEngine.Play(dim, { BackgroundTransparency = 1 }, { Duration = splitDur, Easing = "QuadIn", Delay = 0.08 })
+
+		task.delay(0.08, function()
+			if cleanup:IsDestroyed() then return end
+
+			TweenEngine.Play(leftHalf, {
+				Position = UDim2.fromOffset(-travel, 0),
+				BackgroundTransparency = 1,
+			}, { Duration = splitDur, Easing = "ExpoOut" })
+			TweenEngine.Play(leftStroke, { Transparency = 1 }, { Duration = splitDur * 0.65, Easing = "QuadIn" })
+			TweenEngine.Play(leftSeam, { BackgroundTransparency = 1 }, { Duration = 0.22, Easing = "QuadIn" })
+			TweenEngine.Play(leftEdge, { BackgroundTransparency = 1 }, { Duration = splitDur * 0.55, Easing = "QuadIn" })
+
+			TweenEngine.Play(rightHalf, {
+				Position = UDim2.fromOffset(halfW + travel, 0),
+				BackgroundTransparency = 1,
+			}, {
+				Duration = splitDur,
+				Easing = "ExpoOut",
+				OnComplete = function()
+					task.defer(function()
+						cleanup:Destroy()
+					end)
+				end,
+			})
+			TweenEngine.Play(rightStroke, { Transparency = 1 }, { Duration = splitDur * 0.65, Easing = "QuadIn" })
+			TweenEngine.Play(rightSeam, { BackgroundTransparency = 1 }, { Duration = 0.22, Easing = "QuadIn" })
+			TweenEngine.Play(rightEdge, { BackgroundTransparency = 1 }, { Duration = splitDur * 0.55, Easing = "QuadIn" })
+		end)
+	end
+
+	cleanup:AddConnection(closeBtn.MouseButton1Click:Connect(finishClose))
+
+	cleanup:AddConnection(getBtn.MouseButton1Click:Connect(function()
+		if closed or splitting then return end
+		if type(getKeyFn) == "function" then
+			task.spawn(getKeyFn)
+			return
+		end
+		if link then
+			local copied = tryClipboard(link)
+			if Library and Library.Notify then
+				Library:Notify({
+					Title = copied and "Copied" or "Link",
+					Description = copied and "Key link copied to clipboard" or tostring(link),
+					Duration = 3,
+					Type = copied and "Success" or "Info",
+				})
+			end
+			return
+		end
+		if Library and Library.Notify then
+			Library:Notify({
+				Title = "Get Key",
+				Description = "No link or GetKey callback configured",
+				Duration = 3,
+				Type = "Warning",
+			})
+		end
+	end))
+
+	local function attemptEnter()
+		if closed or splitting then return end
+		local key = keyBox.Text or ""
+		if doValidate(key) then
+			if Library and Library.Notify then
+				Library:Notify({
+					Title = "Success",
+					Description = "Key accepted",
+					Duration = 2,
+					Type = "Success",
+				})
+			end
+			playSplitAndOpen()
+		else
+			TweenEngine.Shake(root, { Magnitude = 5, Duration = 0.35, Frequency = 28 })
+			if onFail then
+				task.spawn(onFail, key)
+			end
+			if Library and Library.Notify then
+				Library:Notify({
+					Title = "Invalid Key",
+					Description = "Please try again",
+					Duration = 3,
+					Type = "Error",
+				})
+			end
+		end
+	end
+
+	cleanup:AddConnection(enterBtn.MouseButton1Click:Connect(attemptEnter))
+	cleanup:AddConnection(keyBox.FocusLost:Connect(function(enterPressed)
+		if enterPressed then
+			attemptEnter()
+		end
+	end))
+
+	TweenEngine.Play(dim, { BackgroundTransparency = 0.45 }, { Duration = 0.35, Easing = "QuadOut" })
+	main.BackgroundTransparency = 1
+	TweenEngine.Play(root, {
+		Size = UDim2.fromOffset(width, height),
+	}, { Duration = 0.4, Easing = "BackOut" })
+	TweenEngine.Play(main, { BackgroundTransparency = 0.02 }, { Duration = 0.32, Easing = "QuadOut" })
+
+	local api = {
+		Gui = gui,
+		Root = root,
+		Box = keyBox,
+		Cleanup = cleanup,
+	}
+
+	function api:SetBottomLabel(text)
+		bottomText = tostring(text or "")
+		bottomLabel.Text = bottomText
+		bottomLabel.Visible = (bottomText ~= "")
+	end
+
+	function api:SetTitle(text)
+		titleText = tostring(text or "Key System")
+		titleLabel.Text = titleText
+	end
+
+	function api:Close()
+		finishClose()
+	end
+
+	function api:Destroy()
+		closed = true
+		splitting = false
+		cleanup:Destroy()
+	end
+
+	function api:IsDestroyed()
+		return closed or cleanup:IsDestroyed()
+	end
+
+	return api
+end
+
+----------------------------------------------------------------
 -- LIBRARY
 ----------------------------------------------------------------
 local Library = {}
@@ -4267,11 +4804,22 @@ function Library:Init(options)
 		end)
 	end
 
+	-- Optional key gate: covers UI, splits open on correct key, reveals real UI
+	if type(options.KeySystem) == "table" then
+		task.spawn(function()
+			CreateKeySystem(options.KeySystem)
+		end)
+	end
+
 	return Library
 end
 
 function Library:PlayIntro(config)
 	return PlayIntro(config)
+end
+
+function Library:CreateKeySystem(config)
+	return CreateKeySystem(config)
 end
 
 function Library:IsInit()
@@ -4285,13 +4833,32 @@ function Library:Destroy()
 		pcall(function() win:Destroy() end)
 	end
 	pcall(function() NotifManager:Destroy() end)
-	-- Rebuild notif manager so next Init/New still works
 	pcall(function()
 		NotifManager = NotificationManager.new()
 	end)
 	TweenEngine.CancelAll()
 	table.clear(ThemeListeners)
 	InitDone = false
+	pcall(function()
+		local parents = {}
+		pcall(function() table.insert(parents, game:GetService("CoreGui")) end)
+		pcall(function()
+			if type(gethui) == "function" then table.insert(parents, gethui()) end
+		end)
+		pcall(function()
+			local lp = game:GetService("Players").LocalPlayer
+			if lp then table.insert(parents, lp:FindFirstChildOfClass("PlayerGui")) end
+		end)
+		for _, parent in ipairs(parents) do
+			if parent then
+				for _, child in ipairs(parent:GetChildren()) do
+					if child:IsA("ScreenGui") and (child.Name == "VeyraKeySystem" or string.find(child.Name, "VeyraKey")) then
+						pcall(function() child:Destroy() end)
+					end
+				end
+			end
+		end
+	end)
 end
 
 -- Expose animation engine
