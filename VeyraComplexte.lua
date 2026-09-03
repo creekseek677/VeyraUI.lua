@@ -3262,42 +3262,11 @@ local function ComputeResponsiveSize(config)
 	local vw, vh = vp.X, vp.Y
 	local isTouch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 	local isPortrait = vh > vw
-	local shortest = math.min(vw, vh)
-	local longest = math.max(vw, vh)
 
-
-	if config.Width and config.Height then
-		local w = math.clamp(config.Width, 280, vw - 16)
-		local h = math.clamp(config.Height, 180, vh - 16)
-		return w, h, isTouch, isPortrait
-	end
-
-	local w, h
-	if isTouch then
-		if isPortrait then
-
-			w = math.floor(vw * 0.92)
-			h = math.floor(math.clamp(vh * 0.42, 240, math.min(360, vh * 0.5)))
-		else
-
-			w = math.floor(math.clamp(vw * 0.55, 400, math.min(620, vw - 24)))
-			h = math.floor(math.clamp(vh * 0.72, 220, math.min(340, vh - 24)))
-		end
-	else
-
-		w = config.Width or 540
-		h = config.Height or 300
-		w = math.clamp(w, 400, math.min(720, vw - 40))
-		h = math.clamp(h, 260, math.min(420, vh - 40))
-	end
-
-
-	if not isPortrait and h > w * 0.75 then
-		h = math.floor(w * 0.55)
-	end
-
-	w = math.floor(math.clamp(w, 280, vw - 12))
-	h = math.floor(math.clamp(h, 180, vh - 12))
+	local w = config.Width or 360
+	local h = config.Height or 360
+	w = math.floor(math.clamp(w, 280, math.max(280, vw - 12)))
+	h = math.floor(math.clamp(h, 180, math.max(180, vh - 12)))
 	return w, h, isTouch, isPortrait
 end
 
@@ -3820,11 +3789,11 @@ local function CreateWindow(library, config)
 
 			local w = root.Size.X.Offset
 			if w < 100 then
-				w = window.Width or 540
+				w = window.Width or 360
 			end
 			local h = root.Size.Y.Offset
 			if h < 40 then
-				h = window.Height or 300
+				h = window.Height or 360
 			end
 			window.Width = w
 			window.Height = h
