@@ -1758,10 +1758,15 @@ local function CreateButton(tab, config)
 	title.Font = Theme.Font
 	title.TextSize = 13
 	title.TextColor3 = Theme.Text
-	title.TextXAlignment = Enum.TextXAlignment.Center
+	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.TextYAlignment = Enum.TextYAlignment.Center
 	title.Text = config.Name or "Button"
 	title.Parent = frame
+
+	local titlePadding = Instance.new("UIPadding")
+	titlePadding.PaddingLeft = UDim.new(0, 12)
+	titlePadding.PaddingRight = UDim.new(0, 12)
+	titlePadding.Parent = title
 
 	local desc
 	if config.Description then
@@ -1773,10 +1778,14 @@ local function CreateButton(tab, config)
 		desc.Font = Theme.Font
 		desc.TextSize = 11
 		desc.TextColor3 = Theme.SecondaryText
-		desc.TextXAlignment = Enum.TextXAlignment.Center
+		desc.TextXAlignment = Enum.TextXAlignment.Left
 		desc.TextYAlignment = Enum.TextYAlignment.Center
 		desc.Text = config.Description
 		desc.Parent = frame
+		local descPadding = Instance.new("UIPadding")
+		descPadding.PaddingLeft = UDim.new(0, 12)
+		descPadding.PaddingRight = UDim.new(0, 12)
+		descPadding.Parent = desc
 	end
 
 	cleanup:AddConnection(frame.MouseEnter:Connect(function()
@@ -1889,10 +1898,15 @@ local function CreateToggle(tab, config)
 	title.Font = Theme.Font
 	title.TextSize = 13
 	title.TextColor3 = Theme.Text
-	title.TextXAlignment = Enum.TextXAlignment.Center
+	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.TextYAlignment = Enum.TextYAlignment.Center
 	title.Text = config.Name or "Toggle"
 	title.Parent = frame
+
+	local titlePadding = Instance.new("UIPadding")
+	titlePadding.PaddingLeft = UDim.new(0, 12)
+	titlePadding.PaddingRight = UDim.new(0, 64)
+	titlePadding.Parent = title
 
 	if config.Description then
 		local d = Instance.new("TextLabel")
@@ -1903,10 +1917,14 @@ local function CreateToggle(tab, config)
 		d.Font = Theme.Font
 		d.TextSize = 11
 		d.TextColor3 = Theme.SecondaryText
-		d.TextXAlignment = Enum.TextXAlignment.Center
+		d.TextXAlignment = Enum.TextXAlignment.Left
 		d.TextYAlignment = Enum.TextYAlignment.Center
 		d.Text = config.Description
 		d.Parent = frame
+		local descPadding = Instance.new("UIPadding")
+		descPadding.PaddingLeft = UDim.new(0, 12)
+		descPadding.PaddingRight = UDim.new(0, 64)
+		descPadding.Parent = d
 	end
 
 	local switch = Instance.new("Frame")
@@ -2798,7 +2816,6 @@ local function CreateKeybind(tab, config)
 				-- Persist toggle-UI key when rebound from Settings
 				if config.Name == "Toggle UI" then
 					Settings.ToggleUIKey = key.Name
-					pcall(ConfigSave)
 				end
 			end
 			return
@@ -3207,7 +3224,6 @@ local function SetupSettingsTab(window)
 		Callback = function(v)
 			Settings.Theme = v
 			ApplyThemePreset(v)
-			ConfigSave()
 			Library:Notify({
 				Title = "Theme",
 				Description = "Applied " .. tostring(v),
@@ -3231,7 +3247,6 @@ local function SetupSettingsTab(window)
 		if window.Gui then
 			window.Gui.Enabled = window._UIVisible
 		end
-		ConfigSave()
 	end
 
 	function window:ToggleUIVisible()
@@ -3261,7 +3276,6 @@ local function SetupSettingsTab(window)
 			if oldSet then oldSet(self, k) end
 			local name = (k and k ~= Enum.KeyCode.Unknown) and k.Name or "X"
 			Settings.ToggleUIKey = name
-			ConfigSave()
 		end
 	end
 
@@ -3320,7 +3334,6 @@ local function SetupSettingsTab(window)
 			for k, v in pairs(DefaultSettings) do
 				Settings[k] = v
 			end
-			ConfigSave()
 			ApplyThemePreset(Settings.Theme)
 			if kb and kb.Set then
 				kb:Set(KeyCodeFromName(Settings.ToggleUIKey))
