@@ -60,6 +60,101 @@ local SoundService = game:GetService("SoundService")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local HttpService = game:GetService("HttpService")
+local LocalizationService = game:GetService("LocalizationService")
+
+----------------------------------------------------------------
+-- CONFIG (persist with exploit writefile / readfile)
+----------------------------------------------------------------
+local CONFIG_FOLDER = "VeyraUI"
+local CONFIG_FILE = "VeyraUI/settings.json"
+
+local DefaultSettings = {
+	Theme = "Dark",
+	ToggleUIKey = "X", -- KeyCode name
+	UIVisible = true,
+}
+
+local Settings = {}
+for k, v in pairs(DefaultSettings) do
+	Settings[k] = v
+end
+
+local function ConfigEncode(tbl)
+	local ok, encoded = pcall(function()
+		return HttpService:JSONEncode(tbl)
+	end)
+	if ok and encoded then return encoded end
+	-- fallback minimal encoder
+	local parts = {}
+	for k, v in pairs(tbl) do
+		local vs = tostring(v)
+		if type(v) == "string" then
+			vs = '"' .. (string.gsub(vs, '"', '\\"')) .. '"'
+		elseif type(v) == "boolean" then
+			vs = v and "true" or "false"
+		end
+		table.insert(parts, '"' .. tostring(k) .. '":' .. vs)
+	end
+	return "{" .. table.concat(parts, ",") .. "}"
+end
+
+local function ConfigDecode(str)
+	if type(str) ~= "string" or #str == 0 then return nil end
+	local ok, decoded = pcall(function()
+		return HttpService:JSONDecode(str)
+	end)
+	if ok and type(decoded) == "table" then return decoded end
+	return nil
+end
+
+local function ConfigLoad()
+	local raw = nil
+	pcall(function()
+		if type(isfile) == "function" and isfile(CONFIG_FILE) then
+			raw = readfile(CONFIG_FILE)
+		elseif type(readfile) == "function" then
+			raw = readfile(CONFIG_FILE)
+		end
+	end)
+	if not raw then return false end
+	local data = ConfigDecode(raw)
+	if type(data) ~= "table" then return false end
+	for k, v in pairs(data) do
+		Settings[k] = v
+	end
+	return true
+end
+
+local function ConfigSave()
+	local payload = ConfigEncode(Settings)
+	local ok = false
+	pcall(function()
+		if type(makefolder) == "function" then
+			pcall(makefolder, CONFIG_FOLDER)
+		end
+		if type(writefile) == "function" then
+			writefile(CONFIG_FILE, payload)
+			ok = true
+		end
+	end)
+	return ok
+end
+
+-- Load once at library start
+pcall(ConfigLoad)
+
+local function KeyCodeFromName(name)
+	if typeof(name) == "EnumItem" then return name end
+	if type(name) ~= "string" or name == "" or name == "None" then
+		return Enum.KeyCode.Unknown
+	end
+	local ok, kc = pcall(function()
+		return Enum.KeyCode[name]
+	end)
+	if ok and kc then return kc end
+	return Enum.KeyCode.Unknown
+end
 
 ----------------------------------------------------------------
 -- SIGNAL (Changed events for components)
@@ -2700,6 +2795,11 @@ local function CreateKeybind(tab, config)
 				keyLabel.Text = key.Name
 				listening = false
 				TweenEngine.Play(stroke, { Color = Theme.Border }, { Duration = 0.15 })
+				-- Persist toggle-UI key when rebound from Settings
+				if config.Name == "Toggle UI" then
+					Settings.ToggleUIKey = key.Name
+					pcall(ConfigSave)
+				end
 			end
 			return
 		end
@@ -2970,6 +3070,272 @@ local function CreateTab(window, config)
 	end
 
 	return tab
+end
+
+----------------------------------------------------------------
+-- SETTINGS TAB (auto-attached to every window)
+----------------------------------------------------------------
+local function SetupSettingsTab(window)
+	if not window or window._SettingsReady then return end
+	window._SettingsReady = true
+
+	local settingsTab = window:CreateTab({ Name = "Settings" })
+	settingsTab:CreateSection({ Name = "Profile" })
+
+	-- Profile card (avatar + name + country)
+	do
+		local parent = GetParentForComponent(settingsTab)
+		local card = Instance.new("Frame")
+		card.Name = "ProfileCard"
+		card.BackgroundColor3 = Theme.Secondary
+		card.BackgroundTransparency = 0.1
+		card.BorderSizePixel = 0
+		card.Size = UDim2.new(1, 0, 0, 72)
+		card.Parent = parent
+
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = Theme.Border
+		stroke.Thickness = 1
+		stroke.Transparency = 0.5
+		stroke.Parent = card
+
+		local avatar = Instance.new("ImageLabel")
+		avatar.Name = "Avatar"
+		avatar.BackgroundColor3 = Theme.Tertiary
+		avatar.BorderSizePixel = 0
+		avatar.Size = UDim2.new(0, 48, 0, 48)
+		avatar.Position = UDim2.new(0, 12, 0.5, -24)
+		avatar.Image = ""
+		avatar.ScaleType = Enum.ScaleType.Crop
+		avatar.Parent = card
+
+		local avCorner = Instance.new("UICorner")
+		avCorner.CornerRadius = UDim.new(1, 0)
+		avCorner.Parent = avatar
+
+		local nameLabel = Instance.new("TextLabel")
+		nameLabel.BackgroundTransparency = 1
+		nameLabel.Size = UDim2.new(1, -76, 0, 18)
+		nameLabel.Position = UDim2.new(0, 70, 0, 16)
+		nameLabel.Font = Theme.FontBold
+		nameLabel.TextSize = 14
+		nameLabel.TextColor3 = Theme.Text
+		nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+		nameLabel.Text = LocalPlayer.DisplayName or LocalPlayer.Name
+		nameLabel.Parent = card
+
+		local userLabel = Instance.new("TextLabel")
+		userLabel.BackgroundTransparency = 1
+		userLabel.Size = UDim2.new(1, -76, 0, 14)
+		userLabel.Position = UDim2.new(0, 70, 0, 36)
+		userLabel.Font = Theme.Font
+		userLabel.TextSize = 12
+		userLabel.TextColor3 = Theme.SecondaryText
+		userLabel.TextXAlignment = Enum.TextXAlignment.Left
+		userLabel.Text = "@" .. tostring(LocalPlayer.Name)
+		userLabel.Parent = card
+
+		local countryLabel = Instance.new("TextLabel")
+		countryLabel.BackgroundTransparency = 1
+		countryLabel.Size = UDim2.new(1, -76, 0, 14)
+		countryLabel.Position = UDim2.new(0, 70, 0, 52)
+		countryLabel.Font = Theme.Font
+		countryLabel.TextSize = 11
+		countryLabel.TextColor3 = Theme.MutedText
+		countryLabel.TextXAlignment = Enum.TextXAlignment.Left
+		countryLabel.Text = "Country: ..."
+		countryLabel.Parent = card
+
+		task.spawn(function()
+			local ok, url = pcall(function()
+				return Players:GetUserThumbnailAsync(
+					LocalPlayer.UserId,
+					Enum.ThumbnailType.HeadShot,
+					Enum.ThumbnailSize.Size150x150
+				)
+			end)
+			if ok and url and avatar and avatar.Parent then
+				avatar.Image = url
+			end
+		end)
+
+		task.spawn(function()
+			local country = "Unknown"
+			local ok, code = pcall(function()
+				return LocalizationService:GetCountryRegionForPlayerAsync(LocalPlayer)
+			end)
+			if ok and type(code) == "string" and #code > 0 then
+				country = code
+			end
+			if countryLabel and countryLabel.Parent then
+				countryLabel.Text = "Country: " .. tostring(country)
+			end
+		end)
+
+		-- theme refresh hook for card
+		local unhook = OnThemeChange(function()
+			if not card or not card.Parent then return end
+			card.BackgroundColor3 = Theme.Secondary
+			stroke.Color = Theme.Border
+			avatar.BackgroundColor3 = Theme.Tertiary
+			nameLabel.TextColor3 = Theme.Text
+			nameLabel.Font = Theme.FontBold
+			userLabel.TextColor3 = Theme.SecondaryText
+			userLabel.Font = Theme.Font
+			countryLabel.TextColor3 = Theme.MutedText
+			countryLabel.Font = Theme.Font
+		end)
+		window.Cleanup:AddCallback(unhook)
+		window.Cleanup:AddInstance(card)
+	end
+
+	settingsTab:CreateSection({ Name = "Appearance" })
+
+	-- Theme dropdown
+	local themeNames = { "Dark", "Light", "Neon" }
+	local currentTheme = Settings.Theme or "Dark"
+	if not table.find(themeNames, currentTheme) then
+		currentTheme = "Dark"
+	end
+	-- apply saved theme once
+	pcall(function() ApplyThemePreset(currentTheme) end)
+
+	settingsTab:CreateDropdown({
+		Name = "Theme",
+		Options = themeNames,
+		Default = currentTheme,
+		Callback = function(v)
+			Settings.Theme = v
+			ApplyThemePreset(v)
+			ConfigSave()
+			Library:Notify({
+				Title = "Theme",
+				Description = "Applied " .. tostring(v),
+				Duration = 2,
+				Type = "Success",
+			})
+		end,
+	})
+
+	settingsTab:CreateSection({ Name = "Controls" })
+
+	-- UI visibility (full hide / show — not minimize)
+	window._UIVisible = Settings.UIVisible ~= false
+	if window.Gui then
+		window.Gui.Enabled = window._UIVisible
+	end
+
+	function window:SetUIVisible(state)
+		window._UIVisible = state and true or false
+		Settings.UIVisible = window._UIVisible
+		if window.Gui then
+			window.Gui.Enabled = window._UIVisible
+		end
+		ConfigSave()
+	end
+
+	function window:ToggleUIVisible()
+		window:SetUIVisible(not window._UIVisible)
+	end
+
+	local defaultKey = KeyCodeFromName(Settings.ToggleUIKey or "X")
+	if defaultKey == Enum.KeyCode.Unknown then
+		defaultKey = Enum.KeyCode.X
+	end
+
+	local kb = settingsTab:CreateKeybind({
+		Name = "Toggle UI",
+		Default = defaultKey,
+		Mode = "Toggle",
+		Callback = function()
+			-- Keybind component fires with active bool for Toggle mode;
+			-- we always just flip visibility.
+			window:ToggleUIVisible()
+		end,
+	})
+
+	-- Keep Settings in sync when user rebinds
+	do
+		local oldSet = kb.Set
+		function kb:Set(k)
+			if oldSet then oldSet(self, k) end
+			local name = (k and k ~= Enum.KeyCode.Unknown) and k.Name or "X"
+			Settings.ToggleUIKey = name
+			ConfigSave()
+		end
+	end
+
+	-- Also listen at window level so hide/show works even when keybind component is destroyed
+	-- (covers the case where UI is hidden and we need the same key to bring it back)
+	local uiKey = defaultKey
+	local function refreshUiKey()
+		uiKey = KeyCodeFromName(Settings.ToggleUIKey or "X")
+		if uiKey == Enum.KeyCode.Unknown then
+			uiKey = Enum.KeyCode.X
+		end
+	end
+	refreshUiKey()
+
+	local uiToggleConn = UserInputService.InputBegan:Connect(function(input, processed)
+		if processed then return end
+		if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+		refreshUiKey()
+		if input.KeyCode == uiKey then
+			-- Avoid double-fire with keybind callback when UI is visible:
+			-- only handle here when GUI is currently disabled (hidden)
+			if window.Gui and not window.Gui.Enabled then
+				window:SetUIVisible(true)
+			end
+		end
+	end)
+	window.Cleanup:AddConnection(uiToggleConn)
+
+	-- When keybind fires while visible it toggles via Callback above.
+	-- Patch keybind so Settings.ToggleUIKey always updates on rebind via InputBegan inside CreateKeybind.
+	-- Hook after key is set by listening to the key label changes is fragile; instead wrap Get.
+	-- Save button
+	settingsTab:CreateButton({
+		Name = "Save Settings",
+		Callback = function()
+			-- pull current key from keybind if possible
+			if kb and kb.Get then
+				local k = kb:Get()
+				if k and k ~= Enum.KeyCode.Unknown then
+					Settings.ToggleUIKey = k.Name
+				end
+			end
+			local ok = ConfigSave()
+			Library:Notify({
+				Title = ok and "Saved" or "Save Failed",
+				Description = ok and "Settings written to " .. CONFIG_FILE or "writefile unavailable",
+				Duration = 3,
+				Type = ok and "Success" or "Error",
+			})
+		end,
+	})
+
+	settingsTab:CreateButton({
+		Name = "Reset Settings",
+		Callback = function()
+			for k, v in pairs(DefaultSettings) do
+				Settings[k] = v
+			end
+			ConfigSave()
+			ApplyThemePreset(Settings.Theme)
+			if kb and kb.Set then
+				kb:Set(KeyCodeFromName(Settings.ToggleUIKey))
+			end
+			window:SetUIVisible(true)
+			Library:Notify({
+				Title = "Reset",
+				Description = "Settings restored to defaults",
+				Duration = 2,
+				Type = "Info",
+			})
+		end,
+	})
+
+	return settingsTab
 end
 
 ----------------------------------------------------------------
@@ -3631,6 +3997,11 @@ local function CreateWindow(library, config)
 		end)
 	end
 
+	-- Auto Settings tab (theme, toggle-UI keybind, profile)
+	pcall(function()
+		SetupSettingsTab(window)
+	end)
+
 	return window
 end
 
@@ -3775,7 +4146,20 @@ function Library:GetTheme()
 	return GetTheme()
 end
 
+function Library:GetSettings()
+	return Settings
+end
+
+function Library:SaveSettings()
+	return ConfigSave()
+end
+
+function Library:LoadSettings()
+	return ConfigLoad()
+end
+
 Library.ThemePresets = ThemePresets
+Library.Settings = Settings
 
 local InitDone = false
 
