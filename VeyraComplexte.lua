@@ -385,23 +385,38 @@ end
 
 local function SetThemeGradient(obj, kind)
 	if not obj or not obj:IsA("GuiObject") then return end
-	if kind ~= "Background" then
-		local old = obj:FindFirstChild("VeyraGradient")
-		if old then old:Destroy() end
-		return
-	end
 	local gradient = obj:FindFirstChild("VeyraGradient")
 	if not gradient then
 		gradient = Instance.new("UIGradient")
 		gradient.Name = "VeyraGradient"
 		gradient.Parent = obj
 	end
-	-- The gradient supplies the complete background color. Keep the base white so
-	-- Roblox does not multiply the gradient by Theme.Background and make it muddy.
+
+	local a, b
+	if kind == "Background" then
+		a = Theme.GradientBackgroundA or Theme.Background
+		b = Theme.GradientBackgroundB or Theme.Secondary
+	elseif kind == "Surface" then
+		a = Theme.GradientSurfaceA or Theme.Secondary
+		b = Theme.GradientSurfaceB or Theme.Tertiary
+	elseif kind == "Panel" then
+		a = Theme.GradientPanelA or Theme.Tertiary
+		b = Theme.GradientPanelB or Theme.Hover
+	elseif kind == "Accent" then
+		a = Theme.GradientAccentA or Theme.Accent
+		b = Theme.GradientAccentB or Theme.Accent
+	else
+		a = Theme.GradientSurfaceA or Theme.Secondary
+		b = Theme.GradientSurfaceB or Theme.Tertiary
+	end
+
+	-- No tint layer: white is a neutral multiplier, so the UIGradient colors are
+	-- rendered directly rather than being multiplied by a dark Theme.Background.
 	obj.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	obj.BackgroundTransparency = 0
 	gradient.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Theme.GradientBackgroundA or Theme.Background),
-		ColorSequenceKeypoint.new(1, Theme.GradientBackgroundB or Theme.Secondary),
+		ColorSequenceKeypoint.new(0, a),
+		ColorSequenceKeypoint.new(1, b),
 	})
 	gradient.Rotation = Theme.GradientRotation or 90
 	return gradient
@@ -3551,6 +3566,7 @@ local function CreateWindow(library, config)
 	titleBar.Size = UDim2.new(1, 0, 0, TITLE_H)
 	titleBar.ZIndex = 3
 	titleBar.Parent = main
+	SetThemeGradient(titleBar, "Surface")
 
 
 
@@ -3636,6 +3652,7 @@ local function CreateWindow(library, config)
 	sidebar.BorderSizePixel = 0
 	sidebar.Size = UDim2.new(0, SIDEBAR_W, 1, 0)
 	sidebar.Parent = body
+	SetThemeGradient(sidebar, "Panel")
 
 	local searchBox = Instance.new("TextBox")
 	searchBox.Name = "Search"
@@ -3860,10 +3877,10 @@ local function CreateWindow(library, config)
 	local function refreshWindowTheme()
 		if cleanup:IsDestroyed() then return end
 		Theme.CornerRadius = math.max(0, math.floor(tonumber(Settings.CornerRadius or Theme.CornerRadius or 2) or 2))
-		main.BackgroundColor3 = Theme.Background
+		SetThemeGradient(main, "Background")
 		mainStroke.Color = Theme.OutlineAccent or Theme.Border
 		mainStroke.Transparency = 0.35
-		titleBar.BackgroundColor3 = Theme.Secondary
+		SetThemeGradient(titleBar, "Surface")
 		titleFix.BackgroundColor3 = Theme.Secondary
 		titleLabel.TextColor3 = Theme.Text
 		titleLabel.Font = Theme.FontBold
@@ -3871,7 +3888,7 @@ local function CreateWindow(library, config)
 		subtitle.Font = Theme.Font
 		closeBtn.TextColor3 = Theme.SecondaryText
 		minBtn.TextColor3 = Theme.SecondaryText
-		sidebar.BackgroundColor3 = Theme.Secondary
+		SetThemeGradient(sidebar, "Panel")
 		searchBox.BackgroundColor3 = Theme.Tertiary
 		searchBox.TextColor3 = Theme.Text
 		searchBox.PlaceholderColor3 = Theme.MutedText
@@ -4451,10 +4468,10 @@ local function CreateKeySystem(config)
 
 	local function refreshTheme()
 		if closed or cleanup:IsDestroyed() then return end
-		main.BackgroundColor3 = Theme.Background
+		SetThemeGradient(main, "Background")
 		mainStroke.Color = Theme.OutlineAccent or Theme.Border
 		mainStroke.Transparency = 0.35
-		titleBar.BackgroundColor3 = Theme.Secondary
+		SetThemeGradient(titleBar, "Surface")
 		titleLabel.TextColor3 = Theme.Text
 		titleLabel.Font = Theme.FontBold
 		closeBtn.TextColor3 = Theme.SecondaryText
