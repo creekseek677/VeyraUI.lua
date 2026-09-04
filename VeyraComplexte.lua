@@ -258,8 +258,8 @@ local ThemePresets = {
 		GradientPanelB = Color3.fromRGB(42, 46, 58),
 		GradientAccentA = Color3.fromRGB(248, 250, 255),
 		GradientAccentB = Color3.fromRGB(126, 149, 186),
-		GradientBackgroundA = Color3.fromRGB(14, 18, 32),
-		GradientBackgroundB = Color3.fromRGB(52, 34, 64),
+		GradientBackgroundA = Color3.fromRGB(10, 12, 22),
+		GradientBackgroundB = Color3.fromRGB(50, 30, 66),
 		GradientRotation = 135,
 	},
 	Light = {
@@ -329,37 +329,38 @@ local ThemePresets = {
 		GradientRotation = 135,
 	},
 	Aurora = {
-		Background = Color3.fromRGB(14, 22, 34),
-		Secondary = Color3.fromRGB(20, 32, 48),
-		Tertiary = Color3.fromRGB(28, 42, 62),
-		Hover = Color3.fromRGB(36, 54, 76),
-		Text = Color3.fromRGB(236, 247, 255),
-		SecondaryText = Color3.fromRGB(165, 200, 218),
-		MutedText = Color3.fromRGB(105, 140, 158),
-		Accent = Color3.fromRGB(114, 235, 220),
-		Border = Color3.fromRGB(55, 80, 100),
-		ToggleOn = Color3.fromRGB(114, 235, 220),
-		ToggleOff = Color3.fromRGB(35, 55, 70),
-		SliderTrack = Color3.fromRGB(30, 48, 62),
-		SliderFill = Color3.fromRGB(114, 235, 220),
-		NotificationBackground = Color3.fromRGB(14, 22, 34),
-		NotificationBorder = Color3.fromRGB(50, 75, 95),
-		NotificationTitle = Color3.fromRGB(235, 249, 255),
-		NotificationDescription = Color3.fromRGB(165, 200, 218),
-		NotificationInfo = Color3.fromRGB(104, 170, 255),
-		NotificationSuccess = Color3.fromRGB(100, 235, 176),
-		NotificationWarning = Color3.fromRGB(255, 196, 92),
-		NotificationError = Color3.fromRGB(255, 100, 130),
-		OutlineAccent = Color3.fromRGB(114, 235, 220), -- teal for Aurora
-		GradientSurfaceA = Color3.fromRGB(18, 26, 40),
-		GradientSurfaceB = Color3.fromRGB(34, 42, 64),
-		GradientPanelA = Color3.fromRGB(22, 34, 50),
-		GradientPanelB = Color3.fromRGB(40, 36, 68),
-		GradientAccentA = Color3.fromRGB(120, 255, 236),
-		GradientAccentB = Color3.fromRGB(147, 86, 255),
-		GradientBackgroundA = Color3.fromRGB(7, 22, 36),
-		GradientBackgroundB = Color3.fromRGB(34, 20, 68),
-		GradientRotation = 135,
+		Background = Color3.fromRGB(0, 128, 128),        -- teal
+		Secondary = Color3.fromRGB(0, 160, 160),        -- lighter teal
+		Tertiary = Color3.fromRGB(0, 100, 100),         -- darker teal
+		Hover = Color3.fromRGB(0, 200, 200),            -- cyan
+		Text = Color3.fromRGB(255, 255, 255),
+		SecondaryText = Color3.fromRGB(200, 255, 255),
+		MutedText = Color3.fromRGB(150, 220, 220),
+		Accent = Color3.fromRGB(0, 255, 255),           -- cyan
+		Border = Color3.fromRGB(0, 80, 80),
+		ToggleOn = Color3.fromRGB(0, 255, 255),
+		ToggleOff = Color3.fromRGB(0, 90, 90),
+		SliderTrack = Color3.fromRGB(0, 80, 80),
+		SliderFill = Color3.fromRGB(0, 255, 255),
+		NotificationBackground = Color3.fromRGB(0, 80, 80),
+		NotificationBorder = Color3.fromRGB(0, 120, 120),
+		NotificationTitle = Color3.fromRGB(255, 255, 255),
+		NotificationDescription = Color3.fromRGB(200, 255, 255),
+		NotificationInfo = Color3.fromRGB(0, 200, 255),
+		NotificationSuccess = Color3.fromRGB(0, 255, 200),
+		NotificationWarning = Color3.fromRGB(255, 200, 0),
+		NotificationError = Color3.fromRGB(255, 80, 80),
+		OutlineAccent = Color3.fromRGB(0, 255, 255),    -- cyan
+		-- All gradients use the same colors for a flat look:
+		GradientSurfaceA = Color3.fromRGB(0, 128, 128),
+		GradientSurfaceB = Color3.fromRGB(0, 128, 128),
+		GradientPanelA = Color3.fromRGB(0, 100, 100),
+		GradientPanelB = Color3.fromRGB(0, 100, 100),
+		GradientAccentA = Color3.fromRGB(0, 255, 255),
+		GradientAccentB = Color3.fromRGB(0, 255, 255),
+		GradientBackgroundA = Color3.fromRGB(0, 128, 128),
+		GradientBackgroundB = Color3.fromRGB(0, 128, 128),
+		GradientRotation = 0,
 	},
 }
 
@@ -376,7 +377,6 @@ local function EnsureCorner(obj, radius)
 	elseif corner.Name ~= "VeyraCorner" then
 		corner.Name = "VeyraCorner"
 	end
-	-- Preserve full-circle corners (Scale >= 0.99) used by avatars, knobs, switches, etc.
 	if corner.CornerRadius.Scale < 0.99 then
 		corner.CornerRadius = UDim.new(0, value)
 	end
@@ -410,8 +410,6 @@ local function SetThemeGradient(obj, kind)
 		b = Theme.GradientSurfaceB or Theme.Tertiary
 	end
 
-	-- No tint layer: white is a neutral multiplier, so the UIGradient colors are
-	-- rendered directly rather than being multiplied by a dark Theme.Background.
 	obj.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	obj.BackgroundTransparency = 0
 	gradient.Color = ColorSequence.new({
@@ -3195,7 +3193,6 @@ local function SetupSettingsTab(window)
 		avCorner.CornerRadius = UDim.new(1, 0)
 		avCorner.Parent = avatar
 
-		-- subtle ring around avatar using theme outline
 		local avStroke = Instance.new("UIStroke")
 		avStroke.Color = Theme.OutlineAccent or Theme.Border
 		avStroke.Thickness = 1.5
@@ -3587,6 +3584,7 @@ local function CreateWindow(library, config)
 	titleLabel.TextColor3 = Theme.Text
 	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 	titleLabel.Text = config.Title or "Veyra"
+	titleLabel.ZIndex = 10
 	titleLabel.Parent = titleBar
 
 	local subtitle = Instance.new("TextLabel")
@@ -3598,6 +3596,7 @@ local function CreateWindow(library, config)
 	subtitle.TextColor3 = Theme.SecondaryText
 	subtitle.TextXAlignment = Enum.TextXAlignment.Left
 	subtitle.Text = config.Subtitle or ""
+	subtitle.ZIndex = 10
 	subtitle.Parent = titleBar
 
 	local closeBtn = Instance.new("TextButton")
@@ -4315,6 +4314,8 @@ local function CreateKeySystem(config)
 	titleBar.Size = UDim2.new(1, 0, 0, 36)
 	titleBar.ZIndex = 3
 	titleBar.Parent = main
+	SetThemeGradient(titleBar, "Surface") -- Added gradient to title bar
+	titleBar.BackgroundTransparency = 0
 
 	local titleLabel = Instance.new("TextLabel")
 	titleLabel.BackgroundTransparency = 1
@@ -4325,6 +4326,7 @@ local function CreateKeySystem(config)
 	titleLabel.TextColor3 = Theme.Text
 	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 	titleLabel.Text = titleText
+	titleLabel.ZIndex = 10
 	titleLabel.Parent = titleBar
 
 	local closeBtn = Instance.new("TextButton")
@@ -4463,15 +4465,16 @@ local function CreateKeySystem(config)
 	bottomLabel.TextWrapped = true
 	bottomLabel.Text = bottomText
 	bottomLabel.LayoutOrder = 3
+	bottomLabel.ZIndex = 10
 	bottomLabel.Parent = body
 	bottomLabel.Visible = (bottomText ~= "")
 
 	local function refreshTheme()
 		if closed or cleanup:IsDestroyed() then return end
 		SetThemeGradient(main, "Background")
+		SetThemeGradient(titleBar, "Surface") -- reapply gradient on theme change
 		mainStroke.Color = Theme.OutlineAccent or Theme.Border
 		mainStroke.Transparency = 0.35
-		SetThemeGradient(titleBar, "Surface")
 		titleLabel.TextColor3 = Theme.Text
 		titleLabel.Font = Theme.FontBold
 		closeBtn.TextColor3 = Theme.SecondaryText
