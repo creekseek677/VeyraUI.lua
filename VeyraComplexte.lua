@@ -258,8 +258,8 @@ local ThemePresets = {
 		GradientPanelB = Color3.fromRGB(42, 46, 58),
 		GradientAccentA = Color3.fromRGB(248, 250, 255),
 		GradientAccentB = Color3.fromRGB(126, 149, 186),
-		GradientBackgroundA = Color3.fromRGB(16, 18, 24),
-		GradientBackgroundB = Color3.fromRGB(26, 29, 38),
+		GradientBackgroundA = Color3.fromRGB(14, 14, 18),
+		GradientBackgroundB = Color3.fromRGB(24, 24, 30),
 		GradientRotation = 90,
 	},
 	Light = {
@@ -357,8 +357,8 @@ local ThemePresets = {
 		GradientPanelB = Color3.fromRGB(40, 36, 68),
 		GradientAccentA = Color3.fromRGB(120, 255, 236),
 		GradientAccentB = Color3.fromRGB(147, 86, 255),
-		GradientBackgroundA = Color3.fromRGB(10, 16, 26),
-		GradientBackgroundB = Color3.fromRGB(22, 30, 48),
+		GradientBackgroundA = Color3.fromRGB(7, 24, 23),
+		GradientBackgroundB = Color3.fromRGB(10, 52, 48),
 		GradientRotation = 90,
 	},
 }
@@ -394,9 +394,8 @@ local function SetThemeGradient(obj, kind)
 	local a, b
 	if kind == "Accent" then
 		a, b = Theme.GradientAccentA, Theme.GradientAccentB
-	elseif kind == "Background" then
-		a, b = Theme.GradientBackgroundA, Theme.GradientBackgroundB
-	elseif kind == "Panel" then
+	elseif kind == "Panel" or kind == "Background" then
+		-- Backgrounds use the same gradient as panels / gradiented parts
 		a, b = Theme.GradientPanelA, Theme.GradientPanelB
 	else
 		a, b = Theme.GradientSurfaceA, Theme.GradientSurfaceB
@@ -3559,21 +3558,23 @@ local function CreateWindow(library, config)
 	local titleBar = Instance.new("Frame")
 	titleBar.Name = "TitleBar"
 	titleBar.BackgroundColor3 = Theme.Secondary
-	titleBar.BackgroundTransparency = 0.15
+	titleBar.BackgroundTransparency = 0
 	titleBar.BorderSizePixel = 0
 	titleBar.Size = UDim2.new(1, 0, 0, TITLE_H)
 	titleBar.ZIndex = 3
 	titleBar.Parent = main
+	SetThemeGradient(titleBar, "Panel")
 
 
 
 	local titleFix = Instance.new("Frame")
 	titleFix.BackgroundColor3 = Theme.Secondary
-	titleFix.BackgroundTransparency = 0.15
+	titleFix.BackgroundTransparency = 0
 	titleFix.BorderSizePixel = 0
 	titleFix.Size = UDim2.new(1, 0, 0, 12)
 	titleFix.Position = UDim2.new(0, 0, 1, -12)
 	titleFix.Parent = titleBar
+	SetThemeGradient(titleFix, "Panel")
 
 	local titleLabel = Instance.new("TextLabel")
 	titleLabel.BackgroundTransparency = 1
@@ -3584,6 +3585,7 @@ local function CreateWindow(library, config)
 	titleLabel.TextColor3 = Theme.Text
 	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 	titleLabel.Text = config.Title or "Veyra"
+	titleLabel.ZIndex = 6
 	titleLabel.Parent = titleBar
 
 	local subtitle = Instance.new("TextLabel")
@@ -3595,6 +3597,7 @@ local function CreateWindow(library, config)
 	subtitle.TextColor3 = Theme.SecondaryText
 	subtitle.TextXAlignment = Enum.TextXAlignment.Left
 	subtitle.Text = config.Subtitle or ""
+	subtitle.ZIndex = 6
 	subtitle.Parent = titleBar
 
 	local closeBtn = Instance.new("TextButton")
@@ -3830,7 +3833,7 @@ local function CreateWindow(library, config)
 	TweenEngine.Play(root, {
 		Size = UDim2.fromOffset(width, height),
 	}, { Duration = 0.4, Easing = "BackOut" })
-	TweenEngine.Play(main, { BackgroundTransparency = 0.02 }, { Duration = 0.32, Easing = "QuadOut" })
+	TweenEngine.Play(main, { BackgroundTransparency = 0 }, { Duration = 0.32, Easing = "QuadOut" })
 
 	cleanup:AddInstance(gui)
 
@@ -3874,6 +3877,9 @@ local function CreateWindow(library, config)
 		if cleanup:IsDestroyed() then return end
 		Theme.CornerRadius = math.max(0, math.floor(tonumber(Settings.CornerRadius or Theme.CornerRadius or 2) or 2))
 		main.BackgroundColor3 = Theme.Background
+		SetThemeGradient(main, "Background")
+		SetThemeGradient(titleBar, "Panel")
+		SetThemeGradient(titleFix, "Panel")
 		mainStroke.Color = Theme.OutlineAccent or Theme.Border
 		mainStroke.Transparency = 0.35
 		titleBar.BackgroundColor3 = Theme.Secondary
@@ -4009,7 +4015,6 @@ local function CreateWindow(library, config)
 	function window:SetBackgroundImageEnabled(enabled)
 		Settings.UseBackgroundImage = enabled == true
 		backgroundImage.Visible = Settings.UseBackgroundImage and Settings.BackgroundImage ~= ""
-		backgroundTint.BackgroundTransparency = Settings.UseBackgroundImage and 0.38 or 0.02
 	end
 
 	function window:SetBackgroundImageTransparency(value)
@@ -4304,7 +4309,7 @@ local function CreateKeySystem(config)
 	local titleBar = Instance.new("Frame")
 	titleBar.Name = "TitleBar"
 	titleBar.BackgroundColor3 = Theme.Secondary
-	titleBar.BackgroundTransparency = 0.15
+	titleBar.BackgroundTransparency = 0
 	titleBar.BorderSizePixel = 0
 	titleBar.Size = UDim2.new(1, 0, 0, 36)
 	titleBar.ZIndex = 3
@@ -4319,6 +4324,7 @@ local function CreateKeySystem(config)
 	titleLabel.TextColor3 = Theme.Text
 	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 	titleLabel.Text = titleText
+	titleLabel.ZIndex = 6
 	titleLabel.Parent = titleBar
 
 	local closeBtn = Instance.new("TextButton")
@@ -4698,7 +4704,7 @@ local function CreateKeySystem(config)
 	TweenEngine.Play(root, {
 		Size = UDim2.fromOffset(width, height),
 	}, { Duration = 0.4, Easing = "BackOut" })
-	TweenEngine.Play(main, { BackgroundTransparency = 0.02 }, { Duration = 0.32, Easing = "QuadOut" })
+	TweenEngine.Play(main, { BackgroundTransparency = 0 }, { Duration = 0.32, Easing = "QuadOut" })
 
 	local api = {
 		Gui = gui,
