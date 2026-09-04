@@ -259,7 +259,7 @@ local ThemePresets = {
 		GradientAccentA = Color3.fromRGB(248, 250, 255),
 		GradientAccentB = Color3.fromRGB(126, 149, 186),
 		GradientBackgroundA = Color3.fromRGB(20, 20, 20),
-		GradientBackgroundB = Color3.fromRGB(20, 20, 20),
+		GradientBackgroundB = Color3.fromRGB(30, 30, 30),
 		GradientRotation = 135,
 	},
 	Light = {
@@ -358,8 +358,8 @@ local ThemePresets = {
 		GradientPanelB = Color3.fromRGB(0, 100, 100),
 		GradientAccentA = Color3.fromRGB(0, 255, 255),
 		GradientAccentB = Color3.fromRGB(0, 255, 255),
-		GradientBackgroundA = Color3.fromRGB(0, 100, 100),
-		GradientBackgroundB = Color3.fromRGB(0, 100, 100),
+		GradientBackgroundA = Color3.fromRGB(0, 90, 90),
+		GradientBackgroundB = Color3.fromRGB(0, 95, 95),
 		GradientRotation = 0,
 	},
 }
