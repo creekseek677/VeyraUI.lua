@@ -240,8 +240,8 @@ local ThemePresets = {
 		Accent = Color3.fromRGB(255, 255, 255),
 		Border = Color3.fromRGB(55, 55, 65),
 		ToggleOn = Color3.fromRGB(255, 255, 255),
-		ToggleOff = Color3.fromRGB(82, 84, 98),
-		SliderTrack = Color3.fromRGB(58, 61, 74),
+		ToggleOff = Color3.fromRGB(60, 60, 70),
+		SliderTrack = Color3.fromRGB(45, 45, 55),
 		SliderFill = Color3.fromRGB(255, 255, 255),
 		NotificationBackground = Color3.fromRGB(18, 18, 22),
 		NotificationBorder = Color3.fromRGB(45, 45, 55),
@@ -251,16 +251,16 @@ local ThemePresets = {
 		NotificationSuccess = Color3.fromRGB(80, 200, 120),
 		NotificationWarning = Color3.fromRGB(255, 180, 60),
 		NotificationError = Color3.fromRGB(255, 80, 80),
-		OutlineAccent = Color3.fromRGB(190, 195, 215), -- brighter neutral outline for Dark
+		OutlineAccent = Color3.fromRGB(90, 90, 100), -- gray for Dark
 		GradientSurfaceA = Color3.fromRGB(24, 26, 32),
 		GradientSurfaceB = Color3.fromRGB(36, 39, 50),
 		GradientPanelA = Color3.fromRGB(28, 30, 40),
 		GradientPanelB = Color3.fromRGB(42, 46, 58),
 		GradientAccentA = Color3.fromRGB(248, 250, 255),
 		GradientAccentB = Color3.fromRGB(126, 149, 186),
-		GradientBackgroundA = Color3.fromRGB(16, 18, 24),
-		GradientBackgroundB = Color3.fromRGB(26, 29, 38),
-		GradientRotation = 90,
+		GradientBackgroundA = Color3.fromRGB(14, 18, 32),
+		GradientBackgroundB = Color3.fromRGB(52, 34, 64),
+		GradientRotation = 135,
 	},
 	Light = {
 		Background = Color3.fromRGB(245, 245, 248),
@@ -324,9 +324,9 @@ local ThemePresets = {
 		GradientPanelB = Color3.fromRGB(48, 32, 78),
 		GradientAccentA = Color3.fromRGB(255, 110, 236),
 		GradientAccentB = Color3.fromRGB(91, 138, 255),
-		GradientBackgroundA = Color3.fromRGB(12, 8, 24),
-		GradientBackgroundB = Color3.fromRGB(28, 16, 44),
-		GradientRotation = 90,
+		GradientBackgroundA = Color3.fromRGB(20, 8, 42),
+		GradientBackgroundB = Color3.fromRGB(96, 22, 92),
+		GradientRotation = 135,
 	},
 	Aurora = {
 		Background = Color3.fromRGB(14, 22, 34),
@@ -357,9 +357,9 @@ local ThemePresets = {
 		GradientPanelB = Color3.fromRGB(40, 36, 68),
 		GradientAccentA = Color3.fromRGB(120, 255, 236),
 		GradientAccentB = Color3.fromRGB(147, 86, 255),
-		GradientBackgroundA = Color3.fromRGB(10, 16, 26),
-		GradientBackgroundB = Color3.fromRGB(22, 30, 48),
-		GradientRotation = 90,
+		GradientBackgroundA = Color3.fromRGB(7, 22, 36),
+		GradientBackgroundB = Color3.fromRGB(34, 20, 68),
+		GradientRotation = 135,
 	},
 }
 
@@ -391,19 +391,32 @@ local function SetThemeGradient(obj, kind)
 		gradient.Name = "VeyraGradient"
 		gradient.Parent = obj
 	end
+
 	local a, b
-	if kind == "Accent" then
-		a, b = Theme.GradientAccentA, Theme.GradientAccentB
-	elseif kind == "Background" then
-		a, b = Theme.GradientBackgroundA, Theme.GradientBackgroundB
+	if kind == "Background" then
+		a = Theme.GradientBackgroundA or Theme.Background
+		b = Theme.GradientBackgroundB or Theme.Secondary
+	elseif kind == "Surface" then
+		a = Theme.GradientSurfaceA or Theme.Secondary
+		b = Theme.GradientSurfaceB or Theme.Tertiary
 	elseif kind == "Panel" then
-		a, b = Theme.GradientPanelA, Theme.GradientPanelB
+		a = Theme.GradientPanelA or Theme.Tertiary
+		b = Theme.GradientPanelB or Theme.Hover
+	elseif kind == "Accent" then
+		a = Theme.GradientAccentA or Theme.Accent
+		b = Theme.GradientAccentB or Theme.Accent
 	else
-		a, b = Theme.GradientSurfaceA, Theme.GradientSurfaceB
+		a = Theme.GradientSurfaceA or Theme.Secondary
+		b = Theme.GradientSurfaceB or Theme.Tertiary
 	end
+
+	-- No tint layer: white is a neutral multiplier, so the UIGradient colors are
+	-- rendered directly rather than being multiplied by a dark Theme.Background.
+	obj.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	obj.BackgroundTransparency = 0
 	gradient.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, a or Theme.Background),
-		ColorSequenceKeypoint.new(1, b or Theme.Secondary),
+		ColorSequenceKeypoint.new(0, a),
+		ColorSequenceKeypoint.new(1, b),
 	})
 	gradient.Rotation = Theme.GradientRotation or 90
 	return gradient
@@ -415,41 +428,6 @@ local function DecorateGuiTree(root)
 		if not obj:IsA("GuiObject") then return end
 		local n = string.lower(obj.Name or "")
 		if obj.BackgroundTransparency < 1 then
-			local kind = "Surface"
-			if n == "main" then
-				kind = "Background"
-			elseif string.find(n, "indicator", 1, true) or string.find(n, "accent", 1, true) or string.find(n, "seam", 1, true) or string.find(n, "sliderfill", 1, true) or n == "fill" then
-				kind = "Accent"
-			elseif n == "sidebar" or n == "titlebar" or n == "card" or n == "boxframe" or n == "frame" then
-				kind = "Panel"
-			end
-			SetThemeGradient(obj, kind)
-
-			-- Strong, theme-aware outlines for interactive controls and tabs.
-			-- Transparent hit targets remain untouched; visible tab buttons still get an outline.
-			local needsOutline =
-				obj:IsA("TextButton")
-				or string.find(n, "button", 1, true) ~= nil
-				or string.find(n, "slider_", 1, true) ~= nil
-				or string.find(n, "toggle_", 1, true) ~= nil
-				or string.find(n, "keybind_", 1, true) ~= nil
-				or string.find(n, "dropdown_", 1, true) ~= nil
-				or string.find(n, "textbox_", 1, true) ~= nil
-				or string.find(n, "profilecard", 1, true) ~= nil
-				or string.find(n, "tabbtn_", 1, true) ~= nil
-
-			if needsOutline and not (n == "close" or n == "minimize") then
-				local stroke = obj:FindFirstChild("VeyraOutline")
-				if not stroke then
-					stroke = Instance.new("UIStroke")
-					stroke.Name = "VeyraOutline"
-					stroke.Parent = obj
-				end
-				stroke.Color = Theme.OutlineAccent or Theme.Border
-				stroke.Thickness = (string.find(n, "tabbtn_", 1, true) ~= nil) and 1.25 or 1.2
-				stroke.Transparency = 0.12
-			end
-
 			if n ~= "root" and n ~= "body" and n ~= "contentcontainer" and n ~= "tabbar" and n ~= "outlineaccent" and n ~= "dim" and n ~= "resizegrip" and n ~= "backgroundimage" then
 				EnsureCorner(obj, Settings.CornerRadius or Theme.CornerRadius or 2)
 			end
@@ -1828,9 +1806,9 @@ local function CreateButton(tab, config)
 	corner.Parent = frame
 
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = Theme.OutlineAccent or Theme.Border
-	stroke.Thickness = 1.2
-	stroke.Transparency = 0.12
+	stroke.Color = Theme.Border
+	stroke.Thickness = 1
+	stroke.Transparency = 0.5
 	stroke.Parent = frame
 
 	local title = Instance.new("TextLabel")
@@ -1919,7 +1897,7 @@ local function CreateButton(tab, config)
 	function btn:RefreshTheme()
 		if cleanup:IsDestroyed() then return end
 		frame.BackgroundColor3 = Theme.Secondary
-		stroke.Color = Theme.OutlineAccent or Theme.Border
+		stroke.Color = Theme.Border
 		title.Font = Theme.Font
 		title.TextColor3 = enabled and Theme.Text or Theme.MutedText
 		if desc then
@@ -1967,9 +1945,9 @@ local function CreateToggle(tab, config)
 	corner.Parent = frame
 
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = Theme.OutlineAccent or Theme.Border
-	stroke.Thickness = 1.2
-	stroke.Transparency = 0.12
+	stroke.Color = Theme.Border
+	stroke.Thickness = 1
+	stroke.Transparency = 0.5
 	stroke.Parent = frame
 
 	local title = Instance.new("TextLabel")
@@ -2067,7 +2045,7 @@ local function CreateToggle(tab, config)
 	function toggle:RefreshTheme()
 		if cleanup:IsDestroyed() then return end
 		frame.BackgroundColor3 = Theme.Secondary
-		stroke.Color = Theme.OutlineAccent or Theme.Border
+		stroke.Color = Theme.Border
 		title.Font = Theme.Font
 		title.TextColor3 = Theme.Text
 		updateVisual(false)
@@ -2129,9 +2107,9 @@ local function CreateSlider(tab, config)
 	corner.Parent = frame
 
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = Theme.OutlineAccent or Theme.Border
-	stroke.Thickness = 1.2
-	stroke.Transparency = 0.12
+	stroke.Color = Theme.Border
+	stroke.Thickness = 1
+	stroke.Transparency = 0.5
 	stroke.Parent = frame
 
 	local title = Instance.new("TextLabel")
@@ -2275,7 +2253,7 @@ local function CreateSlider(tab, config)
 	function slider:RefreshTheme()
 		if cleanup:IsDestroyed() then return end
 		frame.BackgroundColor3 = Theme.Secondary
-		stroke.Color = Theme.OutlineAccent or Theme.Border
+		stroke.Color = Theme.Border
 		title.Font = Theme.Font
 		title.TextColor3 = Theme.Text
 		valueLabel.Font = Theme.FontMono
@@ -2729,9 +2707,9 @@ local function CreateTextbox(tab, config)
 	corner.Parent = frame
 
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = Theme.OutlineAccent or Theme.Border
-	stroke.Thickness = 1.2
-	stroke.Transparency = 0.12
+	stroke.Color = Theme.Border
+	stroke.Thickness = 1
+	stroke.Transparency = 0.5
 	stroke.Parent = frame
 
 	local box = Instance.new("TextBox")
@@ -2774,7 +2752,7 @@ local function CreateTextbox(tab, config)
 	function tb:RefreshTheme()
 		if cleanup:IsDestroyed() then return end
 		frame.BackgroundColor3 = Theme.Secondary
-		stroke.Color = Theme.OutlineAccent or Theme.Border
+		stroke.Color = Theme.Border
 		box.Font = Theme.FontMono
 		box.TextColor3 = Theme.Text
 		box.PlaceholderColor3 = Theme.MutedText
@@ -2825,9 +2803,9 @@ local function CreateKeybind(tab, config)
 	corner.Parent = frame
 
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = Theme.OutlineAccent or Theme.Border
-	stroke.Thickness = 1.2
-	stroke.Transparency = 0.12
+	stroke.Color = Theme.Border
+	stroke.Thickness = 1
+	stroke.Transparency = 0.5
 	stroke.Parent = frame
 
 	local title = Instance.new("TextLabel")
@@ -2851,13 +2829,6 @@ local function CreateKeybind(tab, config)
 	keyLabel.TextColor3 = Theme.Text
 	keyLabel.Text = (key == Enum.KeyCode.Unknown) and "None" or key.Name
 	keyLabel.Parent = frame
-
-	local keyStroke = Instance.new("UIStroke")
-	keyStroke.Name = "VeyraKeyOutline"
-	keyStroke.Color = Theme.OutlineAccent or Theme.Border
-	keyStroke.Thickness = 1.15
-	keyStroke.Transparency = 0.08
-	keyStroke.Parent = keyLabel
 
 	local kc = Instance.new("UICorner")
 	kc.CornerRadius = UDim.new(0, 4)
@@ -2938,12 +2909,10 @@ local function CreateKeybind(tab, config)
 	function kb:RefreshTheme()
 		if destroyed or cleanup:IsDestroyed() then return end
 		frame.BackgroundColor3 = Theme.Secondary
-		stroke.Color = Theme.OutlineAccent or Theme.Border
+		stroke.Color = Theme.Border
 		title.Font = Theme.Font
 		title.TextColor3 = Theme.Text
 		keyLabel.BackgroundColor3 = Theme.Tertiary
-		keyStroke.Color = Theme.OutlineAccent or Theme.Border
-		keyStroke.Transparency = 0.08
 		keyLabel.Font = Theme.FontMono
 		keyLabel.TextColor3 = Theme.Text
 	end
@@ -3087,12 +3056,6 @@ local function CreateTab(window, config)
 	tabBtn.ClipsDescendants = true
 	tabBtn.Parent = window.TabBar
 
-	local tabStroke = Instance.new("UIStroke")
-	tabStroke.Name = "VeyraTabOutline"
-	tabStroke.Color = Theme.OutlineAccent or Theme.Border
-	tabStroke.Thickness = 1.25
-	tabStroke.Transparency = 0.12
-	tabStroke.Parent = tabBtn
 
 	local btnPad = Instance.new("UIPadding")
 	btnPad.PaddingLeft = UDim.new(0, 16)
@@ -3152,8 +3115,6 @@ local function CreateTab(window, config)
 		content.ScrollBarImageColor3 = Theme.Border
 		tabBtn.BackgroundColor3 = Theme.Secondary
 		tabBtn.Font = Theme.Font
-		tabStroke.Color = Theme.OutlineAccent or Theme.Border
-		tabStroke.Transparency = 0.12
 		indicator.BackgroundColor3 = Theme.Accent
 		if content.Visible then
 			tabBtn.BackgroundTransparency = 0.35
@@ -3555,7 +3516,7 @@ local function CreateWindow(library, config)
 	local main = Instance.new("Frame")
 	main.Name = "Main"
 	main.BackgroundColor3 = Theme.Background
-	main.BackgroundTransparency = 0.02
+	main.BackgroundTransparency = 0
 	main.BorderSizePixel = 0
 	main.Size = UDim2.new(1, 0, 1, 0)
 	main.ClipsDescendants = true
@@ -3605,6 +3566,7 @@ local function CreateWindow(library, config)
 	titleBar.Size = UDim2.new(1, 0, 0, TITLE_H)
 	titleBar.ZIndex = 3
 	titleBar.Parent = main
+	SetThemeGradient(titleBar, "Surface")
 
 
 
@@ -3625,7 +3587,6 @@ local function CreateWindow(library, config)
 	titleLabel.TextColor3 = Theme.Text
 	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 	titleLabel.Text = config.Title or "Veyra"
-	titleLabel.ZIndex = 10
 	titleLabel.Parent = titleBar
 
 	local subtitle = Instance.new("TextLabel")
@@ -3691,6 +3652,7 @@ local function CreateWindow(library, config)
 	sidebar.BorderSizePixel = 0
 	sidebar.Size = UDim2.new(0, SIDEBAR_W, 1, 0)
 	sidebar.Parent = body
+	SetThemeGradient(sidebar, "Panel")
 
 	local searchBox = Instance.new("TextBox")
 	searchBox.Name = "Search"
@@ -3915,10 +3877,10 @@ local function CreateWindow(library, config)
 	local function refreshWindowTheme()
 		if cleanup:IsDestroyed() then return end
 		Theme.CornerRadius = math.max(0, math.floor(tonumber(Settings.CornerRadius or Theme.CornerRadius or 2) or 2))
-		main.BackgroundColor3 = Theme.Background
+		SetThemeGradient(main, "Background")
 		mainStroke.Color = Theme.OutlineAccent or Theme.Border
 		mainStroke.Transparency = 0.35
-		titleBar.BackgroundColor3 = Theme.Secondary
+		SetThemeGradient(titleBar, "Surface")
 		titleFix.BackgroundColor3 = Theme.Secondary
 		titleLabel.TextColor3 = Theme.Text
 		titleLabel.Font = Theme.FontBold
@@ -3926,7 +3888,7 @@ local function CreateWindow(library, config)
 		subtitle.Font = Theme.Font
 		closeBtn.TextColor3 = Theme.SecondaryText
 		minBtn.TextColor3 = Theme.SecondaryText
-		sidebar.BackgroundColor3 = Theme.Secondary
+		SetThemeGradient(sidebar, "Panel")
 		searchBox.BackgroundColor3 = Theme.Tertiary
 		searchBox.TextColor3 = Theme.Text
 		searchBox.PlaceholderColor3 = Theme.MutedText
@@ -4242,6 +4204,9 @@ end
 
 local function CreateKeySystem(config)
 	config = config or {}
+	if type(Settings.Theme) == "string" and ThemePresets[Settings.Theme] then
+		ApplyThemePreset(Settings.Theme)
+	end
 	local cleanup = CreateCleanup()
 	local closed = false
 	local splitting = false
@@ -4318,8 +4283,8 @@ local function CreateKeySystem(config)
 
 	local main = Instance.new("Frame")
 	main.Name = "Main"
-	main.BackgroundColor3 = Theme.Background
-	main.BackgroundTransparency = 0.02
+	main.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	main.BackgroundTransparency = 0
 	main.BorderSizePixel = 0
 	main.Size = UDim2.new(1, 0, 1, 0)
 	main.ClipsDescendants = true
@@ -4406,7 +4371,6 @@ local function CreateKeySystem(config)
 	boxStroke.Transparency = 0.5
 	boxStroke.Parent = boxFrame
 	EnsureCorner(boxFrame, Settings.CornerRadius or 2)
-	SetThemeGradient(boxFrame, "Panel")
 
 	local keyBox = Instance.new("TextBox")
 	keyBox.BackgroundTransparency = 1
@@ -4464,7 +4428,6 @@ local function CreateKeySystem(config)
 		stroke.Transparency = 0.5
 		stroke.Parent = btn
 		EnsureCorner(btn, Settings.CornerRadius or 2)
-		SetThemeGradient(btn, "Surface")
 
 		btn.MouseEnter:Connect(function()
 			if closed or splitting then return end
@@ -4505,10 +4468,10 @@ local function CreateKeySystem(config)
 
 	local function refreshTheme()
 		if closed or cleanup:IsDestroyed() then return end
-		main.BackgroundColor3 = Theme.Background
+		SetThemeGradient(main, "Background")
 		mainStroke.Color = Theme.OutlineAccent or Theme.Border
 		mainStroke.Transparency = 0.35
-		titleBar.BackgroundColor3 = Theme.Secondary
+		SetThemeGradient(titleBar, "Surface")
 		titleLabel.TextColor3 = Theme.Text
 		titleLabel.Font = Theme.FontBold
 		closeBtn.TextColor3 = Theme.SecondaryText
@@ -4900,6 +4863,9 @@ function Library:Init(options)
 	end)
 	InitDone = true
 
+	if type(Settings.Theme) == "string" and ThemePresets[Settings.Theme] then
+		ApplyThemePreset(Settings.Theme)
+	end
 	if type(options.Theme) == "string" then
 		ApplyThemePreset(options.Theme)
 	elseif type(options.Theme) == "table" then
