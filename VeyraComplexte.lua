@@ -357,8 +357,8 @@ local ThemePresets = {
 		GradientPanelB = Color3.fromRGB(40, 36, 68),
 		GradientAccentA = Color3.fromRGB(120, 255, 236),
 		GradientAccentB = Color3.fromRGB(147, 86, 255),
-		GradientBackgroundA = Color3.fromRGB(10, 16, 26),
-		GradientBackgroundB = Color3.fromRGB(22, 30, 48),
+		GradientBackgroundA = Color3.fromRGB(5, 24, 25),
+		GradientBackgroundB = Color3.fromRGB(10, 70, 62),
 		GradientRotation = 90,
 	},
 }
@@ -415,15 +415,9 @@ local function DecorateGuiTree(root)
 		if not obj:IsA("GuiObject") then return end
 		local n = string.lower(obj.Name or "")
 		if obj.BackgroundTransparency < 1 then
-			local kind = "Surface"
-			if n == "main" or n == "backgroundtint" then
-				kind = "Background"
-			elseif string.find(n, "indicator", 1, true) or string.find(n, "accent", 1, true) or string.find(n, "seam", 1, true) or string.find(n, "sliderfill", 1, true) or n == "fill" then
-				kind = "Accent"
-			elseif n == "sidebar" or n == "titlebar" or n == "card" or n == "boxframe" or n == "frame" then
-				kind = "Panel"
-			end
-			SetThemeGradient(obj, kind)
+			-- Do not blanket-apply gradients to every visible GUI object.
+			-- That created the muddy full-UI tint. Gradients are now applied
+			-- only to elements that explicitly request them.
 
 			-- Strong, theme-aware outlines for interactive controls and tabs.
 			-- Transparent hit targets remain untouched; visible tab buttons still get an outline.
@@ -450,7 +444,7 @@ local function DecorateGuiTree(root)
 				stroke.Transparency = 0.12
 			end
 
-			if n ~= "root" and n ~= "body" and n ~= "contentcontainer" and n ~= "tabbar" and n ~= "outlineaccent" and n ~= "dim" and n ~= "resizegrip" and n ~= "backgroundtint" and n ~= "backgroundimage" then
+			if n ~= "root" and n ~= "body" and n ~= "contentcontainer" and n ~= "tabbar" and n ~= "outlineaccent" and n ~= "dim" and n ~= "resizegrip" and n ~= "backgroundimage" then
 				EnsureCorner(obj, Settings.CornerRadius or Theme.CornerRadius or 2)
 			end
 		end
@@ -3921,6 +3915,7 @@ local function CreateWindow(library, config)
 		mainStroke.Transparency = 0.35
 		titleBar.BackgroundColor3 = Theme.Secondary
 		titleFix.BackgroundColor3 = Theme.Secondary
+		SetThemeGradient(titleBar, "Panel")
 		titleLabel.TextColor3 = Theme.Text
 		titleLabel.Font = Theme.FontBold
 		subtitle.TextColor3 = Theme.SecondaryText
@@ -4351,6 +4346,7 @@ local function CreateKeySystem(config)
 	titleBar.Size = UDim2.new(1, 0, 0, 36)
 	titleBar.ZIndex = 3
 	titleBar.Parent = main
+	SetThemeGradient(titleBar, "Panel")
 
 	local titleLabel = Instance.new("TextLabel")
 	titleLabel.BackgroundTransparency = 1
@@ -4361,6 +4357,7 @@ local function CreateKeySystem(config)
 	titleLabel.TextColor3 = Theme.Text
 	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 	titleLabel.Text = titleText
+	titleLabel.ZIndex = 10
 	titleLabel.Parent = titleBar
 
 	local closeBtn = Instance.new("TextButton")
@@ -4510,6 +4507,7 @@ local function CreateKeySystem(config)
 		mainStroke.Color = Theme.OutlineAccent or Theme.Border
 		mainStroke.Transparency = 0.35
 		titleBar.BackgroundColor3 = Theme.Secondary
+		SetThemeGradient(titleBar, "Panel")
 		titleLabel.TextColor3 = Theme.Text
 		titleLabel.Font = Theme.FontBold
 		closeBtn.TextColor3 = Theme.SecondaryText
