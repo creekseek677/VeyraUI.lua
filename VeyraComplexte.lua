@@ -258,9 +258,9 @@ local ThemePresets = {
 		GradientPanelB = Color3.fromRGB(42, 46, 58),
 		GradientAccentA = Color3.fromRGB(248, 250, 255),
 		GradientAccentB = Color3.fromRGB(126, 149, 186),
-		GradientBackgroundA = Color3.fromRGB(14, 18, 32),
-		GradientBackgroundB = Color3.fromRGB(52, 34, 64),
-		GradientRotation = 135,
+		GradientBackgroundA = Color3.fromRGB(16, 18, 24),
+		GradientBackgroundB = Color3.fromRGB(26, 29, 38),
+		GradientRotation = 90,
 	},
 	Light = {
 		Background = Color3.fromRGB(245, 245, 248),
@@ -324,9 +324,9 @@ local ThemePresets = {
 		GradientPanelB = Color3.fromRGB(48, 32, 78),
 		GradientAccentA = Color3.fromRGB(255, 110, 236),
 		GradientAccentB = Color3.fromRGB(91, 138, 255),
-		GradientBackgroundA = Color3.fromRGB(20, 8, 42),
-		GradientBackgroundB = Color3.fromRGB(96, 22, 92),
-		GradientRotation = 135,
+		GradientBackgroundA = Color3.fromRGB(12, 8, 24),
+		GradientBackgroundB = Color3.fromRGB(28, 16, 44),
+		GradientRotation = 90,
 	},
 	Aurora = {
 		Background = Color3.fromRGB(14, 22, 34),
@@ -357,9 +357,9 @@ local ThemePresets = {
 		GradientPanelB = Color3.fromRGB(40, 36, 68),
 		GradientAccentA = Color3.fromRGB(120, 255, 236),
 		GradientAccentB = Color3.fromRGB(147, 86, 255),
-		GradientBackgroundA = Color3.fromRGB(7, 22, 36),
-		GradientBackgroundB = Color3.fromRGB(34, 20, 68),
-		GradientRotation = 135,
+		GradientBackgroundA = Color3.fromRGB(10, 16, 26),
+		GradientBackgroundB = Color3.fromRGB(22, 30, 48),
+		GradientRotation = 90,
 	},
 }
 
@@ -391,32 +391,19 @@ local function SetThemeGradient(obj, kind)
 		gradient.Name = "VeyraGradient"
 		gradient.Parent = obj
 	end
-
 	local a, b
-	if kind == "Background" then
-		a = Theme.GradientBackgroundA or Theme.Background
-		b = Theme.GradientBackgroundB or Theme.Secondary
-	elseif kind == "Surface" then
-		a = Theme.GradientSurfaceA or Theme.Secondary
-		b = Theme.GradientSurfaceB or Theme.Tertiary
+	if kind == "Accent" then
+		a, b = Theme.GradientAccentA, Theme.GradientAccentB
+	elseif kind == "Background" then
+		a, b = Theme.GradientBackgroundA, Theme.GradientBackgroundB
 	elseif kind == "Panel" then
-		a = Theme.GradientPanelA or Theme.Tertiary
-		b = Theme.GradientPanelB or Theme.Hover
-	elseif kind == "Accent" then
-		a = Theme.GradientAccentA or Theme.Accent
-		b = Theme.GradientAccentB or Theme.Accent
+		a, b = Theme.GradientPanelA, Theme.GradientPanelB
 	else
-		a = Theme.GradientSurfaceA or Theme.Secondary
-		b = Theme.GradientSurfaceB or Theme.Tertiary
+		a, b = Theme.GradientSurfaceA, Theme.GradientSurfaceB
 	end
-
-	-- No tint layer: white is a neutral multiplier, so the UIGradient colors are
-	-- rendered directly rather than being multiplied by a dark Theme.Background.
-	obj.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-	obj.BackgroundTransparency = 0
 	gradient.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, a),
-		ColorSequenceKeypoint.new(1, b),
+		ColorSequenceKeypoint.new(0, a or Theme.Background),
+		ColorSequenceKeypoint.new(1, b or Theme.Secondary),
 	})
 	gradient.Rotation = Theme.GradientRotation or 90
 	return gradient
@@ -428,6 +415,15 @@ local function DecorateGuiTree(root)
 		if not obj:IsA("GuiObject") then return end
 		local n = string.lower(obj.Name or "")
 		if obj.BackgroundTransparency < 1 then
+			local kind = "Surface"
+			if n == "main" then
+				kind = "Background"
+			elseif string.find(n, "indicator", 1, true) or string.find(n, "accent", 1, true) or string.find(n, "seam", 1, true) or string.find(n, "sliderfill", 1, true) or n == "fill" then
+				kind = "Accent"
+			elseif n == "sidebar" or n == "titlebar" or n == "card" or n == "boxframe" or n == "frame" then
+				kind = "Panel"
+			end
+			SetThemeGradient(obj, kind)
 			if n ~= "root" and n ~= "body" and n ~= "contentcontainer" and n ~= "tabbar" and n ~= "outlineaccent" and n ~= "dim" and n ~= "resizegrip" and n ~= "backgroundimage" then
 				EnsureCorner(obj, Settings.CornerRadius or Theme.CornerRadius or 2)
 			end
@@ -3521,6 +3517,7 @@ local function CreateWindow(library, config)
 	main.Size = UDim2.new(1, 0, 1, 0)
 	main.ClipsDescendants = true
 	main.Parent = root
+	SetThemeGradient(main, "Background")
 
 	local backgroundImage = Instance.new("ImageLabel")
 	backgroundImage.Name = "BackgroundImage"
@@ -3539,6 +3536,7 @@ local function CreateWindow(library, config)
 	backgroundImage.Image = configuredBackgroundImage
 	backgroundImage.Visible = Settings.UseBackgroundImage == true and configuredBackgroundImage ~= ""
 	backgroundImage.Parent = main
+
 
 	local mainStroke = Instance.new("UIStroke")
 	mainStroke.Color = Theme.OutlineAccent or Theme.Border
@@ -3566,7 +3564,6 @@ local function CreateWindow(library, config)
 	titleBar.Size = UDim2.new(1, 0, 0, TITLE_H)
 	titleBar.ZIndex = 3
 	titleBar.Parent = main
-	SetThemeGradient(titleBar, "Surface")
 
 
 
@@ -3652,7 +3649,6 @@ local function CreateWindow(library, config)
 	sidebar.BorderSizePixel = 0
 	sidebar.Size = UDim2.new(0, SIDEBAR_W, 1, 0)
 	sidebar.Parent = body
-	SetThemeGradient(sidebar, "Panel")
 
 	local searchBox = Instance.new("TextBox")
 	searchBox.Name = "Search"
@@ -3877,10 +3873,10 @@ local function CreateWindow(library, config)
 	local function refreshWindowTheme()
 		if cleanup:IsDestroyed() then return end
 		Theme.CornerRadius = math.max(0, math.floor(tonumber(Settings.CornerRadius or Theme.CornerRadius or 2) or 2))
-		SetThemeGradient(main, "Background")
+		main.BackgroundColor3 = Theme.Background
 		mainStroke.Color = Theme.OutlineAccent or Theme.Border
 		mainStroke.Transparency = 0.35
-		SetThemeGradient(titleBar, "Surface")
+		titleBar.BackgroundColor3 = Theme.Secondary
 		titleFix.BackgroundColor3 = Theme.Secondary
 		titleLabel.TextColor3 = Theme.Text
 		titleLabel.Font = Theme.FontBold
@@ -3888,7 +3884,7 @@ local function CreateWindow(library, config)
 		subtitle.Font = Theme.Font
 		closeBtn.TextColor3 = Theme.SecondaryText
 		minBtn.TextColor3 = Theme.SecondaryText
-		SetThemeGradient(sidebar, "Panel")
+		sidebar.BackgroundColor3 = Theme.Secondary
 		searchBox.BackgroundColor3 = Theme.Tertiary
 		searchBox.TextColor3 = Theme.Text
 		searchBox.PlaceholderColor3 = Theme.MutedText
@@ -4013,6 +4009,7 @@ local function CreateWindow(library, config)
 	function window:SetBackgroundImageEnabled(enabled)
 		Settings.UseBackgroundImage = enabled == true
 		backgroundImage.Visible = Settings.UseBackgroundImage and Settings.BackgroundImage ~= ""
+		backgroundTint.BackgroundTransparency = Settings.UseBackgroundImage and 0.38 or 0.02
 	end
 
 	function window:SetBackgroundImageTransparency(value)
@@ -4204,9 +4201,6 @@ end
 
 local function CreateKeySystem(config)
 	config = config or {}
-	if type(Settings.Theme) == "string" and ThemePresets[Settings.Theme] then
-		ApplyThemePreset(Settings.Theme)
-	end
 	local cleanup = CreateCleanup()
 	local closed = false
 	local splitting = false
@@ -4283,8 +4277,8 @@ local function CreateKeySystem(config)
 
 	local main = Instance.new("Frame")
 	main.Name = "Main"
-	main.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-	main.BackgroundTransparency = 0
+	main.BackgroundColor3 = Theme.Background
+	main.BackgroundTransparency = 0.02
 	main.BorderSizePixel = 0
 	main.Size = UDim2.new(1, 0, 1, 0)
 	main.ClipsDescendants = true
@@ -4371,6 +4365,7 @@ local function CreateKeySystem(config)
 	boxStroke.Transparency = 0.5
 	boxStroke.Parent = boxFrame
 	EnsureCorner(boxFrame, Settings.CornerRadius or 2)
+	SetThemeGradient(boxFrame, "Panel")
 
 	local keyBox = Instance.new("TextBox")
 	keyBox.BackgroundTransparency = 1
@@ -4428,6 +4423,7 @@ local function CreateKeySystem(config)
 		stroke.Transparency = 0.5
 		stroke.Parent = btn
 		EnsureCorner(btn, Settings.CornerRadius or 2)
+		SetThemeGradient(btn, "Surface")
 
 		btn.MouseEnter:Connect(function()
 			if closed or splitting then return end
@@ -4468,10 +4464,10 @@ local function CreateKeySystem(config)
 
 	local function refreshTheme()
 		if closed or cleanup:IsDestroyed() then return end
-		SetThemeGradient(main, "Background")
+		main.BackgroundColor3 = Theme.Background
 		mainStroke.Color = Theme.OutlineAccent or Theme.Border
 		mainStroke.Transparency = 0.35
-		SetThemeGradient(titleBar, "Surface")
+		titleBar.BackgroundColor3 = Theme.Secondary
 		titleLabel.TextColor3 = Theme.Text
 		titleLabel.Font = Theme.FontBold
 		closeBtn.TextColor3 = Theme.SecondaryText
@@ -4863,9 +4859,6 @@ function Library:Init(options)
 	end)
 	InitDone = true
 
-	if type(Settings.Theme) == "string" and ThemePresets[Settings.Theme] then
-		ApplyThemePreset(Settings.Theme)
-	end
 	if type(options.Theme) == "string" then
 		ApplyThemePreset(options.Theme)
 	elseif type(options.Theme) == "table" then
