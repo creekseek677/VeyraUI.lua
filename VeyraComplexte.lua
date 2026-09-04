@@ -1,3 +1,4 @@
+
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -188,36 +189,36 @@ local function ProtectAndParent(sg)
 end
 
 local Theme = {
-	Background = Color3.fromRGB(12, 12, 14),
-	Secondary = Color3.fromRGB(18, 18, 22),
-	Tertiary = Color3.fromRGB(24, 24, 28),
-	Hover = Color3.fromRGB(28, 28, 34),
+	Background = Color3.fromRGB(22, 22, 26),
+	Secondary = Color3.fromRGB(30, 30, 36),
+	Tertiary = Color3.fromRGB(38, 38, 46),
+	Hover = Color3.fromRGB(48, 48, 58),
 	Text = Color3.fromRGB(240, 240, 245),
-	SecondaryText = Color3.fromRGB(150, 150, 160),
-	MutedText = Color3.fromRGB(100, 100, 110),
+	SecondaryText = Color3.fromRGB(160, 160, 170),
+	MutedText = Color3.fromRGB(110, 110, 120),
 	Accent = Color3.fromRGB(255, 255, 255),
-	Border = Color3.fromRGB(40, 40, 48),
+	Border = Color3.fromRGB(55, 55, 65),
 	ToggleOn = Color3.fromRGB(255, 255, 255),
-	ToggleOff = Color3.fromRGB(50, 50, 58),
-	SliderTrack = Color3.fromRGB(35, 35, 42),
+	ToggleOff = Color3.fromRGB(60, 60, 70),
+	SliderTrack = Color3.fromRGB(45, 45, 55),
 	SliderFill = Color3.fromRGB(255, 255, 255),
-	NotificationBackground = Color3.fromRGB(8, 8, 10),
-	NotificationBorder = Color3.fromRGB(30, 30, 36),
+	NotificationBackground = Color3.fromRGB(18, 18, 22),
+	NotificationBorder = Color3.fromRGB(45, 45, 55),
 	NotificationTitle = Color3.fromRGB(245, 245, 250),
-	NotificationDescription = Color3.fromRGB(160, 160, 170),
+	NotificationDescription = Color3.fromRGB(165, 165, 175),
 	NotificationInfo = Color3.fromRGB(100, 160, 255),
 	NotificationSuccess = Color3.fromRGB(80, 200, 120),
 	NotificationWarning = Color3.fromRGB(255, 180, 60),
 	NotificationError = Color3.fromRGB(255, 80, 80),
-	OutlineAccent = Color3.fromRGB(255, 255, 255),
-	GradientSurfaceA = Color3.fromRGB(14, 16, 22),
-	GradientSurfaceB = Color3.fromRGB(24, 27, 36),
-	GradientPanelA = Color3.fromRGB(18, 20, 28),
-	GradientPanelB = Color3.fromRGB(28, 31, 42),
+	OutlineAccent = Color3.fromRGB(90, 90, 100), -- gray default (Dark)
+	GradientSurfaceA = Color3.fromRGB(24, 26, 32),
+	GradientSurfaceB = Color3.fromRGB(36, 39, 50),
+	GradientPanelA = Color3.fromRGB(28, 30, 40),
+	GradientPanelB = Color3.fromRGB(40, 44, 56),
 	GradientAccentA = Color3.fromRGB(245, 248, 255),
 	GradientAccentB = Color3.fromRGB(125, 145, 178),
-	GradientBackgroundA = Color3.fromRGB(7, 9, 14),
-	GradientBackgroundB = Color3.fromRGB(15, 18, 27),
+	GradientBackgroundA = Color3.fromRGB(16, 18, 24),
+	GradientBackgroundB = Color3.fromRGB(26, 29, 38),
 	GradientRotation = 90,
 	Font = Enum.Font.GothamMedium,
 	FontBold = Enum.Font.GothamBold,
@@ -230,36 +231,36 @@ local Theme = {
 
 local ThemePresets = {
 	Dark = {
-		Background = Color3.fromRGB(12, 12, 14),
-		Secondary = Color3.fromRGB(18, 18, 22),
-		Tertiary = Color3.fromRGB(24, 24, 28),
-		Hover = Color3.fromRGB(28, 28, 34),
+		Background = Color3.fromRGB(22, 22, 26),
+		Secondary = Color3.fromRGB(30, 30, 36),
+		Tertiary = Color3.fromRGB(38, 38, 46),
+		Hover = Color3.fromRGB(48, 48, 58),
 		Text = Color3.fromRGB(240, 240, 245),
-		SecondaryText = Color3.fromRGB(150, 150, 160),
-		MutedText = Color3.fromRGB(100, 100, 110),
+		SecondaryText = Color3.fromRGB(160, 160, 170),
+		MutedText = Color3.fromRGB(110, 110, 120),
 		Accent = Color3.fromRGB(255, 255, 255),
-		Border = Color3.fromRGB(40, 40, 48),
+		Border = Color3.fromRGB(55, 55, 65),
 		ToggleOn = Color3.fromRGB(255, 255, 255),
-		ToggleOff = Color3.fromRGB(50, 50, 58),
-		SliderTrack = Color3.fromRGB(35, 35, 42),
+		ToggleOff = Color3.fromRGB(60, 60, 70),
+		SliderTrack = Color3.fromRGB(45, 45, 55),
 		SliderFill = Color3.fromRGB(255, 255, 255),
-		NotificationBackground = Color3.fromRGB(8, 8, 10),
-		NotificationBorder = Color3.fromRGB(30, 30, 36),
+		NotificationBackground = Color3.fromRGB(18, 18, 22),
+		NotificationBorder = Color3.fromRGB(45, 45, 55),
 		NotificationTitle = Color3.fromRGB(245, 245, 250),
-		NotificationDescription = Color3.fromRGB(160, 160, 170),
+		NotificationDescription = Color3.fromRGB(165, 165, 175),
 		NotificationInfo = Color3.fromRGB(100, 160, 255),
 		NotificationSuccess = Color3.fromRGB(80, 200, 120),
 		NotificationWarning = Color3.fromRGB(255, 180, 60),
 		NotificationError = Color3.fromRGB(255, 80, 80),
-		OutlineAccent = Color3.fromRGB(240, 246, 255),
-		GradientSurfaceA = Color3.fromRGB(14, 16, 22),
-		GradientSurfaceB = Color3.fromRGB(24, 27, 36),
-		GradientPanelA = Color3.fromRGB(18, 20, 28),
-		GradientPanelB = Color3.fromRGB(30, 33, 44),
+		OutlineAccent = Color3.fromRGB(90, 90, 100), -- gray for Dark
+		GradientSurfaceA = Color3.fromRGB(24, 26, 32),
+		GradientSurfaceB = Color3.fromRGB(36, 39, 50),
+		GradientPanelA = Color3.fromRGB(28, 30, 40),
+		GradientPanelB = Color3.fromRGB(42, 46, 58),
 		GradientAccentA = Color3.fromRGB(248, 250, 255),
 		GradientAccentB = Color3.fromRGB(126, 149, 186),
-		GradientBackgroundA = Color3.fromRGB(6, 8, 13),
-		GradientBackgroundB = Color3.fromRGB(14, 17, 25),
+		GradientBackgroundA = Color3.fromRGB(16, 18, 24),
+		GradientBackgroundB = Color3.fromRGB(26, 29, 38),
 		GradientRotation = 90,
 	},
 	Light = {
@@ -284,7 +285,7 @@ local ThemePresets = {
 		NotificationSuccess = Color3.fromRGB(30, 160, 90),
 		NotificationWarning = Color3.fromRGB(210, 140, 30),
 		NotificationError = Color3.fromRGB(210, 50, 50),
-		OutlineAccent = Color3.fromRGB(35, 35, 45),
+		OutlineAccent = Color3.fromRGB(160, 160, 170), -- gray for Light
 		GradientSurfaceA = Color3.fromRGB(248, 249, 252),
 		GradientSurfaceB = Color3.fromRGB(229, 232, 239),
 		GradientPanelA = Color3.fromRGB(255, 255, 255),
@@ -296,69 +297,69 @@ local ThemePresets = {
 		GradientRotation = 90,
 	},
 	Neon = {
-		Background = Color3.fromRGB(8, 6, 16),
-		Secondary = Color3.fromRGB(14, 10, 28),
-		Tertiary = Color3.fromRGB(22, 16, 40),
-		Hover = Color3.fromRGB(32, 24, 56),
-		Text = Color3.fromRGB(230, 220, 255),
-		SecondaryText = Color3.fromRGB(160, 140, 220),
-		MutedText = Color3.fromRGB(110, 90, 160),
+		Background = Color3.fromRGB(18, 12, 32),
+		Secondary = Color3.fromRGB(28, 18, 48),
+		Tertiary = Color3.fromRGB(40, 28, 64),
+		Hover = Color3.fromRGB(52, 36, 80),
+		Text = Color3.fromRGB(235, 225, 255),
+		SecondaryText = Color3.fromRGB(170, 150, 230),
+		MutedText = Color3.fromRGB(120, 100, 170),
 		Accent = Color3.fromRGB(180, 80, 255),
-		Border = Color3.fromRGB(60, 40, 100),
+		Border = Color3.fromRGB(80, 50, 120),
 		ToggleOn = Color3.fromRGB(180, 80, 255),
-		ToggleOff = Color3.fromRGB(40, 30, 70),
-		SliderTrack = Color3.fromRGB(30, 20, 55),
+		ToggleOff = Color3.fromRGB(50, 35, 80),
+		SliderTrack = Color3.fromRGB(40, 28, 65),
 		SliderFill = Color3.fromRGB(180, 80, 255),
-		NotificationBackground = Color3.fromRGB(10, 8, 20),
-		NotificationBorder = Color3.fromRGB(50, 30, 90),
-		NotificationTitle = Color3.fromRGB(240, 230, 255),
-		NotificationDescription = Color3.fromRGB(160, 140, 220),
+		NotificationBackground = Color3.fromRGB(16, 12, 28),
+		NotificationBorder = Color3.fromRGB(65, 40, 105),
+		NotificationTitle = Color3.fromRGB(245, 235, 255),
+		NotificationDescription = Color3.fromRGB(170, 150, 230),
 		NotificationInfo = Color3.fromRGB(120, 160, 255),
 		NotificationSuccess = Color3.fromRGB(80, 220, 160),
 		NotificationWarning = Color3.fromRGB(255, 180, 80),
 		NotificationError = Color3.fromRGB(255, 80, 120),
-		OutlineAccent = Color3.fromRGB(235, 220, 255),
-		GradientSurfaceA = Color3.fromRGB(10, 7, 20),
-		GradientSurfaceB = Color3.fromRGB(31, 18, 48),
-		GradientPanelA = Color3.fromRGB(14, 10, 28),
-		GradientPanelB = Color3.fromRGB(36, 22, 58),
+		OutlineAccent = Color3.fromRGB(255, 90, 180), -- pink for Neon
+		GradientSurfaceA = Color3.fromRGB(20, 14, 36),
+		GradientSurfaceB = Color3.fromRGB(42, 28, 68),
+		GradientPanelA = Color3.fromRGB(26, 18, 46),
+		GradientPanelB = Color3.fromRGB(48, 32, 78),
 		GradientAccentA = Color3.fromRGB(255, 110, 236),
 		GradientAccentB = Color3.fromRGB(91, 138, 255),
-		GradientBackgroundA = Color3.fromRGB(5, 4, 12),
-		GradientBackgroundB = Color3.fromRGB(20, 10, 32),
+		GradientBackgroundA = Color3.fromRGB(12, 8, 24),
+		GradientBackgroundB = Color3.fromRGB(28, 16, 44),
 		GradientRotation = 90,
 	},
 	Aurora = {
-		Background = Color3.fromRGB(7, 13, 22),
-		Secondary = Color3.fromRGB(12, 20, 32),
-		Tertiary = Color3.fromRGB(18, 27, 42),
-		Hover = Color3.fromRGB(24, 36, 54),
+		Background = Color3.fromRGB(14, 22, 34),
+		Secondary = Color3.fromRGB(20, 32, 48),
+		Tertiary = Color3.fromRGB(28, 42, 62),
+		Hover = Color3.fromRGB(36, 54, 76),
 		Text = Color3.fromRGB(236, 247, 255),
-		SecondaryText = Color3.fromRGB(155, 190, 208),
-		MutedText = Color3.fromRGB(95, 128, 146),
+		SecondaryText = Color3.fromRGB(165, 200, 218),
+		MutedText = Color3.fromRGB(105, 140, 158),
 		Accent = Color3.fromRGB(114, 235, 220),
-		Border = Color3.fromRGB(44, 66, 82),
+		Border = Color3.fromRGB(55, 80, 100),
 		ToggleOn = Color3.fromRGB(114, 235, 220),
-		ToggleOff = Color3.fromRGB(28, 45, 56),
-		SliderTrack = Color3.fromRGB(22, 37, 48),
+		ToggleOff = Color3.fromRGB(35, 55, 70),
+		SliderTrack = Color3.fromRGB(30, 48, 62),
 		SliderFill = Color3.fromRGB(114, 235, 220),
-		NotificationBackground = Color3.fromRGB(8, 14, 23),
-		NotificationBorder = Color3.fromRGB(39, 62, 78),
+		NotificationBackground = Color3.fromRGB(14, 22, 34),
+		NotificationBorder = Color3.fromRGB(50, 75, 95),
 		NotificationTitle = Color3.fromRGB(235, 249, 255),
-		NotificationDescription = Color3.fromRGB(155, 190, 208),
+		NotificationDescription = Color3.fromRGB(165, 200, 218),
 		NotificationInfo = Color3.fromRGB(104, 170, 255),
 		NotificationSuccess = Color3.fromRGB(100, 235, 176),
 		NotificationWarning = Color3.fromRGB(255, 196, 92),
 		NotificationError = Color3.fromRGB(255, 100, 130),
-		OutlineAccent = Color3.fromRGB(178, 245, 255),
-		GradientSurfaceA = Color3.fromRGB(10, 16, 26),
-		GradientSurfaceB = Color3.fromRGB(24, 29, 48),
-		GradientPanelA = Color3.fromRGB(13, 22, 35),
-		GradientPanelB = Color3.fromRGB(30, 23, 51),
+		OutlineAccent = Color3.fromRGB(114, 235, 220), -- teal for Aurora
+		GradientSurfaceA = Color3.fromRGB(18, 26, 40),
+		GradientSurfaceB = Color3.fromRGB(34, 42, 64),
+		GradientPanelA = Color3.fromRGB(22, 34, 50),
+		GradientPanelB = Color3.fromRGB(40, 36, 68),
 		GradientAccentA = Color3.fromRGB(120, 255, 236),
 		GradientAccentB = Color3.fromRGB(147, 86, 255),
-		GradientBackgroundA = Color3.fromRGB(4, 9, 16),
-		GradientBackgroundB = Color3.fromRGB(14, 20, 38),
+		GradientBackgroundA = Color3.fromRGB(10, 16, 26),
+		GradientBackgroundB = Color3.fromRGB(22, 30, 48),
 		GradientRotation = 90,
 	},
 }
@@ -376,7 +377,10 @@ local function EnsureCorner(obj, radius)
 	elseif corner.Name ~= "VeyraCorner" then
 		corner.Name = "VeyraCorner"
 	end
-	corner.CornerRadius = UDim.new(0, value)
+	-- Preserve full-circle corners (Scale >= 0.99) used by avatars, knobs, switches, etc.
+	if corner.CornerRadius.Scale < 0.99 then
+		corner.CornerRadius = UDim.new(0, value)
+	end
 	return corner
 end
 
@@ -391,10 +395,9 @@ local function SetThemeGradient(obj, kind)
 	local a, b
 	if kind == "Accent" then
 		a, b = Theme.GradientAccentA, Theme.GradientAccentB
-	elseif kind == "Panel" then
+	elseif kind == "Panel" or kind == "Background" then
+		-- Backgrounds use the same gradient as panels / gradiented parts
 		a, b = Theme.GradientPanelA, Theme.GradientPanelB
-	elseif kind == "Background" then
-		a, b = Theme.GradientBackgroundA, Theme.GradientBackgroundB
 	else
 		a, b = Theme.GradientSurfaceA, Theme.GradientSurfaceB
 	end
@@ -2361,7 +2364,7 @@ local function CreateDropdown(tab, config)
 	local frame = Instance.new("Frame")
 	frame.Name = "Dropdown_" .. (config.Name or "Untitled")
 	frame.BackgroundColor3 = Theme.Secondary
-	frame.BackgroundTransparency = 0.15
+	frame.BackgroundTransparency = 0.05
 	frame.BorderSizePixel = 0
 	frame.Size = UDim2.new(1, 0, 0, closedHeight)
 	frame.ClipsDescendants = true
@@ -2373,9 +2376,9 @@ local function CreateDropdown(tab, config)
 	corner.Parent = frame
 
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = Theme.Border
-	stroke.Thickness = 1
-	stroke.Transparency = 0.5
+	stroke.Color = Theme.OutlineAccent or Theme.Border
+	stroke.Thickness = 1.5
+	stroke.Transparency = 0.3
 	stroke.Parent = frame
 
 
@@ -2411,8 +2414,8 @@ local function CreateDropdown(tab, config)
 
 	local list = Instance.new("Frame")
 	list.Name = "List"
-	list.BackgroundColor3 = Theme.Tertiary
-	list.BackgroundTransparency = 0
+	list.BackgroundColor3 = Theme.Secondary
+	list.BackgroundTransparency = 0.02
 	list.BorderSizePixel = 0
 	list.Size = UDim2.new(1, 0, 0, 0)
 	list.Position = UDim2.new(0, 0, 0, closedHeight)
@@ -2422,9 +2425,9 @@ local function CreateDropdown(tab, config)
 	list.Parent = frame
 
 	local ls = Instance.new("UIStroke")
-	ls.Color = Theme.Border
-	ls.Thickness = 1
-	ls.Transparency = 0.35
+	ls.Color = Theme.OutlineAccent or Theme.Border
+	ls.Thickness = 1.5
+	ls.Transparency = 0.25
 	ls.Parent = list
 
 	local ll = Instance.new("UIListLayout")
@@ -2512,8 +2515,8 @@ local function CreateDropdown(tab, config)
 		list.Position = UDim2.new(0, 0, 0, closedHeight)
 		list.Size = UDim2.new(1, 0, 0, 0)
 		list.Visible = true
-		list.BackgroundTransparency = 0
-		list.BackgroundColor3 = Theme.Tertiary
+		list.BackgroundTransparency = 0.02
+		list.BackgroundColor3 = Theme.Secondary
 		list.ZIndex = 31
 		list.ClipsDescendants = true
 
@@ -2522,6 +2525,7 @@ local function CreateDropdown(tab, config)
 				child.Visible = true
 				child.ZIndex = 32
 				child.BackgroundTransparency = 0
+				child.BackgroundColor3 = Theme.Secondary
 				child.TextTransparency = 0
 			end
 		end
@@ -2567,7 +2571,7 @@ local function CreateDropdown(tab, config)
 	for i, opt in ipairs(options) do
 		local btn = Instance.new("TextButton")
 		btn.Name = "Opt_" .. tostring(i)
-		btn.BackgroundColor3 = Theme.Tertiary
+		btn.BackgroundColor3 = Theme.Secondary
 		btn.BackgroundTransparency = 0
 		btn.BorderSizePixel = 0
 		btn.Size = UDim2.new(1, 0, 0, optionH)
@@ -2593,7 +2597,7 @@ local function CreateDropdown(tab, config)
 		end)
 		btn.MouseLeave:Connect(function()
 			if destroyed then return end
-			TweenEngine.Play(btn, { BackgroundColor3 = Theme.Tertiary }, { Duration = 0.1 })
+			TweenEngine.Play(btn, { BackgroundColor3 = Theme.Secondary }, { Duration = 0.1 })
 		end)
 		btn.MouseButton1Click:Connect(function()
 			if destroyed or transitioning then return end
@@ -2626,15 +2630,19 @@ local function CreateDropdown(tab, config)
 	function dd:RefreshTheme()
 		if destroyed or cleanup:IsDestroyed() then return end
 		frame.BackgroundColor3 = Theme.Secondary
-		stroke.Color = Theme.Border
+		frame.BackgroundTransparency = 0.05
+		stroke.Color = Theme.OutlineAccent or Theme.Border
+		stroke.Transparency = 0.3
 		title.Font = Theme.Font
 		title.TextColor3 = Theme.Text
 		arrow.TextColor3 = Theme.SecondaryText
-		list.BackgroundColor3 = Theme.Tertiary
-		ls.Color = Theme.Border
+		list.BackgroundColor3 = Theme.Secondary
+		list.BackgroundTransparency = 0.02
+		ls.Color = Theme.OutlineAccent or Theme.Border
+		ls.Transparency = 0.25
 		for _, child in ipairs(list:GetChildren()) do
 			if child:IsA("TextButton") then
-				child.BackgroundColor3 = Theme.Tertiary
+				child.BackgroundColor3 = Theme.Secondary
 				child.Font = Theme.Font
 				child.TextColor3 = Theme.Text
 			end
@@ -3156,21 +3164,21 @@ local function SetupSettingsTab(window)
 		local parent = GetParentForComponent(settingsTab)
 		local card = Instance.new("Frame")
 		card.Name = "ProfileCard"
-		card.BackgroundColor3 = Theme.Secondary
-		card.BackgroundTransparency = 0.1
+		card.BackgroundColor3 = Theme.Tertiary
+		card.BackgroundTransparency = 0.05
 		card.BorderSizePixel = 0
 		card.Size = UDim2.new(1, 0, 0, 72)
 		card.Parent = parent
 
 		local stroke = Instance.new("UIStroke")
-		stroke.Color = Theme.Border
-		stroke.Thickness = 1
-		stroke.Transparency = 0.5
+		stroke.Color = Theme.OutlineAccent or Theme.Border
+		stroke.Thickness = 1.5
+		stroke.Transparency = 0.25
 		stroke.Parent = card
 
 		local avatar = Instance.new("ImageLabel")
 		avatar.Name = "Avatar"
-		avatar.BackgroundColor3 = Theme.Tertiary
+		avatar.BackgroundColor3 = Theme.Secondary
 		avatar.BorderSizePixel = 0
 		avatar.Size = UDim2.new(0, 48, 0, 48)
 		avatar.Position = UDim2.new(0, 12, 0.5, -24)
@@ -3179,8 +3187,16 @@ local function SetupSettingsTab(window)
 		avatar.Parent = card
 
 		local avCorner = Instance.new("UICorner")
+		avCorner.Name = "VeyraCorner"
 		avCorner.CornerRadius = UDim.new(1, 0)
 		avCorner.Parent = avatar
+
+		-- subtle ring around avatar using theme outline
+		local avStroke = Instance.new("UIStroke")
+		avStroke.Color = Theme.OutlineAccent or Theme.Border
+		avStroke.Thickness = 1.5
+		avStroke.Transparency = 0.2
+		avStroke.Parent = avatar
 
 		local nameLabel = Instance.new("TextLabel")
 		nameLabel.BackgroundTransparency = 1
@@ -3244,9 +3260,13 @@ local function SetupSettingsTab(window)
 
 		local unhook = OnThemeChange(function()
 			if not card or not card.Parent then return end
-			card.BackgroundColor3 = Theme.Secondary
-			stroke.Color = Theme.Border
-			avatar.BackgroundColor3 = Theme.Tertiary
+			card.BackgroundColor3 = Theme.Tertiary
+			stroke.Color = Theme.OutlineAccent or Theme.Border
+			stroke.Transparency = 0.25
+			avatar.BackgroundColor3 = Theme.Secondary
+			if avStroke then
+				avStroke.Color = Theme.OutlineAccent or Theme.Border
+			end
 			nameLabel.TextColor3 = Theme.Text
 			nameLabel.Font = Theme.FontBold
 			userLabel.TextColor3 = Theme.SecondaryText
@@ -3526,9 +3546,9 @@ local function CreateWindow(library, config)
 	backgroundTint.Parent = main
 
 	local mainStroke = Instance.new("UIStroke")
-	mainStroke.Color = Theme.Border
-	mainStroke.Thickness = 1
-	mainStroke.Transparency = 0.45
+	mainStroke.Color = Theme.OutlineAccent or Theme.Border
+	mainStroke.Thickness = 1.5
+	mainStroke.Transparency = 0.35
 	mainStroke.Parent = main
 
 
@@ -3864,7 +3884,8 @@ local function CreateWindow(library, config)
 		main.BackgroundColor3 = Theme.Background
 		backgroundTint.BackgroundColor3 = Theme.Background
 		backgroundTint.BackgroundTransparency = Settings.UseBackgroundImage and 0.38 or 0.02
-		mainStroke.Color = Theme.Border
+		mainStroke.Color = Theme.OutlineAccent or Theme.Border
+		mainStroke.Transparency = 0.35
 		titleBar.BackgroundColor3 = Theme.Secondary
 		titleFix.BackgroundColor3 = Theme.Secondary
 		titleLabel.TextColor3 = Theme.Text
@@ -4276,9 +4297,9 @@ local function CreateKeySystem(config)
 	SetThemeGradient(main, "Background")
 
 	local mainStroke = Instance.new("UIStroke")
-	mainStroke.Color = Theme.Border
-	mainStroke.Thickness = 1
-	mainStroke.Transparency = 0.45
+	mainStroke.Color = Theme.OutlineAccent or Theme.Border
+	mainStroke.Thickness = 1.5
+	mainStroke.Transparency = 0.35
 	mainStroke.Parent = main
 
 	local outline = Instance.new("Frame")
@@ -4454,14 +4475,15 @@ local function CreateKeySystem(config)
 	local function refreshTheme()
 		if closed or cleanup:IsDestroyed() then return end
 		main.BackgroundColor3 = Theme.Background
-		mainStroke.Color = Theme.Border
+		mainStroke.Color = Theme.OutlineAccent or Theme.Border
+		mainStroke.Transparency = 0.35
 		titleBar.BackgroundColor3 = Theme.Secondary
 		titleLabel.TextColor3 = Theme.Text
 		titleLabel.Font = Theme.FontBold
 		closeBtn.TextColor3 = Theme.SecondaryText
 		outline.BackgroundColor3 = Theme.OutlineAccent or Color3.fromRGB(255, 255, 255)
 		boxFrame.BackgroundColor3 = Theme.Secondary
-		boxStroke.Color = Theme.Border
+		boxStroke.Color = Theme.OutlineAccent or Theme.Border
 		keyBox.Font = Theme.FontMono
 		keyBox.TextColor3 = Theme.Text
 		keyBox.PlaceholderColor3 = Theme.MutedText
