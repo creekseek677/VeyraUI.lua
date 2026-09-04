@@ -357,8 +357,8 @@ local ThemePresets = {
 		GradientPanelB = Color3.fromRGB(40, 36, 68),
 		GradientAccentA = Color3.fromRGB(120, 255, 236),
 		GradientAccentB = Color3.fromRGB(147, 86, 255),
-		GradientBackgroundA = Color3.fromRGB(5, 24, 25),
-		GradientBackgroundB = Color3.fromRGB(10, 70, 62),
+		GradientBackgroundA = Color3.fromRGB(10, 16, 26),
+		GradientBackgroundB = Color3.fromRGB(22, 30, 48),
 		GradientRotation = 90,
 	},
 }
@@ -415,9 +415,15 @@ local function DecorateGuiTree(root)
 		if not obj:IsA("GuiObject") then return end
 		local n = string.lower(obj.Name or "")
 		if obj.BackgroundTransparency < 1 then
-			-- Do not blanket-apply gradients to every visible GUI object.
-			-- That created the muddy full-UI tint. Gradients are now applied
-			-- only to elements that explicitly request them.
+			local kind = "Surface"
+			if n == "main" then
+				kind = "Background"
+			elseif string.find(n, "indicator", 1, true) or string.find(n, "accent", 1, true) or string.find(n, "seam", 1, true) or string.find(n, "sliderfill", 1, true) or n == "fill" then
+				kind = "Accent"
+			elseif n == "sidebar" or n == "titlebar" or n == "card" or n == "boxframe" or n == "frame" then
+				kind = "Panel"
+			end
+			SetThemeGradient(obj, kind)
 
 			-- Strong, theme-aware outlines for interactive controls and tabs.
 			-- Transparent hit targets remain untouched; visible tab buttons still get an outline.
@@ -3549,7 +3555,7 @@ local function CreateWindow(library, config)
 	local main = Instance.new("Frame")
 	main.Name = "Main"
 	main.BackgroundColor3 = Theme.Background
-	main.BackgroundTransparency = 0
+	main.BackgroundTransparency = 0.02
 	main.BorderSizePixel = 0
 	main.Size = UDim2.new(1, 0, 1, 0)
 	main.ClipsDescendants = true
@@ -3594,7 +3600,7 @@ local function CreateWindow(library, config)
 	local titleBar = Instance.new("Frame")
 	titleBar.Name = "TitleBar"
 	titleBar.BackgroundColor3 = Theme.Secondary
-	titleBar.BackgroundTransparency = 0
+	titleBar.BackgroundTransparency = 0.15
 	titleBar.BorderSizePixel = 0
 	titleBar.Size = UDim2.new(1, 0, 0, TITLE_H)
 	titleBar.ZIndex = 3
@@ -3604,7 +3610,7 @@ local function CreateWindow(library, config)
 
 	local titleFix = Instance.new("Frame")
 	titleFix.BackgroundColor3 = Theme.Secondary
-	titleFix.BackgroundTransparency = 0
+	titleFix.BackgroundTransparency = 0.15
 	titleFix.BorderSizePixel = 0
 	titleFix.Size = UDim2.new(1, 0, 0, 12)
 	titleFix.Position = UDim2.new(0, 0, 1, -12)
@@ -3631,7 +3637,6 @@ local function CreateWindow(library, config)
 	subtitle.TextColor3 = Theme.SecondaryText
 	subtitle.TextXAlignment = Enum.TextXAlignment.Left
 	subtitle.Text = config.Subtitle or ""
-	subtitle.ZIndex = 10
 	subtitle.Parent = titleBar
 
 	local closeBtn = Instance.new("TextButton")
@@ -3915,7 +3920,6 @@ local function CreateWindow(library, config)
 		mainStroke.Transparency = 0.35
 		titleBar.BackgroundColor3 = Theme.Secondary
 		titleFix.BackgroundColor3 = Theme.Secondary
-		SetThemeGradient(titleBar, "Panel")
 		titleLabel.TextColor3 = Theme.Text
 		titleLabel.Font = Theme.FontBold
 		subtitle.TextColor3 = Theme.SecondaryText
@@ -4346,7 +4350,6 @@ local function CreateKeySystem(config)
 	titleBar.Size = UDim2.new(1, 0, 0, 36)
 	titleBar.ZIndex = 3
 	titleBar.Parent = main
-	SetThemeGradient(titleBar, "Panel")
 
 	local titleLabel = Instance.new("TextLabel")
 	titleLabel.BackgroundTransparency = 1
@@ -4357,7 +4360,6 @@ local function CreateKeySystem(config)
 	titleLabel.TextColor3 = Theme.Text
 	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 	titleLabel.Text = titleText
-	titleLabel.ZIndex = 10
 	titleLabel.Parent = titleBar
 
 	local closeBtn = Instance.new("TextButton")
@@ -4507,7 +4509,6 @@ local function CreateKeySystem(config)
 		mainStroke.Color = Theme.OutlineAccent or Theme.Border
 		mainStroke.Transparency = 0.35
 		titleBar.BackgroundColor3 = Theme.Secondary
-		SetThemeGradient(titleBar, "Panel")
 		titleLabel.TextColor3 = Theme.Text
 		titleLabel.Font = Theme.FontBold
 		closeBtn.TextColor3 = Theme.SecondaryText
