@@ -19,6 +19,7 @@ local DefaultSettings = {
 	CornerRadius = 2,
 	UseBackgroundImage = false,
 	BackgroundImage = "",
+	BackgroundImageTransparency = 0.32,
 }
 
 local Settings = {}
@@ -88,6 +89,8 @@ local function ConfigSave()
 end
 
 pcall(ConfigLoad)
+Settings.CornerRadius = math.clamp(tonumber(Settings.CornerRadius) or 2, 0, 8)
+Settings.BackgroundImageTransparency = math.clamp(tonumber(Settings.BackgroundImageTransparency) or 0.32, 0, 1)
 
 local function KeyCodeFromName(name)
 	if typeof(name) == "EnumItem" then return name end
@@ -207,16 +210,19 @@ local Theme = {
 	NotificationWarning = Color3.fromRGB(255, 180, 60),
 	NotificationError = Color3.fromRGB(255, 80, 80),
 	OutlineAccent = Color3.fromRGB(255, 255, 255),
+	GradientSurfaceA = Color3.fromRGB(14, 16, 22),
+	GradientSurfaceB = Color3.fromRGB(24, 27, 36),
+	GradientPanelA = Color3.fromRGB(18, 20, 28),
+	GradientPanelB = Color3.fromRGB(28, 31, 42),
+	GradientAccentA = Color3.fromRGB(245, 248, 255),
+	GradientAccentB = Color3.fromRGB(125, 145, 178),
+	GradientBackgroundA = Color3.fromRGB(7, 9, 14),
+	GradientBackgroundB = Color3.fromRGB(15, 18, 27),
+	GradientRotation = 90,
 	Font = Enum.Font.GothamMedium,
 	FontBold = Enum.Font.GothamBold,
 	FontMono = Enum.Font.Code,
 	CornerRadius = 2,
-	SurfaceGradientStart = Color3.fromRGB(25, 25, 31),
-	SurfaceGradientEnd = Color3.fromRGB(13, 13, 18),
-	AccentGradientStart = Color3.fromRGB(255, 255, 255),
-	AccentGradientEnd = Color3.fromRGB(155, 155, 170),
-	LineGradientStart = Color3.fromRGB(255, 255, 255),
-	LineGradientEnd = Color3.fromRGB(105, 105, 120),
 	ElementHeight = 32,
 	AnimationSpeed = 0.35,
 	HoverSpeed = 0.15,
@@ -245,12 +251,16 @@ local ThemePresets = {
 		NotificationSuccess = Color3.fromRGB(80, 200, 120),
 		NotificationWarning = Color3.fromRGB(255, 180, 60),
 		NotificationError = Color3.fromRGB(255, 80, 80),
-		SurfaceGradientStart = Color3.fromRGB(27, 27, 34),
-		SurfaceGradientEnd = Color3.fromRGB(12, 12, 17),
-		AccentGradientStart = Color3.fromRGB(255, 255, 255),
-		AccentGradientEnd = Color3.fromRGB(155, 155, 170),
-		LineGradientStart = Color3.fromRGB(255, 255, 255),
-		LineGradientEnd = Color3.fromRGB(105, 105, 120),
+		OutlineAccent = Color3.fromRGB(240, 246, 255),
+		GradientSurfaceA = Color3.fromRGB(14, 16, 22),
+		GradientSurfaceB = Color3.fromRGB(24, 27, 36),
+		GradientPanelA = Color3.fromRGB(18, 20, 28),
+		GradientPanelB = Color3.fromRGB(30, 33, 44),
+		GradientAccentA = Color3.fromRGB(248, 250, 255),
+		GradientAccentB = Color3.fromRGB(126, 149, 186),
+		GradientBackgroundA = Color3.fromRGB(6, 8, 13),
+		GradientBackgroundB = Color3.fromRGB(14, 17, 25),
+		GradientRotation = 90,
 	},
 	Light = {
 		Background = Color3.fromRGB(245, 245, 248),
@@ -274,12 +284,16 @@ local ThemePresets = {
 		NotificationSuccess = Color3.fromRGB(30, 160, 90),
 		NotificationWarning = Color3.fromRGB(210, 140, 30),
 		NotificationError = Color3.fromRGB(210, 50, 50),
-		SurfaceGradientStart = Color3.fromRGB(255, 255, 255),
-		SurfaceGradientEnd = Color3.fromRGB(232, 232, 238),
-		AccentGradientStart = Color3.fromRGB(25, 25, 35),
-		AccentGradientEnd = Color3.fromRGB(105, 105, 120),
-		LineGradientStart = Color3.fromRGB(35, 35, 45),
-		LineGradientEnd = Color3.fromRGB(145, 145, 160),
+		OutlineAccent = Color3.fromRGB(35, 35, 45),
+		GradientSurfaceA = Color3.fromRGB(248, 249, 252),
+		GradientSurfaceB = Color3.fromRGB(229, 232, 239),
+		GradientPanelA = Color3.fromRGB(255, 255, 255),
+		GradientPanelB = Color3.fromRGB(238, 240, 246),
+		GradientAccentA = Color3.fromRGB(35, 35, 45),
+		GradientAccentB = Color3.fromRGB(120, 130, 150),
+		GradientBackgroundA = Color3.fromRGB(241, 242, 247),
+		GradientBackgroundB = Color3.fromRGB(223, 226, 234),
+		GradientRotation = 90,
 	},
 	Neon = {
 		Background = Color3.fromRGB(8, 6, 16),
@@ -303,43 +317,120 @@ local ThemePresets = {
 		NotificationSuccess = Color3.fromRGB(80, 220, 160),
 		NotificationWarning = Color3.fromRGB(255, 180, 80),
 		NotificationError = Color3.fromRGB(255, 80, 120),
-		SurfaceGradientStart = Color3.fromRGB(24, 17, 42),
-		SurfaceGradientEnd = Color3.fromRGB(10, 7, 20),
-		AccentGradientStart = Color3.fromRGB(220, 125, 255),
-		AccentGradientEnd = Color3.fromRGB(85, 115, 255),
-		LineGradientStart = Color3.fromRGB(220, 125, 255),
-		LineGradientEnd = Color3.fromRGB(75, 105, 255),
+		OutlineAccent = Color3.fromRGB(235, 220, 255),
+		GradientSurfaceA = Color3.fromRGB(10, 7, 20),
+		GradientSurfaceB = Color3.fromRGB(31, 18, 48),
+		GradientPanelA = Color3.fromRGB(14, 10, 28),
+		GradientPanelB = Color3.fromRGB(36, 22, 58),
+		GradientAccentA = Color3.fromRGB(255, 110, 236),
+		GradientAccentB = Color3.fromRGB(91, 138, 255),
+		GradientBackgroundA = Color3.fromRGB(5, 4, 12),
+		GradientBackgroundB = Color3.fromRGB(20, 10, 32),
+		GradientRotation = 90,
 	},
 	Aurora = {
-		Background = Color3.fromRGB(7, 14, 18),
-		Secondary = Color3.fromRGB(10, 23, 28),
-		Tertiary = Color3.fromRGB(14, 31, 38),
-		Hover = Color3.fromRGB(18, 42, 48),
-		Text = Color3.fromRGB(232, 250, 248),
-		SecondaryText = Color3.fromRGB(145, 190, 188),
-		MutedText = Color3.fromRGB(92, 135, 136),
-		Accent = Color3.fromRGB(94, 235, 214),
-		Border = Color3.fromRGB(35, 78, 82),
-		ToggleOn = Color3.fromRGB(94, 235, 214),
-		ToggleOff = Color3.fromRGB(26, 55, 61),
-		SliderTrack = Color3.fromRGB(20, 48, 54),
-		SliderFill = Color3.fromRGB(94, 235, 214),
-		NotificationBackground = Color3.fromRGB(6, 16, 20),
-		NotificationBorder = Color3.fromRGB(28, 66, 70),
-		NotificationTitle = Color3.fromRGB(232, 250, 248),
-		NotificationDescription = Color3.fromRGB(145, 190, 188),
-		NotificationInfo = Color3.fromRGB(80, 180, 255),
-		NotificationSuccess = Color3.fromRGB(80, 230, 170),
-		NotificationWarning = Color3.fromRGB(245, 190, 80),
-		NotificationError = Color3.fromRGB(255, 95, 120),
-		SurfaceGradientStart = Color3.fromRGB(18, 40, 44),
-		SurfaceGradientEnd = Color3.fromRGB(7, 15, 20),
-		AccentGradientStart = Color3.fromRGB(120, 255, 220),
-		AccentGradientEnd = Color3.fromRGB(125, 105, 255),
-		LineGradientStart = Color3.fromRGB(120, 255, 220),
-		LineGradientEnd = Color3.fromRGB(105, 115, 255),
+		Background = Color3.fromRGB(7, 13, 22),
+		Secondary = Color3.fromRGB(12, 20, 32),
+		Tertiary = Color3.fromRGB(18, 27, 42),
+		Hover = Color3.fromRGB(24, 36, 54),
+		Text = Color3.fromRGB(236, 247, 255),
+		SecondaryText = Color3.fromRGB(155, 190, 208),
+		MutedText = Color3.fromRGB(95, 128, 146),
+		Accent = Color3.fromRGB(114, 235, 220),
+		Border = Color3.fromRGB(44, 66, 82),
+		ToggleOn = Color3.fromRGB(114, 235, 220),
+		ToggleOff = Color3.fromRGB(28, 45, 56),
+		SliderTrack = Color3.fromRGB(22, 37, 48),
+		SliderFill = Color3.fromRGB(114, 235, 220),
+		NotificationBackground = Color3.fromRGB(8, 14, 23),
+		NotificationBorder = Color3.fromRGB(39, 62, 78),
+		NotificationTitle = Color3.fromRGB(235, 249, 255),
+		NotificationDescription = Color3.fromRGB(155, 190, 208),
+		NotificationInfo = Color3.fromRGB(104, 170, 255),
+		NotificationSuccess = Color3.fromRGB(100, 235, 176),
+		NotificationWarning = Color3.fromRGB(255, 196, 92),
+		NotificationError = Color3.fromRGB(255, 100, 130),
+		OutlineAccent = Color3.fromRGB(178, 245, 255),
+		GradientSurfaceA = Color3.fromRGB(10, 16, 26),
+		GradientSurfaceB = Color3.fromRGB(24, 29, 48),
+		GradientPanelA = Color3.fromRGB(13, 22, 35),
+		GradientPanelB = Color3.fromRGB(30, 23, 51),
+		GradientAccentA = Color3.fromRGB(120, 255, 236),
+		GradientAccentB = Color3.fromRGB(147, 86, 255),
+		GradientBackgroundA = Color3.fromRGB(4, 9, 16),
+		GradientBackgroundB = Color3.fromRGB(14, 20, 38),
+		GradientRotation = 90,
 	},
 }
+
+local function EnsureCorner(obj, radius)
+	if not obj or not obj:IsA("GuiObject") then return end
+	local value = tonumber(radius)
+	if value == nil then value = 2 end
+	value = math.max(0, math.floor(value + 0.5))
+	local corner = obj:FindFirstChild("VeyraCorner") or obj:FindFirstChildOfClass("UICorner")
+	if not corner then
+		corner = Instance.new("UICorner")
+		corner.Name = "VeyraCorner"
+		corner.Parent = obj
+	elseif corner.Name ~= "VeyraCorner" then
+		corner.Name = "VeyraCorner"
+	end
+	corner.CornerRadius = UDim.new(0, value)
+	return corner
+end
+
+local function SetThemeGradient(obj, kind)
+	if not obj or not obj:IsA("GuiObject") then return end
+	local gradient = obj:FindFirstChild("VeyraGradient")
+	if not gradient then
+		gradient = Instance.new("UIGradient")
+		gradient.Name = "VeyraGradient"
+		gradient.Parent = obj
+	end
+	local a, b
+	if kind == "Accent" then
+		a, b = Theme.GradientAccentA, Theme.GradientAccentB
+	elseif kind == "Panel" then
+		a, b = Theme.GradientPanelA, Theme.GradientPanelB
+	elseif kind == "Background" then
+		a, b = Theme.GradientBackgroundA, Theme.GradientBackgroundB
+	else
+		a, b = Theme.GradientSurfaceA, Theme.GradientSurfaceB
+	end
+	gradient.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, a or Theme.Background),
+		ColorSequenceKeypoint.new(1, b or Theme.Secondary),
+	})
+	gradient.Rotation = Theme.GradientRotation or 90
+	return gradient
+end
+
+local function DecorateGuiTree(root)
+	if not root then return end
+	local function decorate(obj)
+		if not obj:IsA("GuiObject") then return end
+		local n = string.lower(obj.Name or "")
+		if obj.BackgroundTransparency < 1 then
+			local kind = "Surface"
+			if n == "main" or n == "backgroundtint" then
+				kind = "Background"
+			elseif string.find(n, "indicator", 1, true) or string.find(n, "accent", 1, true) or string.find(n, "seam", 1, true) or string.find(n, "sliderfill", 1, true) or n == "fill" then
+				kind = "Accent"
+			elseif n == "sidebar" or n == "titlebar" or n == "card" or n == "boxframe" or n == "frame" then
+				kind = "Panel"
+			end
+			SetThemeGradient(obj, kind)
+			if n ~= "root" and n ~= "body" and n ~= "contentcontainer" and n ~= "tabbar" and n ~= "outlineaccent" and n ~= "dim" and n ~= "resizegrip" and n ~= "backgroundtint" and n ~= "backgroundimage" then
+				EnsureCorner(obj, Settings.CornerRadius or Theme.CornerRadius or 2)
+			end
+		end
+	end
+	decorate(root)
+	for _, obj in ipairs(root:GetDescendants()) do
+		decorate(obj)
+	end
+end
 
 local ThemeListeners = {}
 
@@ -352,6 +443,7 @@ local function SetTheme(t)
 	for k, v in pairs(t) do
 		Theme[k] = v
 	end
+	Theme.CornerRadius = math.max(0, math.floor(tonumber(Settings.CornerRadius or Theme.CornerRadius or 2) or 2))
 	for _, fn in ipairs(ThemeListeners) do
 		task.spawn(fn)
 	end
@@ -374,97 +466,6 @@ local function OnThemeChange(fn)
 		if i then table.remove(ThemeListeners, i) end
 	end
 end
-
-local function GetOrCreateCorner(obj)
-	if not obj:IsA("GuiObject") then return nil end
-	local corner = obj:FindFirstChild("VeyraCorner")
-	if corner and corner:IsA("UICorner") then
-		corner.CornerRadius = UDim.new(0, tonumber(Settings.CornerRadius) or 2)
-		return corner
-	end
-	corner = Instance.new("UICorner")
-	corner.Name = "VeyraCorner"
-	corner.CornerRadius = UDim.new(0, tonumber(Settings.CornerRadius) or 2)
-	corner.Parent = obj
-	return corner
-end
-
-local function GetOrCreateGradient(obj, name)
-	local g = obj:FindFirstChild(name)
-	if g and g:IsA("UIGradient") then return g end
-	g = Instance.new("UIGradient")
-	g.Name = name
-	g.Rotation = 90
-	g.Parent = obj
-	return g
-end
-
-local function ApplyVeyraVisuals(container)
-	if not container or not container:IsA("GuiObject") then return end
-	local function style(obj)
-		if not obj:IsA("GuiObject") then return end
-		local n = obj.Name
-		local structural = (
-			n == "Root" or n == "Body" or n == "Header" or n == "TabBar" or
-			n == "ContentContainer" or n == "OutlineAccent" or n == "Indicator" or
-			n == "ResizeGrip" or n == "ResizeRight" or n == "ResizeBottom" or
-			n == "GripVisual" or n == "Dim" or n == "BackgroundImage"
-		)
-		if not structural and obj.BackgroundTransparency < 1 then
-			GetOrCreateCorner(obj)
-		end
-		if (obj:IsA("Frame") or obj:IsA("ScrollingFrame")) and not structural
-			and obj.BackgroundTransparency < 1 then
-			local g = GetOrCreateGradient(obj, "VeyraSurfaceGradient")
-			g.Color = ColorSequence.new({
-				ColorSequenceKeypoint.new(0, Theme.SurfaceGradientStart or Theme.Background),
-				ColorSequenceKeypoint.new(1, Theme.SurfaceGradientEnd or Theme.Background),
-			})
-			g.Transparency = NumberSequence.new({
-				NumberSequenceKeypoint.new(0, 0),
-				NumberSequenceKeypoint.new(1, 0),
-			})
-		end
-		if n == "Indicator" or n == "OutlineAccent" then
-			local g = GetOrCreateGradient(obj, "VeyraAccentGradient")
-			g.Color = ColorSequence.new({
-				ColorSequenceKeypoint.new(0, Theme.LineGradientStart or Theme.Accent),
-				ColorSequenceKeypoint.new(0.55, Theme.AccentGradientStart or Theme.Accent),
-				ColorSequenceKeypoint.new(1, Theme.LineGradientEnd or Theme.Accent),
-			})
-			g.Transparency = NumberSequence.new({
-				NumberSequenceKeypoint.new(0, 0),
-				NumberSequenceKeypoint.new(0.55, 0.12),
-				NumberSequenceKeypoint.new(1, 0.55),
-			})
-		end
-	end
-	style(container)
-	for _, obj in ipairs(container:GetDescendants()) do
-		style(obj)
-	end
-end
-
-local function RefreshVeyraVisuals(container)
-	if not container then return end
-	for _, obj in ipairs(container:GetDescendants()) do
-		if obj:IsA("UICorner") and obj.Name == "VeyraCorner" then
-			obj.CornerRadius = UDim.new(0, tonumber(Settings.CornerRadius) or 2)
-		elseif obj:IsA("UIGradient") and obj.Name == "VeyraSurfaceGradient" then
-			obj.Color = ColorSequence.new({
-				ColorSequenceKeypoint.new(0, Theme.SurfaceGradientStart or Theme.Background),
-				ColorSequenceKeypoint.new(1, Theme.SurfaceGradientEnd or Theme.Background),
-			})
-		elseif obj:IsA("UIGradient") and obj.Name == "VeyraAccentGradient" then
-			obj.Color = ColorSequence.new({
-				ColorSequenceKeypoint.new(0, Theme.LineGradientStart or Theme.Accent),
-				ColorSequenceKeypoint.new(0.55, Theme.AccentGradientStart or Theme.Accent),
-				ColorSequenceKeypoint.new(1, Theme.LineGradientEnd or Theme.Accent),
-			})
-		end
-	end
-end
-
 
 local function CreateCleanup()
 	local connections, instances, tasks, callbacks = {}, {}, {}, {}
@@ -1794,7 +1795,7 @@ local function CreateButton(tab, config)
 	frame.Parent = parent
 
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, tonumber(Settings.CornerRadius) or 2)
+	corner.CornerRadius = UDim.new(0, Theme.CornerRadius)
 	corner.Parent = frame
 
 	local stroke = Instance.new("UIStroke")
@@ -1933,7 +1934,7 @@ local function CreateToggle(tab, config)
 	frame.Parent = parent
 
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, tonumber(Settings.CornerRadius) or 2)
+	corner.CornerRadius = UDim.new(0, Theme.CornerRadius)
 	corner.Parent = frame
 
 	local stroke = Instance.new("UIStroke")
@@ -2095,7 +2096,7 @@ local function CreateSlider(tab, config)
 	frame.Parent = parent
 
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, tonumber(Settings.CornerRadius) or 2)
+	corner.CornerRadius = UDim.new(0, Theme.CornerRadius)
 	corner.Parent = frame
 
 	local stroke = Instance.new("UIStroke")
@@ -2368,7 +2369,7 @@ local function CreateDropdown(tab, config)
 	dd.Frame = frame
 
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, tonumber(Settings.CornerRadius) or 2)
+	corner.CornerRadius = UDim.new(0, Theme.CornerRadius)
 	corner.Parent = frame
 
 	local stroke = Instance.new("UIStroke")
@@ -2690,7 +2691,7 @@ local function CreateTextbox(tab, config)
 	frame.Parent = parent
 
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, tonumber(Settings.CornerRadius) or 2)
+	corner.CornerRadius = UDim.new(0, Theme.CornerRadius)
 	corner.Parent = frame
 
 	local stroke = Instance.new("UIStroke")
@@ -2786,7 +2787,7 @@ local function CreateKeybind(tab, config)
 	frame.Parent = parent
 
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, tonumber(Settings.CornerRadius) or 2)
+	corner.CornerRadius = UDim.new(0, Theme.CornerRadius)
 	corner.Parent = frame
 
 	local stroke = Instance.new("UIStroke")
@@ -3284,26 +3285,48 @@ local function SetupSettingsTab(window)
 		end,
 	})
 
+	settingsTab:CreateSlider({
+		Name = "Corner Radius",
+		Min = 0,
+		Max = 8,
+		Default = tonumber(Settings.CornerRadius) or 2,
+		Callback = function(v)
+			Settings.CornerRadius = math.clamp(math.floor(tonumber(v) or 2), 0, 8)
+			Theme.CornerRadius = Settings.CornerRadius
+			if window.RefreshTheme then window:RefreshTheme() end
+		end,
+	})
+
+	settingsTab:CreateSection({ Name = "Background" })
+
 	settingsTab:CreateToggle({
-		Name = "Background Image",
+		Name = "Image Background",
 		Default = Settings.UseBackgroundImage == true,
 		Callback = function(v)
 			Settings.UseBackgroundImage = v == true
-			if window.SetBackgroundImage then
-				window:SetBackgroundImage(Settings.BackgroundImage, Settings.UseBackgroundImage)
-			end
+			if window.SetBackgroundImageEnabled then window:SetBackgroundImageEnabled(Settings.UseBackgroundImage) end
 		end,
 	})
 
 	settingsTab:CreateTextbox({
-		Name = "Background Image ID",
+		Name = "Background Image",
 		Placeholder = "rbxassetid://...",
-		Default = tostring(Settings.BackgroundImage or ""),
+		Default = Settings.BackgroundImage or "",
 		Callback = function(v)
 			Settings.BackgroundImage = tostring(v or "")
-			if window.SetBackgroundImage then
-				window:SetBackgroundImage(Settings.BackgroundImage, Settings.UseBackgroundImage)
-			end
+			if window.SetBackgroundImage then window:SetBackgroundImage(Settings.BackgroundImage) end
+		end,
+	})
+
+	settingsTab:CreateSlider({
+		Name = "Image Opacity",
+		Min = 0,
+		Max = 100,
+		Default = math.floor((1 - math.clamp(tonumber(Settings.BackgroundImageTransparency) or 0.32, 0, 1)) * 100 + 0.5),
+		Callback = function(v)
+			local opacity = math.clamp(tonumber(v) or 68, 0, 100) / 100
+			Settings.BackgroundImageTransparency = 1 - opacity
+			if window.SetBackgroundImageTransparency then window:SetBackgroundImageTransparency(Settings.BackgroundImageTransparency) end
 		end,
 	})
 
@@ -3409,9 +3432,6 @@ local function SetupSettingsTab(window)
 				Settings[k] = v
 			end
 			ApplyThemePreset(Settings.Theme)
-			if window.SetBackgroundImage then
-				window:SetBackgroundImage(Settings.BackgroundImage, Settings.UseBackgroundImage)
-			end
 			if kb and kb.Set then
 				kb:Set(KeyCodeFromName(Settings.ToggleUIKey))
 			end
@@ -3441,9 +3461,6 @@ end
 
 local function CreateWindow(library, config)
 	config = config or {}
-	if config.CornerRadius ~= nil then
-		Settings.CornerRadius = math.max(0, tonumber(config.CornerRadius) or 2)
-	end
 	local cleanup = CreateCleanup()
 	local width, height, isTouch = ComputeResponsiveSize(config)
 	local minimized = false
@@ -3466,37 +3483,47 @@ local function CreateWindow(library, config)
 	root.ClipsDescendants = true
 	root.Parent = gui
 
-	local backgroundImage = Instance.new("ImageLabel")
-	backgroundImage.Name = "BackgroundImage"
-	backgroundImage.BackgroundTransparency = 1
-	backgroundImage.BorderSizePixel = 0
-	backgroundImage.Size = UDim2.new(1, 0, 1, 0)
-	backgroundImage.Position = UDim2.new(0, 0, 0, 0)
-	backgroundImage.Image = tostring(Settings.BackgroundImage or "")
-	backgroundImage.ImageTransparency = (Settings.UseBackgroundImage and backgroundImage.Image ~= "") and 0.18 or 1
-	backgroundImage.ScaleType = Enum.ScaleType.Crop
-	backgroundImage.ZIndex = 0
-	backgroundImage.Parent = root
-
 
 	local uiScale = Instance.new("UIScale")
 	uiScale.Name = "VeyraScale"
 	uiScale.Scale = 1
 	uiScale.Parent = root
 
-	local sizeConstraint = nil
-
 	local main = Instance.new("Frame")
 	main.Name = "Main"
 	main.BackgroundColor3 = Theme.Background
-	main.BackgroundTransparency = Settings.UseBackgroundImage and 0.10 or 0.02
+	main.BackgroundTransparency = 0.02
 	main.BorderSizePixel = 0
 	main.Size = UDim2.new(1, 0, 1, 0)
+	main.ClipsDescendants = true
 	main.Parent = root
-	GetOrCreateCorner(main)
-	ApplyVeyraVisuals(main)
 
+	local backgroundImage = Instance.new("ImageLabel")
+	backgroundImage.Name = "BackgroundImage"
+	backgroundImage.BackgroundTransparency = 1
+	backgroundImage.BorderSizePixel = 0
+	backgroundImage.Size = UDim2.new(1, 0, 1, 0)
+	backgroundImage.Position = UDim2.new(0, 0, 0, 0)
+	backgroundImage.ZIndex = 0
+	backgroundImage.ScaleType = Enum.ScaleType.Crop
+	backgroundImage.ImageTransparency = math.clamp(tonumber(Settings.BackgroundImageTransparency) or 0.32, 0, 1)
+	local configuredBackgroundImage = tostring(Settings.BackgroundImage or "")
+	if configuredBackgroundImage ~= "" and tonumber(configuredBackgroundImage) then
+		configuredBackgroundImage = "rbxassetid://" .. configuredBackgroundImage
+		Settings.BackgroundImage = configuredBackgroundImage
+	end
+	backgroundImage.Image = configuredBackgroundImage
+	backgroundImage.Visible = Settings.UseBackgroundImage == true and configuredBackgroundImage ~= ""
+	backgroundImage.Parent = main
 
+	local backgroundTint = Instance.new("Frame")
+	backgroundTint.Name = "BackgroundTint"
+	backgroundTint.BackgroundColor3 = Theme.Background
+	backgroundTint.BackgroundTransparency = Settings.UseBackgroundImage and 0.38 or 0.02
+	backgroundTint.BorderSizePixel = 0
+	backgroundTint.Size = UDim2.new(1, 0, 1, 0)
+	backgroundTint.ZIndex = 1
+	backgroundTint.Parent = main
 
 	local mainStroke = Instance.new("UIStroke")
 	mainStroke.Color = Theme.Border
@@ -3588,6 +3615,7 @@ local function CreateWindow(library, config)
 	body.Size = UDim2.new(1, 0, 1, -TITLE_H)
 	body.Position = UDim2.new(0, 0, 0, TITLE_H)
 	body.ClipsDescendants = true
+	body.ZIndex = 2
 	body.Parent = main
 
 
@@ -3677,6 +3705,9 @@ local function CreateWindow(library, config)
 		TabBar = tabBar,
 		ContentContainer = contentContainer,
 		SearchBox = searchBox,
+		BackgroundImage = backgroundImage,
+		BackgroundTint = backgroundTint,
+		UIScale = uiScale,
 		Tabs = tabs,
 		Width = width,
 		Height = height,
@@ -3787,33 +3818,31 @@ local function CreateWindow(library, config)
 	TweenEngine.Play(root, {
 		Size = UDim2.fromOffset(width, height),
 	}, { Duration = 0.4, Easing = "BackOut" })
-	TweenEngine.Play(main, { BackgroundTransparency = (Settings.UseBackgroundImage and Settings.BackgroundImage ~= "") and 0.10 or 0.02 }, { Duration = 0.32, Easing = "QuadOut" })
+	TweenEngine.Play(main, { BackgroundTransparency = 0.02 }, { Duration = 0.32, Easing = "QuadOut" })
 
 	cleanup:AddInstance(gui)
 
 
-	local function refitToViewport(forceSize)
+	local function refitToViewport()
 		if minimized or cleanup:IsDestroyed() then return end
 		local cam = workspace.CurrentCamera
 		if not cam then return end
 		local vp = cam.ViewportSize
-		local padding = isTouch and 12 or 20
-		local scaleX = (vp.X - padding * 2) / width
-		local scaleY = (vp.Y - padding * 2) / height
-		local targetScale = math.min(1, scaleX, scaleY)
-		if targetScale <= 0 then targetScale = 0.75 end
-		uiScale.Scale = math.max(0.65, targetScale)
+		local margin = 12
+		local fitX = (vp.X - margin) / math.max(width, 1)
+		local fitY = (vp.Y - margin) / math.max(height, 1)
+		local scale = math.min(1, fitX, fitY)
+		uiScale.Scale = math.clamp(scale, 0.5, 1)
+		root.Size = UDim2.fromOffset(width, height)
 		local aw = width * uiScale.Scale
 		local ah = height * uiScale.Scale
-		root.Size = UDim2.fromOffset(width, height)
 		root.Position = UDim2.new(0.5, -aw / 2, 0.5, -ah / 2)
-		window.Width, window.Height = width, height
 	end
 
 	if workspace.CurrentCamera then
 		cleanup:AddConnection(workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
 			task.defer(function()
-				refitToViewport(true)
+				refitToViewport()
 			end)
 		end))
 	end
@@ -3822,20 +3851,19 @@ local function CreateWindow(library, config)
 		if cam then
 			cleanup:AddConnection(cam:GetPropertyChangedSignal("ViewportSize"):Connect(function()
 				task.defer(function()
-					refitToViewport(true)
+					refitToViewport()
 				end)
 			end))
-			task.defer(function() refitToViewport(true) end)
+			task.defer(function() refitToViewport() end)
 		end
 	end))
 
-	task.defer(function()
-		refitToViewport(true)
-	end)
-
 	local function refreshWindowTheme()
 		if cleanup:IsDestroyed() then return end
+		Theme.CornerRadius = math.max(0, math.floor(tonumber(Settings.CornerRadius or Theme.CornerRadius or 2) or 2))
 		main.BackgroundColor3 = Theme.Background
+		backgroundTint.BackgroundColor3 = Theme.Background
+		backgroundTint.BackgroundTransparency = Settings.UseBackgroundImage and 0.38 or 0.02
 		mainStroke.Color = Theme.Border
 		titleBar.BackgroundColor3 = Theme.Secondary
 		titleFix.BackgroundColor3 = Theme.Secondary
@@ -3851,16 +3879,20 @@ local function CreateWindow(library, config)
 		searchBox.PlaceholderColor3 = Theme.MutedText
 		searchBox.Font = Theme.Font
 		outline.BackgroundColor3 = Theme.OutlineAccent or Color3.fromRGB(255, 255, 255)
-		main.BackgroundTransparency = Settings.UseBackgroundImage and 0.10 or 0.02
-		backgroundImage.Image = tostring(Settings.BackgroundImage or "")
-		backgroundImage.ImageTransparency = (Settings.UseBackgroundImage and backgroundImage.Image ~= "") and 0.18 or 1
-		RefreshVeyraVisuals(gui)
-		ApplyVeyraVisuals(gui)
+		DecorateGuiTree(main)
 		for _, tab in ipairs(tabs) do
 			if tab.RefreshTheme then tab:RefreshTheme() end
 		end
 	end
 	cleanup:AddCallback(OnThemeChange(refreshWindowTheme))
+	cleanup:AddConnection(main.DescendantAdded:Connect(function(obj)
+		task.defer(function()
+			if obj and obj.Parent and not cleanup:IsDestroyed() then
+				DecorateGuiTree(main)
+			end
+		end)
+	end))
+	DecorateGuiTree(main)
 
 	function window:AddAction(actionConfig)
 		actionConfig = actionConfig or {}
@@ -3951,6 +3983,28 @@ local function CreateWindow(library, config)
 		refreshWindowTheme()
 	end
 
+	function window:SetBackgroundImage(image)
+		local value = tostring(image or "")
+		if value ~= "" and not string.find(value, "rbxassetid://", 1, true) and not string.find(value, "rbxthumb://", 1, true) then
+			if tonumber(value) then
+				value = "rbxassetid://" .. value
+			end
+		end
+		Settings.BackgroundImage = value
+		backgroundImage.Image = Settings.BackgroundImage
+		backgroundImage.Visible = Settings.UseBackgroundImage and Settings.BackgroundImage ~= ""
+	end
+
+	function window:SetBackgroundImageEnabled(enabled)
+		Settings.UseBackgroundImage = enabled == true
+		backgroundImage.Visible = Settings.UseBackgroundImage and Settings.BackgroundImage ~= ""
+		backgroundTint.BackgroundTransparency = Settings.UseBackgroundImage and 0.38 or 0.02
+	end
+
+	function window:SetBackgroundImageTransparency(value)
+		Settings.BackgroundImageTransparency = math.clamp(tonumber(value) or 0.32, 0, 1)
+		backgroundImage.ImageTransparency = Settings.BackgroundImageTransparency
+	end
 
 	function window:ToggleMinimize()
 		minimized = not minimized
@@ -3969,7 +4023,6 @@ local function CreateWindow(library, config)
 			end
 			window.Width = w
 			window.Height = h
-			if sizeConstraint then sizeConstraint.Parent = nil end
 			body.Visible = false
 			sidebar.Visible = false
 			contentContainer.Visible = false
@@ -3999,7 +4052,6 @@ local function CreateWindow(library, config)
 					if grip then grip.Visible = true end
 					if gripR then gripR.Visible = true end
 					if gripB then gripB.Visible = true end
-					if sizeConstraint and not sizeConstraint.Parent then sizeConstraint.Parent = root end
 				end,
 			})
 		end
@@ -4055,24 +4107,6 @@ local function CreateWindow(library, config)
 	pcall(function()
 		SetupSettingsTab(window)
 	end)
-
-	function window:SetBackgroundImage(image, enabled)
-		Settings.BackgroundImage = tostring(image or "")
-		Settings.UseBackgroundImage = enabled == nil and Settings.UseBackgroundImage or (enabled == true)
-		backgroundImage.Image = Settings.BackgroundImage
-		backgroundImage.ImageTransparency = (Settings.UseBackgroundImage and Settings.BackgroundImage ~= "") and 0.18 or 1
-		main.BackgroundTransparency = (Settings.UseBackgroundImage and Settings.BackgroundImage ~= "") and 0.10 or 0.02
-	end
-
-	cleanup:AddConnection(gui.DescendantAdded:Connect(function(obj)
-		task.defer(function()
-			if not cleanup:IsDestroyed() and obj.Parent then
-				ApplyVeyraVisuals(obj)
-			end
-		end)
-	end))
-
-	ApplyVeyraVisuals(gui)
 
 	return window
 end
@@ -4168,8 +4202,8 @@ local function CreateKeySystem(config)
 	local getKeyFn = config.GetKey or config.OnGetKey
 	local onSuccess = config.OnSuccess or config.Callback
 	local onFail = config.OnFail
-	local width = math.clamp(tonumber(config.Width) or 320, 260, 420)
-	local height = math.clamp(tonumber(config.Height) or 210, 180, 280)
+	local width = math.clamp(tonumber(config.Width) or 360, 300, 420)
+	local height = math.clamp(tonumber(config.Height) or 220, 190, 280)
 
 	local function doValidate(key)
 		if type(validateFn) == "function" then
@@ -4238,8 +4272,8 @@ local function CreateKeySystem(config)
 	main.Size = UDim2.new(1, 0, 1, 0)
 	main.ClipsDescendants = true
 	main.Parent = root
-	GetOrCreateCorner(main)
-	ApplyVeyraVisuals(main)
+	EnsureCorner(main, Settings.CornerRadius or 2)
+	SetThemeGradient(main, "Background")
 
 	local mainStroke = Instance.new("UIStroke")
 	mainStroke.Color = Theme.Border
@@ -4319,6 +4353,8 @@ local function CreateKeySystem(config)
 	boxStroke.Thickness = 1
 	boxStroke.Transparency = 0.5
 	boxStroke.Parent = boxFrame
+	EnsureCorner(boxFrame, Settings.CornerRadius or 2)
+	SetThemeGradient(boxFrame, "Panel")
 
 	local keyBox = Instance.new("TextBox")
 	keyBox.BackgroundTransparency = 1
@@ -4375,6 +4411,8 @@ local function CreateKeySystem(config)
 		stroke.Thickness = 1
 		stroke.Transparency = 0.5
 		stroke.Parent = btn
+		EnsureCorner(btn, Settings.CornerRadius or 2)
+		SetThemeGradient(btn, "Surface")
 
 		btn.MouseEnter:Connect(function()
 			if closed or splitting then return end
@@ -4435,8 +4473,7 @@ local function CreateKeySystem(config)
 		enterBtn.BackgroundColor3 = Theme.Secondary
 		enterBtn.TextColor3 = Theme.Text
 		enterBtn.Font = Theme.Font
-		RefreshVeyraVisuals(gui)
-		ApplyVeyraVisuals(gui)
+		DecorateGuiTree(main)
 	end
 	cleanup:AddCallback(OnThemeChange(refreshTheme))
 
@@ -4504,11 +4541,12 @@ local function CreateKeySystem(config)
 			half.BorderSizePixel = 0
 			half.ClipsDescendants = true
 			half.ZIndex = 20
-			GetOrCreateCorner(half)
 			half.Size = UDim2.fromOffset(halfW + 1, absH)
 			half.AnchorPoint = Vector2.new(0, 0)
 			half.Position = (side == "left") and UDim2.fromOffset(0, 0) or UDim2.fromOffset(halfW, 0)
 			half.Parent = root
+			EnsureCorner(half, Settings.CornerRadius or 2)
+			SetThemeGradient(half, "Background")
 
 			local stroke = Instance.new("UIStroke")
 			stroke.Color = Theme.Border
