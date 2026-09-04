@@ -47,7 +47,7 @@ local function ConfigEncode(tbl)
 end
 
 local function ConfigDecode(str)
-	if type(str) ~= "string" or #str == 0 then return nil end
+	if type(str) \~= "string" or #str == 0 then return nil end
 	local ok, decoded = pcall(function()
 		return HttpService:JSONDecode(str)
 	end)
@@ -66,7 +66,7 @@ local function ConfigLoad()
 	end)
 	if not raw then return false end
 	local data = ConfigDecode(raw)
-	if type(data) ~= "table" then return false end
+	if type(data) \~= "table" then return false end
 	for k, v in pairs(data) do
 		Settings[k] = v
 	end
@@ -94,7 +94,7 @@ Settings.BackgroundImageTransparency = math.clamp(tonumber(Settings.BackgroundIm
 
 local function KeyCodeFromName(name)
 	if typeof(name) == "EnumItem" then return name end
-	if type(name) ~= "string" or name == "" or name == "None" then
+	if type(name) \~= "string" or name == "" or name == "None" then
 		return Enum.KeyCode.Unknown
 	end
 	local ok, kc = pcall(function()
@@ -110,7 +110,7 @@ local function CreateSignal()
 	local api = {}
 
 	function api:Connect(fn)
-		if destroyed or type(fn) ~= "function" then
+		if destroyed or type(fn) \~= "function" then
 			return { Disconnect = function() end, Connected = false }
 		end
 		local conn = { _fn = fn, Connected = true }
@@ -209,7 +209,7 @@ local Theme = {
 	NotificationSuccess = Color3.fromRGB(80, 200, 120),
 	NotificationWarning = Color3.fromRGB(255, 180, 60),
 	NotificationError = Color3.fromRGB(255, 80, 80),
-	OutlineAccent = Color3.fromRGB(90, 90, 100), -- gray default (Dark)
+	OutlineAccent = Color3.fromRGB(90, 90, 100),
 	GradientSurfaceA = Color3.fromRGB(24, 26, 32),
 	GradientSurfaceB = Color3.fromRGB(36, 39, 50),
 	GradientPanelA = Color3.fromRGB(28, 30, 40),
@@ -251,15 +251,15 @@ local ThemePresets = {
 		NotificationSuccess = Color3.fromRGB(80, 200, 120),
 		NotificationWarning = Color3.fromRGB(255, 180, 60),
 		NotificationError = Color3.fromRGB(255, 80, 80),
-		OutlineAccent = Color3.fromRGB(90, 90, 100), -- gray for Dark
+		OutlineAccent = Color3.fromRGB(90, 90, 100),
 		GradientSurfaceA = Color3.fromRGB(24, 26, 32),
 		GradientSurfaceB = Color3.fromRGB(36, 39, 50),
 		GradientPanelA = Color3.fromRGB(28, 30, 40),
 		GradientPanelB = Color3.fromRGB(42, 46, 58),
 		GradientAccentA = Color3.fromRGB(248, 250, 255),
 		GradientAccentB = Color3.fromRGB(126, 149, 186),
-		GradientBackgroundA = Color3.fromRGB(20, 20, 20),
-		GradientBackgroundB = Color3.fromRGB(30, 30, 30),
+		GradientBackgroundA = Color3.fromRGB(10, 12, 22),
+		GradientBackgroundB = Color3.fromRGB(50, 30, 66),
 		GradientRotation = 135,
 	},
 	Light = {
@@ -284,7 +284,7 @@ local ThemePresets = {
 		NotificationSuccess = Color3.fromRGB(30, 160, 90),
 		NotificationWarning = Color3.fromRGB(210, 140, 30),
 		NotificationError = Color3.fromRGB(210, 50, 50),
-		OutlineAccent = Color3.fromRGB(160, 160, 170), -- gray for Light
+		OutlineAccent = Color3.fromRGB(160, 160, 170),
 		GradientSurfaceA = Color3.fromRGB(248, 249, 252),
 		GradientSurfaceB = Color3.fromRGB(229, 232, 239),
 		GradientPanelA = Color3.fromRGB(255, 255, 255),
@@ -317,7 +317,7 @@ local ThemePresets = {
 		NotificationSuccess = Color3.fromRGB(80, 220, 160),
 		NotificationWarning = Color3.fromRGB(255, 180, 80),
 		NotificationError = Color3.fromRGB(255, 80, 120),
-		OutlineAccent = Color3.fromRGB(255, 90, 180), -- pink for Neon
+		OutlineAccent = Color3.fromRGB(255, 90, 180),
 		GradientSurfaceA = Color3.fromRGB(20, 14, 36),
 		GradientSurfaceB = Color3.fromRGB(42, 28, 68),
 		GradientPanelA = Color3.fromRGB(26, 18, 46),
@@ -329,14 +329,14 @@ local ThemePresets = {
 		GradientRotation = 135,
 	},
 	Aurora = {
-		Background = Color3.fromRGB(0, 128, 128),        -- teal
-		Secondary = Color3.fromRGB(0, 160, 160),        -- lighter teal
-		Tertiary = Color3.fromRGB(0, 100, 100),         -- darker teal
-		Hover = Color3.fromRGB(0, 200, 200),            -- cyan
+		Background = Color3.fromRGB(0, 128, 128),
+		Secondary = Color3.fromRGB(0, 160, 160),
+		Tertiary = Color3.fromRGB(0, 100, 100),
+		Hover = Color3.fromRGB(0, 200, 200),
 		Text = Color3.fromRGB(255, 255, 255),
 		SecondaryText = Color3.fromRGB(200, 255, 255),
 		MutedText = Color3.fromRGB(150, 220, 220),
-		Accent = Color3.fromRGB(0, 255, 255),           -- cyan
+		Accent = Color3.fromRGB(0, 255, 255),
 		Border = Color3.fromRGB(0, 80, 80),
 		ToggleOn = Color3.fromRGB(0, 255, 255),
 		ToggleOff = Color3.fromRGB(0, 90, 90),
@@ -350,17 +350,51 @@ local ThemePresets = {
 		NotificationSuccess = Color3.fromRGB(0, 255, 200),
 		NotificationWarning = Color3.fromRGB(255, 200, 0),
 		NotificationError = Color3.fromRGB(255, 80, 80),
-		OutlineAccent = Color3.fromRGB(0, 255, 255),    -- cyan
-		-- All gradients use the same colors for a flat look:
+		OutlineAccent = Color3.fromRGB(0, 255, 255),
 		GradientSurfaceA = Color3.fromRGB(0, 128, 128),
 		GradientSurfaceB = Color3.fromRGB(0, 128, 128),
 		GradientPanelA = Color3.fromRGB(0, 100, 100),
 		GradientPanelB = Color3.fromRGB(0, 100, 100),
 		GradientAccentA = Color3.fromRGB(0, 255, 255),
 		GradientAccentB = Color3.fromRGB(0, 255, 255),
-		GradientBackgroundA = Color3.fromRGB(0, 90, 90),
-		GradientBackgroundB = Color3.fromRGB(0, 95, 95),
+		GradientBackgroundA = Color3.fromRGB(0, 128, 128),
+		GradientBackgroundB = Color3.fromRGB(0, 128, 128),
 		GradientRotation = 0,
+	},
+
+	-- NEW GLASS / WET WINDOW THEME
+	Glass = {
+		Background = Color3.fromRGB(18, 22, 32),
+		Secondary = Color3.fromRGB(28, 34, 48),
+		Tertiary = Color3.fromRGB(40, 48, 68),
+		Hover = Color3.fromRGB(55, 65, 90),
+		Text = Color3.fromRGB(250, 252, 255),
+		SecondaryText = Color3.fromRGB(190, 200, 220),
+		MutedText = Color3.fromRGB(140, 150, 175),
+		Accent = Color3.fromRGB(255, 255, 255),
+		Border = Color3.fromRGB(255, 255, 255),
+		ToggleOn = Color3.fromRGB(255, 255, 255),
+		ToggleOff = Color3.fromRGB(55, 65, 85),
+		SliderTrack = Color3.fromRGB(45, 55, 75),
+		SliderFill = Color3.fromRGB(255, 255, 255),
+		NotificationBackground = Color3.fromRGB(15, 18, 28),
+		NotificationBorder = Color3.fromRGB(255, 255, 255),
+		NotificationTitle = Color3.fromRGB(255, 255, 255),
+		NotificationDescription = Color3.fromRGB(190, 200, 220),
+		NotificationInfo = Color3.fromRGB(140, 190, 255),
+		NotificationSuccess = Color3.fromRGB(100, 230, 160),
+		NotificationWarning = Color3.fromRGB(255, 200, 90),
+		NotificationError = Color3.fromRGB(255, 100, 120),
+		OutlineAccent = Color3.fromRGB(255, 255, 255), -- pure white outlines
+		GradientSurfaceA = Color3.fromRGB(40, 48, 70),
+		GradientSurfaceB = Color3.fromRGB(25, 32, 50),
+		GradientPanelA = Color3.fromRGB(35, 42, 62),
+		GradientPanelB = Color3.fromRGB(22, 28, 45),
+		GradientAccentA = Color3.fromRGB(255, 255, 255),
+		GradientAccentB = Color3.fromRGB(180, 200, 240),
+		GradientBackgroundA = Color3.fromRGB(12, 16, 28),
+		GradientBackgroundB = Color3.fromRGB(28, 36, 55),
+		GradientRotation = 135,
 	},
 }
 
@@ -374,7 +408,7 @@ local function EnsureCorner(obj, radius)
 		corner = Instance.new("UICorner")
 		corner.Name = "VeyraCorner"
 		corner.Parent = obj
-	elseif corner.Name ~= "VeyraCorner" then
+	elseif corner.Name \~= "VeyraCorner" then
 		corner.Name = "VeyraCorner"
 	end
 	if corner.CornerRadius.Scale < 0.99 then
@@ -426,7 +460,7 @@ local function DecorateGuiTree(root)
 		if not obj:IsA("GuiObject") then return end
 		local n = string.lower(obj.Name or "")
 		if obj.BackgroundTransparency < 1 then
-			if n ~= "root" and n ~= "body" and n ~= "contentcontainer" and n ~= "tabbar" and n ~= "outlineaccent" and n ~= "dim" and n ~= "resizegrip" and n ~= "backgroundimage" then
+			if n \~= "root" and n \~= "body" and n \~= "contentcontainer" and n \~= "tabbar" and n \~= "outlineaccent" and n \~= "dim" and n \~= "resizegrip" and n \~= "backgroundimage" then
 				EnsureCorner(obj, Settings.CornerRadius or Theme.CornerRadius or 2)
 			end
 		end
@@ -444,7 +478,7 @@ local function GetTheme()
 end
 
 local function SetTheme(t)
-	if type(t) ~= "table" then return end
+	if type(t) \~= "table" then return end
 	for k, v in pairs(t) do
 		Theme[k] = v
 	end
@@ -692,7 +726,6 @@ local function SchedulerUpdate(dt)
 				anim._finished = true
 				table.insert(remove, id)
 				if ok and anim.OnComplete and not anim.Cancelled then
-
 					task.spawn(anim.OnComplete)
 				end
 			end
@@ -789,7 +822,7 @@ function Animation.new(object, goals, options)
 
 	for prop, goal in pairs(goals) do
 		local ok, current = pcall(function() return object[prop] end)
-		if ok and current ~= nil then
+		if ok and current \~= nil then
 			self.StartValues[prop] = current
 			self.LerpFns[prop] = GetLerp(current)
 		end
@@ -814,7 +847,7 @@ function Animation:Update(dt)
 	for prop, goal in pairs(self.Goals) do
 		local lerp = self.LerpFns[prop]
 		local start = self.StartValues[prop]
-		if lerp and start ~= nil then
+		if lerp and start \~= nil then
 			local value = (self.Direction > 0) and lerp(start, goal, eased) or lerp(goal, start, eased)
 			pcall(function()
 				if self.Object and self.Object.Parent then
@@ -852,7 +885,6 @@ function Animation:Cancel()
 	if self.Cancelled or self._finished then return end
 	self.Cancelled = true
 	self._finished = true
-
 	self.OnComplete = nil
 	SchedulerRemove(self)
 end
@@ -1271,7 +1303,6 @@ function NotificationManager.new()
 	container.AnchorPoint = Vector2.new(1, 1)
 	container.Parent = gui
 
-
 	self.Gui = gui
 	self.Container = container
 	self.Draggable = true
@@ -1300,7 +1331,6 @@ function NotificationManager:Notify(config)
 
 	local cleanup = CreateCleanup()
 	local closed = false
-
 
 	local bg = Theme.NotificationBackground or Theme.Background
 	local bd = Theme.NotificationBorder or Theme.Border
@@ -1331,7 +1361,6 @@ function NotificationManager:Notify(config)
 			end)
 		end
 	end
-
 
 	local function shade(c, mul)
 		return Color3.new(
@@ -1364,9 +1393,8 @@ function NotificationManager:Notify(config)
 	header.ZIndex = 2
 	header.Parent = frame
 
-
 	local contentOffset = 14
-	if imageId and tostring(imageId) ~= "" then
+	if imageId and tostring(imageId) \~= "" then
 		local icon = Instance.new("ImageLabel")
 		icon.Name = "Icon"
 		icon.BackgroundTransparency = 1
@@ -1392,7 +1420,6 @@ function NotificationManager:Notify(config)
 	title.Text = config.Title or "Notification"
 	title.ZIndex = 4
 	title.Parent = header
-
 
 	local body = Instance.new("Frame")
 	body.Name = "Body"
@@ -1433,7 +1460,6 @@ function NotificationManager:Notify(config)
 	desc.LayoutOrder = 2
 	desc.Parent = body
 
-
 	local accent = Instance.new("Frame")
 	accent.Name = "Accent"
 	accent.BackgroundColor3 = barColor
@@ -1446,7 +1472,6 @@ function NotificationManager:Notify(config)
 	local accentCorner = Instance.new("UICorner")
 	accentCorner.CornerRadius = UDim.new(0, 2)
 	accentCorner.Parent = accent
-
 
 	local barBg = Instance.new("Frame")
 	barBg.Name = "ProgressBG"
@@ -1476,8 +1501,7 @@ function NotificationManager:Notify(config)
 
 	cleanup:AddInstance(frame)
 
-
-	if audioId and tostring(audioId) ~= "" then
+	if audioId and tostring(audioId) \~= "" then
 		local sound = Instance.new("Sound")
 		sound.SoundId = tostring(audioId)
 		sound.Volume = 0.8
@@ -1491,8 +1515,8 @@ function NotificationManager:Notify(config)
 	if typewriterOpts == true then
 		doTitle, doDesc = true, true
 	elseif type(typewriterOpts) == "table" then
-		doTitle = typewriterOpts.Title ~= false
-		doDesc = typewriterOpts.Description ~= false
+		doTitle = typewriterOpts.Title \~= false
+		doDesc = typewriterOpts.Description \~= false
 		speed = typewriterOpts.Speed or 0.025
 	end
 	if doTitle then twTitle = CreateTypewriter(title, { Speed = speed }) end
@@ -1599,7 +1623,6 @@ function NotificationManager:Notify(config)
 	notif.Manager = self
 	table.insert(self.Notifications, 1, notif)
 
-
 	local maxN = self.MaxNotifications or MAX_NOTIFICATIONS
 	while #self.Notifications > maxN do
 		local oldest = self.Notifications[#self.Notifications]
@@ -1627,8 +1650,6 @@ function NotificationManager:Notify(config)
 end
 
 function NotificationManager:GetPositionForIndex(index)
-
-
 	local y = 0
 	for i = 1, index - 1 do
 		local n = self.Notifications[i]
@@ -1641,7 +1662,6 @@ function NotificationManager:GetPositionForIndex(index)
 
 	local maxY = math.max(0, (self.Container.AbsoluteSize.Y > 0 and self.Container.AbsoluteSize.Y or 600) - 40)
 	if y > maxY then
-
 		y = math.min(y, maxY + 200)
 	end
 
@@ -1661,7 +1681,6 @@ function NotificationManager:RepositionAll(animate)
 		end
 	end
 	apply()
-
 	task.defer(apply)
 end
 
@@ -1750,9 +1769,8 @@ local function CreateSection(tab, config)
 	local descLabel = nil
 	if config.Description then
 		descLabel = container:FindFirstChildWhichIsA("TextLabel")
-
 		for _, ch in ipairs(container:GetChildren()) do
-			if ch:IsA("TextLabel") and ch ~= title then
+			if ch:IsA("TextLabel") and ch \~= title then
 				descLabel = ch
 				break
 			end
@@ -1866,7 +1884,6 @@ local function CreateButton(tab, config)
 
 	cleanup:AddConnection(frame.MouseButton1Click:Connect(function()
 		if not enabled then return end
-
 
 		local code = config.Script or config.Code
 		if type(code) == "string" and #code > 0 then
@@ -2190,7 +2207,7 @@ local function CreateSlider(tab, config)
 		local rel = math.clamp((pos.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
 		local raw = minv + rel * (maxv - minv)
 		local newVal = snap(raw)
-		if newVal ~= value then
+		if newVal \~= value then
 			value = newVal
 			setVisual(newVal, false)
 			if changed then changed:Fire(newVal) end
@@ -2359,7 +2376,6 @@ local function CreateDropdown(tab, config)
 	local optionH = 28
 	local maxListH = 140
 
-
 	local changed = CreateSignal()
 	local dd = { Frame = nil, Cleanup = cleanup, Changed = changed }
 
@@ -2382,7 +2398,6 @@ local function CreateDropdown(tab, config)
 	stroke.Thickness = 1.5
 	stroke.Transparency = 0.3
 	stroke.Parent = frame
-
 
 	local header = Instance.new("Frame")
 	header.Name = "Header"
@@ -2412,7 +2427,6 @@ local function CreateDropdown(tab, config)
 	arrow.TextColor3 = Theme.SecondaryText
 	arrow.Text = "▼"
 	arrow.Parent = header
-
 
 	local list = Instance.new("Frame")
 	list.Name = "List"
@@ -2445,9 +2459,6 @@ local function CreateDropdown(tab, config)
 		local p = frame.Parent
 		while p do
 			if p:IsA("ScrollingFrame") then
-
-
-
 				p.AutomaticCanvasSize = Enum.AutomaticSize.Y
 				p.CanvasSize = UDim2.new(0, 0, 0, 0)
 				break
@@ -2497,14 +2508,13 @@ local function CreateDropdown(tab, config)
 		if #options == 0 then return end
 		if tab and tab.Components then
 			for _, c in ipairs(tab.Components) do
-				if c ~= dd and c.Close then pcall(function() c:Close() end) end
+				if c \~= dd and c.Close then pcall(function() c:Close() end) end
 			end
 		end
 		transitioning = true
 		open = true
 		local height = getListHeight()
 		local totalH = closedHeight + height
-
 
 		frame.AnchorPoint = Vector2.new(0, 0)
 		frame.ClipsDescendants = true
@@ -2554,8 +2564,8 @@ local function CreateDropdown(tab, config)
 		task.defer(function()
 			if destroyed or not open then return end
 			outsideConn = UserInputService.InputBegan:Connect(function(input)
-				if input.UserInputType ~= Enum.UserInputType.MouseButton1
-					and input.UserInputType ~= Enum.UserInputType.Touch then
+				if input.UserInputType \~= Enum.UserInputType.MouseButton1
+					and input.UserInputType \~= Enum.UserInputType.Touch then
 					return
 				end
 				local pos = input.Position
@@ -2861,9 +2871,7 @@ local function CreateKeybind(tab, config)
 		if processed then return end
 
 		if listening then
-
 			if input.UserInputType == Enum.UserInputType.Keyboard or input.UserInputType == Enum.UserInputType.Gamepad1 then
-
 				if input.KeyCode == Enum.KeyCode.Escape then
 					stopListening()
 					return
@@ -2894,7 +2902,7 @@ local function CreateKeybind(tab, config)
 	if mode == "Hold" then
 		cleanup:AddConnection(UserInputService.InputEnded:Connect(function(input)
 			if destroyed then return end
-			if key ~= Enum.KeyCode.Unknown and input.KeyCode == key and config.Callback then
+			if key \~= Enum.KeyCode.Unknown and input.KeyCode == key and config.Callback then
 				task.spawn(config.Callback, false)
 			end
 		end))
@@ -3016,10 +3024,6 @@ local function CreateTab(window, config)
 	layout.Padding = UDim.new(0, 8)
 	layout.Parent = content
 
-
-
-
-
 	local canvasRefreshPending = false
 	local function updateCanvasSize()
 		if content.Parent == nil or canvasRefreshPending then return end
@@ -3037,7 +3041,6 @@ local function CreateTab(window, config)
 	cleanup:AddConnection(content.DescendantRemoving:Connect(updateCanvasSize))
 	task.defer(updateCanvasSize)
 
-
 	local tabBtn = Instance.new("TextButton")
 	tabBtn.Name = "TabBtn_" .. name
 	tabBtn.BackgroundColor3 = Theme.Secondary
@@ -3054,12 +3057,10 @@ local function CreateTab(window, config)
 	tabBtn.ClipsDescendants = true
 	tabBtn.Parent = window.TabBar
 
-
 	local btnPad = Instance.new("UIPadding")
 	btnPad.PaddingLeft = UDim.new(0, 16)
 	btnPad.PaddingRight = UDim.new(0, 4)
 	btnPad.Parent = tabBtn
-
 
 	local indicator = Instance.new("Frame")
 	indicator.Name = "Indicator"
@@ -3161,7 +3162,6 @@ local function SetupSettingsTab(window)
 	local settingsTab = window:CreateTab({ Name = "Settings" })
 	settingsTab:CreateSection({ Name = "Profile" })
 
-
 	do
 		local parent = GetParentForComponent(settingsTab)
 		local card = Instance.new("Frame")
@@ -3258,7 +3258,6 @@ local function SetupSettingsTab(window)
 			end
 		end)
 
-
 		local unhook = OnThemeChange(function()
 			if not card or not card.Parent then return end
 			card.BackgroundColor3 = Theme.Tertiary
@@ -3281,8 +3280,7 @@ local function SetupSettingsTab(window)
 
 	settingsTab:CreateSection({ Name = "Appearance" })
 
-
-	local themeNames = { "Dark", "Light", "Neon", "Aurora" }
+	local themeNames = { "Dark", "Light", "Neon", "Aurora", "Glass" }
 	local currentTheme = Settings.Theme or "Dark"
 	if not table.find(themeNames, currentTheme) then
 		currentTheme = "Dark"
@@ -3353,8 +3351,7 @@ local function SetupSettingsTab(window)
 
 	settingsTab:CreateSection({ Name = "Controls" })
 
-
-	window._UIVisible = Settings.UIVisible ~= false
+	window._UIVisible = Settings.UIVisible \~= false
 	if window.Gui then
 		window.Gui.Enabled = window._UIVisible
 	end
@@ -3381,23 +3378,18 @@ local function SetupSettingsTab(window)
 		Default = defaultKey,
 		Mode = "Toggle",
 		Callback = function()
-
-
 			window:ToggleUIVisible()
 		end,
 	})
-
 
 	do
 		local oldSet = kb.Set
 		function kb:Set(k)
 			if oldSet then oldSet(self, k) end
-			local name = (k and k ~= Enum.KeyCode.Unknown) and k.Name or "X"
+			local name = (k and k \~= Enum.KeyCode.Unknown) and k.Name or "X"
 			Settings.ToggleUIKey = name
 		end
 	end
-
-
 
 	local uiKey = defaultKey
 	local function refreshUiKey()
@@ -3410,11 +3402,9 @@ local function SetupSettingsTab(window)
 
 	local uiToggleConn = UserInputService.InputBegan:Connect(function(input, processed)
 		if processed then return end
-		if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+		if input.UserInputType \~= Enum.UserInputType.Keyboard then return end
 		refreshUiKey()
 		if input.KeyCode == uiKey then
-
-
 			if window.Gui and not window.Gui.Enabled then
 				window:SetUIVisible(true)
 			end
@@ -3422,17 +3412,12 @@ local function SetupSettingsTab(window)
 	end)
 	window.Cleanup:AddConnection(uiToggleConn)
 
-
-
-
-
 	settingsTab:CreateButton({
 		Name = "Save Settings",
 		Callback = function()
-
 			if kb and kb.Get then
 				local k = kb:Get()
-				if k and k ~= Enum.KeyCode.Unknown then
+				if k and k \~= Enum.KeyCode.Unknown then
 					Settings.ToggleUIKey = k.Name
 				end
 			end
@@ -3504,7 +3489,6 @@ local function CreateWindow(library, config)
 	root.ClipsDescendants = true
 	root.Parent = gui
 
-
 	local uiScale = Instance.new("UIScale")
 	uiScale.Name = "VeyraScale"
 	uiScale.Scale = 1
@@ -3529,12 +3513,12 @@ local function CreateWindow(library, config)
 	backgroundImage.ScaleType = Enum.ScaleType.Crop
 	backgroundImage.ImageTransparency = math.clamp(tonumber(Settings.BackgroundImageTransparency) or 0.32, 0, 1)
 	local configuredBackgroundImage = tostring(Settings.BackgroundImage or "")
-	if configuredBackgroundImage ~= "" and tonumber(configuredBackgroundImage) then
+	if configuredBackgroundImage \~= "" and tonumber(configuredBackgroundImage) then
 		configuredBackgroundImage = "rbxassetid://" .. configuredBackgroundImage
 		Settings.BackgroundImage = configuredBackgroundImage
 	end
 	backgroundImage.Image = configuredBackgroundImage
-	backgroundImage.Visible = Settings.UseBackgroundImage == true and configuredBackgroundImage ~= ""
+	backgroundImage.Visible = Settings.UseBackgroundImage == true and configuredBackgroundImage \~= ""
 	backgroundImage.Parent = main
 
 	local mainStroke = Instance.new("UIStroke")
@@ -3542,7 +3526,6 @@ local function CreateWindow(library, config)
 	mainStroke.Thickness = 1.5
 	mainStroke.Transparency = 0.35
 	mainStroke.Parent = main
-
 
 	local outline = Instance.new("Frame")
 	outline.Name = "OutlineAccent"
@@ -3554,7 +3537,6 @@ local function CreateWindow(library, config)
 	outline.ZIndex = 5
 	outline.Parent = main
 
-
 	local titleBar = Instance.new("Frame")
 	titleBar.Name = "TitleBar"
 	titleBar.BackgroundColor3 = Theme.Secondary
@@ -3564,8 +3546,6 @@ local function CreateWindow(library, config)
 	titleBar.ZIndex = 3
 	titleBar.Parent = main
 	SetThemeGradient(titleBar, "Surface")
-
-
 
 	local titleFix = Instance.new("Frame")
 	titleFix.BackgroundColor3 = Theme.Secondary
@@ -3623,7 +3603,6 @@ local function CreateWindow(library, config)
 	minBtn.Active = true
 	minBtn.Parent = titleBar
 
-
 	local body = Instance.new("Frame")
 	body.Name = "Body"
 	body.BackgroundTransparency = 1
@@ -3633,7 +3612,6 @@ local function CreateWindow(library, config)
 	body.ZIndex = 2
 	body.Parent = main
 
-
 	local SIDEBAR_W = SIDEBAR_W_DEFAULT
 	if isTouch then
 		if width < 400 then
@@ -3642,7 +3620,6 @@ local function CreateWindow(library, config)
 			SIDEBAR_W = 96
 		end
 	end
-
 
 	local sidebar = Instance.new("Frame")
 	sidebar.Name = "Sidebar"
@@ -3658,7 +3635,6 @@ local function CreateWindow(library, config)
 	searchBox.BackgroundColor3 = Theme.Tertiary
 	searchBox.BackgroundTransparency = 0.2
 	searchBox.BorderSizePixel = 0
-
 	searchBox.Size = UDim2.new(1, -8, 0, 26)
 	searchBox.Position = UDim2.new(0, 4, 0, 8)
 	searchBox.Font = Theme.Font
@@ -3674,7 +3650,6 @@ local function CreateWindow(library, config)
 	searchPad.PaddingLeft = UDim.new(0, 8)
 	searchPad.PaddingRight = UDim.new(0, 8)
 	searchPad.Parent = searchBox
-
 
 	local tabBar = Instance.new("ScrollingFrame")
 	tabBar.Name = "TabBar"
@@ -3700,7 +3675,6 @@ local function CreateWindow(library, config)
 	tabPad.PaddingTop = UDim.new(0, 2)
 	tabPad.PaddingBottom = UDim.new(0, 6)
 	tabPad.Parent = tabBar
-
 
 	local contentContainer = Instance.new("Frame")
 	contentContainer.Name = "ContentContainer"
@@ -3731,28 +3705,42 @@ local function CreateWindow(library, config)
 		Actions = {},
 	}
 
-
+	-- FIXED SEARCH
 	local function filterTabs()
 		local raw = searchBox.Text or ""
-		local q = string.lower((string.gsub(raw, "^%s+", "")))
-		q = (string.gsub(q, "%s+$", ""))
+		local q = string.lower(raw:match("^%s*(.-)%s*$") or "")
+
+		local firstVisible = nil
+		local activeStillVisible = false
+
 		for _, tab in ipairs(tabs) do
 			local btn = tab.Button
 			if btn and btn.Parent then
 				local name = string.lower(tostring(tab.Name or btn.Text or ""))
-				local show = (q == "") or (string.find(name, q, 1, true) ~= nil)
+				local show = (q == "") or (string.find(name, q, 1, true) \~= nil)
+
 				btn.Visible = show
+
+				if show then
+					if not firstVisible then
+						firstVisible = tab
+					end
+					if tab == activeTab then
+						activeStillVisible = true
+					end
+				end
 			end
 		end
+
+		if not activeStillVisible and firstVisible then
+			window:SelectTab(firstVisible)
+		end
 	end
-	cleanup:AddConnection(searchBox:GetPropertyChangedSignal("Text"):Connect(filterTabs))
-	cleanup:AddConnection(searchBox.FocusLost:Connect(filterTabs))
 
 	cleanup:AddConnection(searchBox:GetPropertyChangedSignal("Text"):Connect(function()
 		task.defer(filterTabs)
 	end))
-	searchBox.ClearTextOnFocus = false
-	searchBox.TextEditable = true
+	cleanup:AddConnection(searchBox.FocusLost:Connect(filterTabs))
 
 	local drag = MakeDraggable(titleBar, root)
 	cleanup:AddCallback(function() drag:Destroy() end)
@@ -3763,7 +3751,6 @@ local function CreateWindow(library, config)
 	cleanup:AddConnection(minBtn.MouseButton1Click:Connect(function()
 		window:ToggleMinimize()
 	end))
-
 
 	local function makeResizeHandle(name, size, pos, mode)
 		local btn = Instance.new("TextButton")
@@ -3776,7 +3763,7 @@ local function CreateWindow(library, config)
 		btn.AutoButtonColor = false
 		btn.Parent = main
 		cleanup:AddConnection(btn.InputBegan:Connect(function(input)
-			if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
+			if input.UserInputType \~= Enum.UserInputType.MouseButton1 and input.UserInputType \~= Enum.UserInputType.Touch then
 				return
 			end
 			if minimized then return end
@@ -3784,7 +3771,7 @@ local function CreateWindow(library, config)
 			local startSize = root.AbsoluteSize
 			local moveC, endC
 			moveC = UserInputService.InputChanged:Connect(function(inp)
-				if inp.UserInputType ~= Enum.UserInputType.MouseMovement and inp.UserInputType ~= Enum.UserInputType.Touch then
+				if inp.UserInputType \~= Enum.UserInputType.MouseMovement and inp.UserInputType \~= Enum.UserInputType.Touch then
 					return
 				end
 				local dx = inp.Position.X - startInput.X
@@ -3811,7 +3798,6 @@ local function CreateWindow(library, config)
 		return btn
 	end
 
-
 	local resizeGrip = makeResizeHandle("ResizeGrip", UDim2.new(0, 22, 0, 22), UDim2.new(1, -22, 1, -22), "corner")
 
 	local gripVisual = Instance.new("Frame")
@@ -3827,7 +3813,6 @@ local function CreateWindow(library, config)
 	grip2.Position = UDim2.new(1, -8, 1, -6)
 	grip2.Parent = main
 
-
 	root.Size = UDim2.fromOffset(0, 0)
 	main.BackgroundTransparency = 1
 	TweenEngine.Play(root, {
@@ -3836,7 +3821,6 @@ local function CreateWindow(library, config)
 	TweenEngine.Play(main, { BackgroundTransparency = 0.02 }, { Duration = 0.32, Easing = "QuadOut" })
 
 	cleanup:AddInstance(gui)
-
 
 	local function refitToViewport()
 		if minimized or cleanup:IsDestroyed() then return end
@@ -3876,9 +3860,27 @@ local function CreateWindow(library, config)
 	local function refreshWindowTheme()
 		if cleanup:IsDestroyed() then return end
 		Theme.CornerRadius = math.max(0, math.floor(tonumber(Settings.CornerRadius or Theme.CornerRadius or 2) or 2))
+
+		-- Glass / wet window special handling
+		local isGlass = (Settings.Theme == "Glass")
+		if isGlass then
+			main.BackgroundTransparency = 0.28
+			sidebar.BackgroundTransparency = 0.45
+			titleBar.BackgroundTransparency = 0.35
+			mainStroke.Transparency = 0.15
+			mainStroke.Thickness = 1.8
+			outline.BackgroundTransparency = 0.1
+		else
+			main.BackgroundTransparency = 0.02
+			sidebar.BackgroundTransparency = 0.35
+			titleBar.BackgroundTransparency = 0.15
+			mainStroke.Transparency = 0.35
+			mainStroke.Thickness = 1.5
+			outline.BackgroundTransparency = 0.05
+		end
+
 		SetThemeGradient(main, "Background")
 		mainStroke.Color = Theme.OutlineAccent or Theme.Border
-		mainStroke.Transparency = 0.35
 		SetThemeGradient(titleBar, "Surface")
 		titleFix.BackgroundColor3 = Theme.Secondary
 		titleLabel.TextColor3 = Theme.Text
@@ -3939,7 +3941,7 @@ local function CreateWindow(library, config)
 		btn.ZIndex = 5
 		btn.Parent = actionBar
 
-		if icon and tostring(icon) ~= "" then
+		if icon and tostring(icon) \~= "" then
 			local img = Instance.new("ImageLabel")
 			img.BackgroundTransparency = 1
 			img.Size = UDim2.new(0, 14, 0, 14)
@@ -3999,19 +4001,19 @@ local function CreateWindow(library, config)
 
 	function window:SetBackgroundImage(image)
 		local value = tostring(image or "")
-		if value ~= "" and not string.find(value, "rbxassetid://", 1, true) and not string.find(value, "rbxthumb://", 1, true) then
+		if value \~= "" and not string.find(value, "rbxassetid://", 1, true) and not string.find(value, "rbxthumb://", 1, true) then
 			if tonumber(value) then
 				value = "rbxassetid://" .. value
 			end
 		end
 		Settings.BackgroundImage = value
 		backgroundImage.Image = Settings.BackgroundImage
-		backgroundImage.Visible = Settings.UseBackgroundImage and Settings.BackgroundImage ~= ""
+		backgroundImage.Visible = Settings.UseBackgroundImage and Settings.BackgroundImage \~= ""
 	end
 
 	function window:SetBackgroundImageEnabled(enabled)
 		Settings.UseBackgroundImage = enabled == true
-		backgroundImage.Visible = Settings.UseBackgroundImage and Settings.BackgroundImage ~= ""
+		backgroundImage.Visible = Settings.UseBackgroundImage and Settings.BackgroundImage \~= ""
 	end
 
 	function window:SetBackgroundImageTransparency(value)
@@ -4025,7 +4027,6 @@ local function CreateWindow(library, config)
 		local gripR = main:FindFirstChild("ResizeRight")
 		local gripB = main:FindFirstChild("ResizeBottom")
 		if minimized then
-
 			local w = root.Size.X.Offset
 			if w < 100 then
 				w = window.Width or 360
@@ -4089,7 +4090,6 @@ local function CreateWindow(library, config)
 	end
 
 	function window:Destroy()
-
 		pcall(function() TweenEngine.CancelOnObject(root) end)
 		pcall(function() TweenEngine.CancelOnObject(main) end)
 		for _, tab in ipairs(tabs) do
@@ -4115,7 +4115,6 @@ local function CreateWindow(library, config)
 			end
 		end)
 	end
-
 
 	pcall(function()
 		SetupSettingsTab(window)
@@ -4147,7 +4146,7 @@ local function PlayIntro(config)
 	center.Size = UDim2.new(0, 220, 0, 120)
 	center.Position = UDim2.new(0.5, -110, 0.5, -60)
 	center.Parent = overlay
-	if logoId and tostring(logoId) ~= "" then
+	if logoId and tostring(logoId) \~= "" then
 		local logo = Instance.new("ImageLabel")
 		logo.BackgroundTransparency = 1
 		logo.Size = UDim2.new(0, 48, 0, 48)
@@ -4226,14 +4225,14 @@ local function CreateKeySystem(config)
 			local ok, result = pcall(validateFn, key)
 			return ok and result == true
 		end
-		if fixedKey ~= nil then
+		if fixedKey \~= nil then
 			return tostring(key) == tostring(fixedKey)
 		end
 		return type(key) == "string" and #key > 0
 	end
 
 	local function tryClipboard(text)
-		if type(text) ~= "string" or #text == 0 then return false end
+		if type(text) \~= "string" or #text == 0 then return false end
 		local ok = false
 		pcall(function()
 			if type(setclipboard) == "function" then
@@ -4314,7 +4313,7 @@ local function CreateKeySystem(config)
 	titleBar.Size = UDim2.new(1, 0, 0, 36)
 	titleBar.ZIndex = 3
 	titleBar.Parent = main
-	SetThemeGradient(titleBar, "Surface") -- Added gradient to title bar
+	SetThemeGradient(titleBar, "Surface")
 	titleBar.BackgroundTransparency = 0
 
 	local titleLabel = Instance.new("TextLabel")
@@ -4467,12 +4466,12 @@ local function CreateKeySystem(config)
 	bottomLabel.LayoutOrder = 3
 	bottomLabel.ZIndex = 10
 	bottomLabel.Parent = body
-	bottomLabel.Visible = (bottomText ~= "")
+	bottomLabel.Visible = (bottomText \~= "")
 
 	local function refreshTheme()
 		if closed or cleanup:IsDestroyed() then return end
 		SetThemeGradient(main, "Background")
-		SetThemeGradient(titleBar, "Surface") -- reapply gradient on theme change
+		SetThemeGradient(titleBar, "Surface")
 		mainStroke.Color = Theme.OutlineAccent or Theme.Border
 		mainStroke.Transparency = 0.35
 		titleLabel.TextColor3 = Theme.Text
@@ -4517,7 +4516,6 @@ local function CreateKeySystem(config)
 		end
 	end
 
-
 	local function playSplitAndOpen()
 		if closed or splitting then return end
 		splitting = true
@@ -4528,7 +4526,6 @@ local function CreateKeySystem(config)
 		getBtn.Active = false
 		enterBtn.Active = false
 		closeBtn.Active = false
-
 
 		if onSuccess then
 			task.spawn(onSuccess)
@@ -4717,7 +4714,7 @@ local function CreateKeySystem(config)
 	function api:SetBottomLabel(text)
 		bottomText = tostring(text or "")
 		bottomLabel.Text = bottomText
-		bottomLabel.Visible = (bottomText ~= "")
+		bottomLabel.Visible = (bottomText \~= "")
 	end
 
 	function api:SetTitle(text)
@@ -4777,7 +4774,7 @@ function Library:CreateNode(config)
 	if config.Content and not config.Description then
 		config.Description = config.Content
 	end
-	if config.Length ~= nil and config.Duration == nil then
+	if config.Length \~= nil and config.Duration == nil then
 		config.Duration = config.Length
 	end
 	return NotifManager:Notify(config)
@@ -4814,7 +4811,6 @@ local InitDone = false
 
 local function KillPrevious()
 	pcall(function()
-
 		local snap = table.clone(Windows)
 		table.clear(Windows)
 		for _, win in ipairs(snap) do
@@ -4875,7 +4871,7 @@ function Library:Init(options)
 		SetTheme(options.Theme)
 	end
 
-	if options.NotifDraggable ~= nil then
+	if options.NotifDraggable \~= nil then
 		NotifManager.Draggable = options.NotifDraggable and true or false
 	end
 
@@ -4887,7 +4883,6 @@ function Library:Init(options)
 			})
 		end)
 	end
-
 
 	if type(options.KeySystem) == "table" then
 		task.spawn(function()
