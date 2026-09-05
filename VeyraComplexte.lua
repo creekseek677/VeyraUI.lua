@@ -1,4 +1,4 @@
-local Players = game:GetService("Players")
+ local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local GuiService = game:GetService("GuiService")
@@ -255,7 +255,7 @@ local Theme = {
 	GradientSurfaceB = Color3.fromRGB(36, 39, 50),
 	GradientPanelA = Color3.fromRGB(28, 30, 40),
 	GradientPanelB = Color3.fromRGB(40, 44, 56),
-	GradientAccentA = Color3.fromRGB(40, 40, 50), -- dark → white (indicator visible)
+	GradientAccentA = Color3.fromRGB(40, 40, 50),
 	GradientAccentB = Color3.fromRGB(255, 255, 255),
 	GradientBackgroundA = Color3.fromRGB(16, 18, 24),
 	GradientBackgroundB = Color3.fromRGB(26, 29, 38),
@@ -297,7 +297,7 @@ local ThemePresets = {
 		GradientSurfaceB = Color3.fromRGB(36, 39, 50),
 		GradientPanelA = Color3.fromRGB(28, 30, 40),
 		GradientPanelB = Color3.fromRGB(42, 46, 58),
-		GradientAccentA = Color3.fromRGB(40, 40, 50), -- dark → white (indicator visible)
+		GradientAccentA = Color3.fromRGB(40, 40, 50),
 		GradientAccentB = Color3.fromRGB(255, 255, 255),
 		GradientBackgroundA = Color3.fromRGB(20, 20, 20),
 		GradientBackgroundB = Color3.fromRGB(30, 30, 30),
@@ -330,7 +330,7 @@ local ThemePresets = {
 		GradientSurfaceB = Color3.fromRGB(229, 232, 239),
 		GradientPanelA = Color3.fromRGB(255, 255, 255),
 		GradientPanelB = Color3.fromRGB(238, 240, 246),
-		GradientAccentA = Color3.fromRGB(255, 255, 255), -- white → dark (indicator visible)
+		GradientAccentA = Color3.fromRGB(255, 255, 255),
 		GradientAccentB = Color3.fromRGB(30, 30, 40),
 		GradientBackgroundA = Color3.fromRGB(241, 242, 247),
 		GradientBackgroundB = Color3.fromRGB(223, 226, 234),
@@ -396,7 +396,7 @@ local ThemePresets = {
 		GradientSurfaceB = Color3.fromRGB(0, 100, 120),
 		GradientPanelA = Color3.fromRGB(0, 140, 160),
 		GradientPanelB = Color3.fromRGB(0, 90, 110),
-		GradientAccentA = Color3.fromRGB(0, 100, 110), -- dark teal → cyan (indicator visible)
+		GradientAccentA = Color3.fromRGB(0, 100, 110),
 		GradientAccentB = Color3.fromRGB(0, 255, 255),
 		GradientBackgroundA = Color3.fromRGB(0, 110, 130),
 		GradientBackgroundB = Color3.fromRGB(0, 70, 90),
@@ -429,7 +429,7 @@ local ThemePresets = {
 		GradientSurfaceB = Color3.fromRGB(30, 42, 68),
 		GradientPanelA = Color3.fromRGB(40, 55, 85),
 		GradientPanelB = Color3.fromRGB(22, 32, 52),
-		GradientAccentA = Color3.fromRGB(40, 60, 95), -- dark blue → white (indicator visible)
+		GradientAccentA = Color3.fromRGB(40, 60, 95),
 		GradientAccentB = Color3.fromRGB(255, 255, 255),
 		GradientBackgroundA = Color3.fromRGB(22, 30, 48),
 		GradientBackgroundB = Color3.fromRGB(10, 16, 30),
@@ -3509,6 +3509,7 @@ local function CreateTab(window, config)
 	tabBtn.TextXAlignment = Enum.TextXAlignment.Left
 	tabBtn.TextTruncate = Enum.TextTruncate.AtEnd
 	tabBtn.AutoButtonColor = false
+	tabBtn.Active = true
 	tabBtn.ClipsDescendants = true
 	tabBtn.ZIndex = 2
 	tabBtn.Parent = window.TabBar
@@ -3529,9 +3530,7 @@ local function CreateTab(window, config)
 	tabBgCorner.CornerRadius = UDim.new(0, Theme.CornerRadius or 2)
 	tabBgCorner.Parent = tabBg
 
-	-- Active-tab indicator: flush against the sidebar's left edge.
-
-	local btnPad = Instance.new("UIPadding")
+		local btnPad = Instance.new("UIPadding")
 	btnPad.PaddingLeft = UDim.new(0, 14)
 	btnPad.PaddingRight = UDim.new(0, 4)
 	btnPad.Parent = tabBtn
@@ -3551,7 +3550,8 @@ local function CreateTab(window, config)
 		Window = window,
 	}
 
-	cleanup:AddConnection(tabBtn.MouseButton1Click:Connect(function()
+	cleanup:AddConnection(tabBtn.Activated:Connect(function()
+		if cleanup:IsDestroyed() then return end
 		window:SelectTab(tab)
 	end))
 
@@ -3560,19 +3560,13 @@ local function CreateTab(window, config)
 			content.Visible = true
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.Text
-			-- Full-sidebar-width active gradient + left indicator.
+			-- Full-sidebar-width active gradient.
 			tabBg.Size = UDim2.new(1, 0, 1, 0)
 			tabBg.Position = UDim2.new(0, 0, 0, 0)
 			tabBg.BackgroundTransparency = 0.2
 			tabBg.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 			local g = SetThemeGradient(tabBg, "Accent")
 			if g then g.Rotation = 0 end -- left → right
-			indicator.Visible = true
-			indicator.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-			indicatorGradient.Color = ColorSequence.new({
-				ColorSequenceKeypoint.new(0, Theme.GradientAccentA or Theme.Accent),
-				ColorSequenceKeypoint.new(1, Theme.GradientAccentB or Theme.Accent),
-			})
 		else
 			content.Visible = false
 
@@ -3581,7 +3575,6 @@ local function CreateTab(window, config)
 			end
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.SecondaryText
-			indicator.Visible = false
 			tabBg.BackgroundTransparency = 1
 			local grad = tabBg:FindFirstChild("VeyraGradient")
 			if grad then grad:Destroy() end
@@ -3601,17 +3594,10 @@ local function CreateTab(window, config)
 			tabBg.BackgroundTransparency = 0.2
 			tabBg.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 			local g = SetThemeGradient(tabBg, "Accent")
-			if g then g.Rotation = 0 end -- left → right, flowing from indicator
-			indicator.Visible = true
-			indicator.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-			indicatorGradient.Color = ColorSequence.new({
-				ColorSequenceKeypoint.new(0, Theme.GradientAccentA or Theme.Accent),
-				ColorSequenceKeypoint.new(1, Theme.GradientAccentB or Theme.Accent),
-			})
+			if g then g.Rotation = 0 end -- left → right
 		else
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.SecondaryText
-			indicator.Visible = false
 			tabBg.BackgroundTransparency = 1
 			local grad = tabBg:FindFirstChild("VeyraGradient")
 			if grad then grad:Destroy() end
@@ -3713,7 +3699,7 @@ local function SetupSettingsTab(window)
 		userLabel.TextSize = 12
 		userLabel.TextColor3 = Theme.SecondaryText
 		userLabel.TextXAlignment = Enum.TextXAlignment.Left
-		userLabel.Text = "Hello, And welcome to Crimsons UI Library, @" .. tostring(LocalPlayer.Name)
+		userLabel.Text = "Hello, @" .. tostring(LocalPlayer.Name)
 		userLabel.Parent = card
 
 		local countryLabel = Instance.new("TextLabel")
