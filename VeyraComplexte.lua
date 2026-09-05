@@ -1,4 +1,4 @@
-local Players = game:GetService("Players")
+ , local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local GuiService = game:GetService("GuiService")
@@ -372,7 +372,7 @@ local ThemePresets = {
 	Cyan = {
 		Background = Color3.fromRGB(0, 128, 128),        -- teal
 		Secondary = Color3.fromRGB(0, 160, 160),        -- lighter teal
-		Tertiary = Color3.fromRGB(0, 100, 100),         -- darker teal
+		Tertiary = Color3.fromRGB(0, 128, 128),         -- darker teal
 		Hover = Color3.fromRGB(0, 200, 200),            -- cyan
 		Text = Color3.fromRGB(255, 255, 255),
 		SecondaryText = Color3.fromRGB(200, 255, 255),
@@ -3500,7 +3500,8 @@ local function CreateTab(window, config)
 	tabBtn.Name = "TabBtn_" .. name
 	tabBtn.BackgroundTransparency = 1 -- keep button itself transparent so text stays clean
 	tabBtn.BorderSizePixel = 0
-	tabBtn.Size = UDim2.new(1, -8, 0, 28)
+	tabBtn.Size = UDim2.new(1, 0, 0, 30)
+	tabBtn.Position = UDim2.new(0, 0, 0, 0)
 	tabBtn.Font = Theme.Font
 	tabBtn.TextSize = 12
 	tabBtn.TextColor3 = Theme.SecondaryText
@@ -3528,8 +3529,10 @@ local function CreateTab(window, config)
 	tabBgCorner.CornerRadius = UDim.new(0, Theme.CornerRadius or 2)
 	tabBgCorner.Parent = tabBg
 
+	-- Active-tab indicator: flush against the sidebar's left edge.
+
 	local btnPad = Instance.new("UIPadding")
-	btnPad.PaddingLeft = UDim.new(0, 16)
+	btnPad.PaddingLeft = UDim.new(0, 14)
 	btnPad.PaddingRight = UDim.new(0, 4)
 	btnPad.Parent = tabBtn
 
@@ -3542,7 +3545,7 @@ local function CreateTab(window, config)
 		Content = content,
 		Button = tabBtn,
 		TabBg = tabBg,
-		Sections = {},
+				Sections = {},
 		Components = {},
 		Cleanup = cleanup,
 		Window = window,
@@ -3557,11 +3560,19 @@ local function CreateTab(window, config)
 			content.Visible = true
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.Text
-			-- Full-tab gradient background
+			-- Full-sidebar-width active gradient + left indicator.
+			tabBg.Size = UDim2.new(1, 0, 1, 0)
+			tabBg.Position = UDim2.new(0, 0, 0, 0)
 			tabBg.BackgroundTransparency = 0.2
 			tabBg.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 			local g = SetThemeGradient(tabBg, "Accent")
 			if g then g.Rotation = 0 end -- left → right
+			indicator.Visible = true
+			indicator.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			indicatorGradient.Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, Theme.GradientAccentA or Theme.Accent),
+				ColorSequenceKeypoint.new(1, Theme.GradientAccentB or Theme.Accent),
+			})
 		else
 			content.Visible = false
 
@@ -3570,6 +3581,7 @@ local function CreateTab(window, config)
 			end
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.SecondaryText
+			indicator.Visible = false
 			tabBg.BackgroundTransparency = 1
 			local grad = tabBg:FindFirstChild("VeyraGradient")
 			if grad then grad:Destroy() end
@@ -3584,13 +3596,22 @@ local function CreateTab(window, config)
 		if content.Visible then
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.Text
+			tabBg.Size = UDim2.new(1, 0, 1, 0)
+			tabBg.Position = UDim2.new(0, 0, 0, 0)
 			tabBg.BackgroundTransparency = 0.2
 			tabBg.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 			local g = SetThemeGradient(tabBg, "Accent")
 			if g then g.Rotation = 0 end -- left → right, flowing from indicator
+			indicator.Visible = true
+			indicator.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			indicatorGradient.Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, Theme.GradientAccentA or Theme.Accent),
+				ColorSequenceKeypoint.new(1, Theme.GradientAccentB or Theme.Accent),
+			})
 		else
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.SecondaryText
+			indicator.Visible = false
 			tabBg.BackgroundTransparency = 1
 			local grad = tabBg:FindFirstChild("VeyraGradient")
 			if grad then grad:Destroy() end
@@ -3692,7 +3713,7 @@ local function SetupSettingsTab(window)
 		userLabel.TextSize = 12
 		userLabel.TextColor3 = Theme.SecondaryText
 		userLabel.TextXAlignment = Enum.TextXAlignment.Left
-		userLabel.Text = "@" .. tostring(LocalPlayer.Name)
+		userLabel.Text = "Whats up Bradar and welcome to Veyra UI, @" .. tostring(LocalPlayer.Name)
 		userLabel.Parent = card
 
 		local countryLabel = Instance.new("TextLabel")
@@ -4145,8 +4166,8 @@ local function CreateWindow(library, config)
 	searchBox.BackgroundTransparency = 0.2
 	searchBox.BorderSizePixel = 0
 
-	searchBox.Size = UDim2.new(1, -6, 0, 26)
-	searchBox.Position = UDim2.new(0, 2, 0, 8)
+	searchBox.Size = UDim2.new(1, -16, 0, 28)
+	searchBox.Position = UDim2.new(0, 8, 0, 7)
 	searchBox.Font = Theme.Font
 	searchBox.TextSize = 11
 	searchBox.TextColor3 = Theme.Text
@@ -4179,11 +4200,13 @@ local function CreateWindow(library, config)
 	tabLayout.FillDirection = Enum.FillDirection.Vertical
 	tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	tabLayout.Padding = UDim.new(0, 3)
-	tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
 	tabLayout.Parent = tabBar
 
 	local tabPad = Instance.new("UIPadding")
 	tabPad.PaddingTop = UDim.new(0, 2)
+	tabPad.PaddingLeft = UDim.new(0, 0)
+	tabPad.PaddingRight = UDim.new(0, 0)
 	tabPad.PaddingBottom = UDim.new(0, 6)
 	tabPad.Parent = tabBar
 
