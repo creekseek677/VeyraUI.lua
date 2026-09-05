@@ -3498,7 +3498,7 @@ local function CreateTab(window, config)
 	indicator.BackgroundColor3 = Theme.Accent
 	indicator.BorderSizePixel = 0
 	indicator.Size = UDim2.new(0, 3, 0.7, 0)
-	indicator.Position = UDim2.new(0, 0, 0.15, 0)
+	indicator.Position = UDim2.new(0, -8, 0.15, 0)
 	indicator.Visible = false
 	indicator.ZIndex = 4
 	indicator.Parent = tabBtn
