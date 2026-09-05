@@ -3073,8 +3073,7 @@ local function CreateTab(window, config)
 
 	local tabBtn = Instance.new("TextButton")
 	tabBtn.Name = "TabBtn_" .. name
-	tabBtn.BackgroundColor3 = Theme.Secondary
-	tabBtn.BackgroundTransparency = 1
+	tabBtn.BackgroundTransparency = 1 -- keep button itself transparent so text stays clean
 	tabBtn.BorderSizePixel = 0
 	tabBtn.Size = UDim2.new(1, -8, 0, 28)
 	tabBtn.Font = Theme.Font
@@ -3085,14 +3084,23 @@ local function CreateTab(window, config)
 	tabBtn.TextTruncate = Enum.TextTruncate.AtEnd
 	tabBtn.AutoButtonColor = false
 	tabBtn.ClipsDescendants = true
+	tabBtn.ZIndex = 2
 	tabBtn.Parent = window.TabBar
 
+	-- Background frame holds the gradient (DevForum fix: gradient on Frame, text stays readable)
+	local tabBg = Instance.new("Frame")
+	tabBg.Name = "TabBg"
+	tabBg.BackgroundColor3 = Theme.Secondary
+	tabBg.BackgroundTransparency = 1
+	tabBg.BorderSizePixel = 0
+	tabBg.Size = UDim2.new(1, 0, 1, 0)
+	tabBg.ZIndex = 1
+	tabBg.Parent = tabBtn
 
 	local btnPad = Instance.new("UIPadding")
 	btnPad.PaddingLeft = UDim.new(0, 16)
 	btnPad.PaddingRight = UDim.new(0, 4)
 	btnPad.Parent = tabBtn
-
 
 	local indicator = Instance.new("Frame")
 	indicator.Name = "Indicator"
@@ -3101,7 +3109,7 @@ local function CreateTab(window, config)
 	indicator.Size = UDim2.new(0, 2, 0.55, 0)
 	indicator.Position = UDim2.new(0, -6, 0.225, 0)
 	indicator.Visible = false
-	indicator.ZIndex = 2
+	indicator.ZIndex = 3
 	indicator.Parent = tabBtn
 
 	cleanup:AddInstance(content)
@@ -3111,6 +3119,7 @@ local function CreateTab(window, config)
 		Name = name,
 		Content = content,
 		Button = tabBtn,
+		TabBg = tabBg,
 		Indicator = indicator,
 		Sections = {},
 		Components = {},
@@ -3125,12 +3134,13 @@ local function CreateTab(window, config)
 	function tab:SetActive(active)
 		if active then
 			content.Visible = true
-			tabBtn.BackgroundTransparency = 0.25
-			tabBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.Text
 			indicator.Visible = true
-			-- Apply theme-matching gradient on the active tab
-			SetThemeGradient(tabBtn, "Accent")
+			-- Gradient lives on the background Frame so text is never tinted
+			tabBg.BackgroundTransparency = 0.2
+			tabBg.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			SetThemeGradient(tabBg, "Accent")
 		else
 			content.Visible = false
 
@@ -3140,10 +3150,10 @@ local function CreateTab(window, config)
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.SecondaryText
 			indicator.Visible = false
-			-- Remove gradient when inactive
-			local grad = tabBtn:FindFirstChild("VeyraGradient")
+			tabBg.BackgroundTransparency = 1
+			local grad = tabBg:FindFirstChild("VeyraGradient")
 			if grad then grad:Destroy() end
-			tabBtn.BackgroundColor3 = Theme.Secondary
+			tabBg.BackgroundColor3 = Theme.Secondary
 		end
 	end
 
@@ -3153,18 +3163,20 @@ local function CreateTab(window, config)
 		tabBtn.Font = Theme.Font
 		indicator.BackgroundColor3 = Theme.Accent
 		if content.Visible then
-			tabBtn.BackgroundTransparency = 0.25
-			tabBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.Text
 			indicator.Visible = true
-			SetThemeGradient(tabBtn, "Accent")
+			tabBg.BackgroundTransparency = 0.2
+			tabBg.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			SetThemeGradient(tabBg, "Accent")
 		else
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.SecondaryText
 			indicator.Visible = false
-			local grad = tabBtn:FindFirstChild("VeyraGradient")
+			tabBg.BackgroundTransparency = 1
+			local grad = tabBg:FindFirstChild("VeyraGradient")
 			if grad then grad:Destroy() end
-			tabBtn.BackgroundColor3 = Theme.Secondary
+			tabBg.BackgroundColor3 = Theme.Secondary
 		end
 		for _, s in ipairs(tab.Sections) do
 			if s.RefreshTheme then s:RefreshTheme() end
