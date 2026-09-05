@@ -214,8 +214,8 @@ local Theme = {
 	GradientSurfaceB = Color3.fromRGB(36, 39, 50),
 	GradientPanelA = Color3.fromRGB(28, 30, 40),
 	GradientPanelB = Color3.fromRGB(40, 44, 56),
-	GradientAccentA = Color3.fromRGB(245, 248, 255),
-	GradientAccentB = Color3.fromRGB(125, 145, 178),
+	GradientAccentA = Color3.fromRGB(255, 255, 255), -- white to dark (matches Dark)
+	GradientAccentB = Color3.fromRGB(40, 40, 50),
 	GradientBackgroundA = Color3.fromRGB(16, 18, 24),
 	GradientBackgroundB = Color3.fromRGB(26, 29, 38),
 	GradientRotation = 90,
@@ -256,8 +256,8 @@ local ThemePresets = {
 		GradientSurfaceB = Color3.fromRGB(36, 39, 50),
 		GradientPanelA = Color3.fromRGB(28, 30, 40),
 		GradientPanelB = Color3.fromRGB(42, 46, 58),
-		GradientAccentA = Color3.fromRGB(248, 250, 255),
-		GradientAccentB = Color3.fromRGB(126, 149, 186),
+		GradientAccentA = Color3.fromRGB(255, 255, 255), -- white to dark
+		GradientAccentB = Color3.fromRGB(40, 40, 50),
 		GradientBackgroundA = Color3.fromRGB(20, 20, 20),
 		GradientBackgroundB = Color3.fromRGB(30, 30, 30),
 		GradientRotation = 135,
@@ -289,8 +289,8 @@ local ThemePresets = {
 		GradientSurfaceB = Color3.fromRGB(229, 232, 239),
 		GradientPanelA = Color3.fromRGB(255, 255, 255),
 		GradientPanelB = Color3.fromRGB(238, 240, 246),
-		GradientAccentA = Color3.fromRGB(35, 35, 45),
-		GradientAccentB = Color3.fromRGB(120, 130, 150),
+		GradientAccentA = Color3.fromRGB(30, 30, 40), -- dark to white
+		GradientAccentB = Color3.fromRGB(255, 255, 255),
 		GradientBackgroundA = Color3.fromRGB(241, 242, 247),
 		GradientBackgroundB = Color3.fromRGB(223, 226, 234),
 		GradientRotation = 90,
@@ -322,13 +322,13 @@ local ThemePresets = {
 		GradientSurfaceB = Color3.fromRGB(42, 28, 68),
 		GradientPanelA = Color3.fromRGB(26, 18, 46),
 		GradientPanelB = Color3.fromRGB(48, 32, 78),
-		GradientAccentA = Color3.fromRGB(255, 110, 236),
-		GradientAccentB = Color3.fromRGB(91, 138, 255),
+		GradientAccentA = Color3.fromRGB(255, 80, 200), -- pink to purple
+		GradientAccentB = Color3.fromRGB(140, 60, 255),
 		GradientBackgroundA = Color3.fromRGB(20, 8, 42),
 		GradientBackgroundB = Color3.fromRGB(96, 22, 92),
 		GradientRotation = 135,
 	},
-	Aurora = {
+	Cyan = {
 		Background = Color3.fromRGB(0, 128, 128),        -- teal
 		Secondary = Color3.fromRGB(0, 160, 160),        -- lighter teal
 		Tertiary = Color3.fromRGB(0, 100, 100),         -- darker teal
@@ -351,16 +351,15 @@ local ThemePresets = {
 		NotificationWarning = Color3.fromRGB(255, 200, 0),
 		NotificationError = Color3.fromRGB(255, 80, 80),
 		OutlineAccent = Color3.fromRGB(0, 255, 255),    -- cyan
-		-- All gradients use the same colors for a flat look:
-		GradientSurfaceA = Color3.fromRGB(0, 128, 128),
-		GradientSurfaceB = Color3.fromRGB(0, 128, 128),
-		GradientPanelA = Color3.fromRGB(0, 100, 100),
-		GradientPanelB = Color3.fromRGB(0, 100, 100),
-		GradientAccentA = Color3.fromRGB(0, 255, 255),
-		GradientAccentB = Color3.fromRGB(0, 255, 255),
-		GradientBackgroundA = Color3.fromRGB(0, 128, 128),
-		GradientBackgroundB = Color3.fromRGB(0, 128, 128),
-		GradientRotation = 0,
+		GradientSurfaceA = Color3.fromRGB(0, 160, 180),
+		GradientSurfaceB = Color3.fromRGB(0, 100, 120),
+		GradientPanelA = Color3.fromRGB(0, 140, 160),
+		GradientPanelB = Color3.fromRGB(0, 90, 110),
+		GradientAccentA = Color3.fromRGB(0, 255, 255), -- cyan to teal
+		GradientAccentB = Color3.fromRGB(0, 160, 140),
+		GradientBackgroundA = Color3.fromRGB(0, 110, 130),
+		GradientBackgroundB = Color3.fromRGB(0, 70, 90),
+		GradientRotation = 90,
 	},
 	Glass = {
 		Background = Color3.fromRGB(18, 24, 38),
@@ -488,6 +487,7 @@ local function SetTheme(t)
 end
 
 local function ApplyThemePreset(name)
+	if name == "Aurora" then name = "Cyan" end -- migrate old name
 	local preset = ThemePresets[name]
 	if not preset then
 		warn("[VeyraUI] Unknown theme preset:", tostring(name))
@@ -3125,10 +3125,12 @@ local function CreateTab(window, config)
 	function tab:SetActive(active)
 		if active then
 			content.Visible = true
-			tabBtn.BackgroundTransparency = 0.35
-			tabBtn.BackgroundColor3 = Theme.Secondary
+			tabBtn.BackgroundTransparency = 0.25
+			tabBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 			tabBtn.TextColor3 = Theme.Text
 			indicator.Visible = true
+			-- Apply theme-matching gradient on the active tab
+			SetThemeGradient(tabBtn, "Accent")
 		else
 			content.Visible = false
 
@@ -3138,23 +3140,31 @@ local function CreateTab(window, config)
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.SecondaryText
 			indicator.Visible = false
+			-- Remove gradient when inactive
+			local grad = tabBtn:FindFirstChild("VeyraGradient")
+			if grad then grad:Destroy() end
+			tabBtn.BackgroundColor3 = Theme.Secondary
 		end
 	end
 
 	function tab:RefreshTheme()
 		if cleanup:IsDestroyed() then return end
 		content.ScrollBarImageColor3 = Theme.Border
-		tabBtn.BackgroundColor3 = Theme.Secondary
 		tabBtn.Font = Theme.Font
 		indicator.BackgroundColor3 = Theme.Accent
 		if content.Visible then
-			tabBtn.BackgroundTransparency = 0.35
+			tabBtn.BackgroundTransparency = 0.25
+			tabBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 			tabBtn.TextColor3 = Theme.Text
 			indicator.Visible = true
+			SetThemeGradient(tabBtn, "Accent")
 		else
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.SecondaryText
 			indicator.Visible = false
+			local grad = tabBtn:FindFirstChild("VeyraGradient")
+			if grad then grad:Destroy() end
+			tabBtn.BackgroundColor3 = Theme.Secondary
 		end
 		for _, s in ipairs(tab.Sections) do
 			if s.RefreshTheme then s:RefreshTheme() end
@@ -3315,8 +3325,9 @@ local function SetupSettingsTab(window)
 	settingsTab:CreateSection({ Name = "Appearance" })
 
 
-	local themeNames = { "Dark", "Light", "Neon", "Aurora", "Glass" }
+	local themeNames = { "Dark", "Light", "Neon", "Cyan", "Glass" }
 	local currentTheme = Settings.Theme or "Dark"
+	if currentTheme == "Aurora" then currentTheme = "Cyan" end -- migrate old name
 	if not table.find(themeNames, currentTheme) then
 		currentTheme = "Dark"
 	end
