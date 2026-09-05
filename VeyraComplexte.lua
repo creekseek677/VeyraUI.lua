@@ -1,3 +1,5 @@
+-- feel free to costume TS broski
+-- this is made in 7 days
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
