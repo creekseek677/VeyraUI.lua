@@ -214,8 +214,8 @@ local Theme = {
 	GradientSurfaceB = Color3.fromRGB(36, 39, 50),
 	GradientPanelA = Color3.fromRGB(28, 30, 40),
 	GradientPanelB = Color3.fromRGB(40, 44, 56),
-	GradientAccentA = Color3.fromRGB(255, 255, 255), -- white to dark (matches Dark)
-	GradientAccentB = Color3.fromRGB(40, 40, 50),
+	GradientAccentA = Color3.fromRGB(40, 40, 50), -- dark → white (indicator visible)
+	GradientAccentB = Color3.fromRGB(255, 255, 255),
 	GradientBackgroundA = Color3.fromRGB(16, 18, 24),
 	GradientBackgroundB = Color3.fromRGB(26, 29, 38),
 	GradientRotation = 90,
@@ -256,8 +256,8 @@ local ThemePresets = {
 		GradientSurfaceB = Color3.fromRGB(36, 39, 50),
 		GradientPanelA = Color3.fromRGB(28, 30, 40),
 		GradientPanelB = Color3.fromRGB(42, 46, 58),
-		GradientAccentA = Color3.fromRGB(255, 255, 255), -- white to dark
-		GradientAccentB = Color3.fromRGB(40, 40, 50),
+		GradientAccentA = Color3.fromRGB(40, 40, 50), -- dark → white (indicator visible)
+		GradientAccentB = Color3.fromRGB(255, 255, 255),
 		GradientBackgroundA = Color3.fromRGB(20, 20, 20),
 		GradientBackgroundB = Color3.fromRGB(30, 30, 30),
 		GradientRotation = 135,
@@ -289,8 +289,8 @@ local ThemePresets = {
 		GradientSurfaceB = Color3.fromRGB(229, 232, 239),
 		GradientPanelA = Color3.fromRGB(255, 255, 255),
 		GradientPanelB = Color3.fromRGB(238, 240, 246),
-		GradientAccentA = Color3.fromRGB(30, 30, 40), -- dark to white
-		GradientAccentB = Color3.fromRGB(255, 255, 255),
+		GradientAccentA = Color3.fromRGB(255, 255, 255), -- white → dark (indicator visible)
+		GradientAccentB = Color3.fromRGB(30, 30, 40),
 		GradientBackgroundA = Color3.fromRGB(241, 242, 247),
 		GradientBackgroundB = Color3.fromRGB(223, 226, 234),
 		GradientRotation = 90,
@@ -355,8 +355,8 @@ local ThemePresets = {
 		GradientSurfaceB = Color3.fromRGB(0, 100, 120),
 		GradientPanelA = Color3.fromRGB(0, 140, 160),
 		GradientPanelB = Color3.fromRGB(0, 90, 110),
-		GradientAccentA = Color3.fromRGB(0, 255, 255), -- cyan to teal
-		GradientAccentB = Color3.fromRGB(0, 160, 140),
+		GradientAccentA = Color3.fromRGB(0, 100, 110), -- dark teal → cyan (indicator visible)
+		GradientAccentB = Color3.fromRGB(0, 255, 255),
 		GradientBackgroundA = Color3.fromRGB(0, 110, 130),
 		GradientBackgroundB = Color3.fromRGB(0, 70, 90),
 		GradientRotation = 90,
@@ -388,8 +388,8 @@ local ThemePresets = {
 		GradientSurfaceB = Color3.fromRGB(30, 42, 68),
 		GradientPanelA = Color3.fromRGB(40, 55, 85),
 		GradientPanelB = Color3.fromRGB(22, 32, 52),
-		GradientAccentA = Color3.fromRGB(255, 255, 255),
-		GradientAccentB = Color3.fromRGB(170, 200, 255),
+		GradientAccentA = Color3.fromRGB(40, 60, 95), -- dark blue → white (indicator visible)
+		GradientAccentB = Color3.fromRGB(255, 255, 255),
 		GradientBackgroundA = Color3.fromRGB(22, 30, 48),
 		GradientBackgroundB = Color3.fromRGB(10, 16, 30),
 		GradientRotation = 125,
@@ -3467,18 +3467,18 @@ local function CreateTab(window, config)
 	tabBtn.TextXAlignment = Enum.TextXAlignment.Left
 	tabBtn.TextTruncate = Enum.TextTruncate.AtEnd
 	tabBtn.AutoButtonColor = false
-	tabBtn.ClipsDescendants = false -- allow TabBg + indicator to reach left edge
+	tabBtn.ClipsDescendants = true
 	tabBtn.ZIndex = 2
 	tabBtn.Parent = window.TabBar
 
-	-- Background frame holds the gradient — full tab height, extends left to meet the indicator
+	-- Full-size gradient background (stays inside tab bounds so nothing gets clipped)
 	local tabBg = Instance.new("Frame")
 	tabBg.Name = "TabBg"
 	tabBg.BackgroundColor3 = Theme.Secondary
 	tabBg.BackgroundTransparency = 1
 	tabBg.BorderSizePixel = 0
-	tabBg.Size = UDim2.new(1, 8, 1, 0)       -- full width + 8px extra left
-	tabBg.Position = UDim2.new(0, -8, 0, 0)  -- shift left so it reaches the indicator
+	tabBg.Size = UDim2.new(1, 0, 1, 0)
+	tabBg.Position = UDim2.new(0, 0, 0, 0)
 	tabBg.ZIndex = 1
 	tabBg.Parent = tabBtn
 
@@ -3492,15 +3492,20 @@ local function CreateTab(window, config)
 	btnPad.PaddingRight = UDim.new(0, 4)
 	btnPad.Parent = tabBtn
 
+	-- Indicator bar on the LEFT edge of the tab (inside bounds so it always shows)
 	local indicator = Instance.new("Frame")
 	indicator.Name = "Indicator"
 	indicator.BackgroundColor3 = Theme.Accent
 	indicator.BorderSizePixel = 0
 	indicator.Size = UDim2.new(0, 3, 0.7, 0)
-	indicator.Position = UDim2.new(0, -8, 0.15, 0) -- flush with left edge of TabBg
+	indicator.Position = UDim2.new(0, 0, 0.15, 0)
 	indicator.Visible = false
-	indicator.ZIndex = 3
+	indicator.ZIndex = 4
 	indicator.Parent = tabBtn
+
+	local indicatorCorner = Instance.new("UICorner")
+	indicatorCorner.CornerRadius = UDim.new(1, 0)
+	indicatorCorner.Parent = indicator
 
 	cleanup:AddInstance(content)
 	cleanup:AddInstance(tabBtn)
@@ -3526,12 +3531,13 @@ local function CreateTab(window, config)
 			content.Visible = true
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.Text
+			indicator.BackgroundColor3 = Theme.Accent
 			indicator.Visible = true
-			-- Gradient on TabBg, shifted left so it sits katapat with the indicator
+			-- Full-tab gradient background
 			tabBg.BackgroundTransparency = 0.2
 			tabBg.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 			local g = SetThemeGradient(tabBg, "Accent")
-			if g then g.Rotation = 0 end -- left → right, flowing from indicator
+			if g then g.Rotation = 0 end -- left → right
 		else
 			content.Visible = false
 
@@ -3968,6 +3974,17 @@ local function CreateWindow(library, config)
 	main.ClipsDescendants = true
 	main.Parent = root
 
+	-- Invisible holder frame so the background image always has a stable parent layer
+	local bgHolder = Instance.new("Frame")
+	bgHolder.Name = "BackgroundHolder"
+	bgHolder.BackgroundTransparency = 1
+	bgHolder.BorderSizePixel = 0
+	bgHolder.Size = UDim2.new(1, 0, 1, 0)
+	bgHolder.Position = UDim2.new(0, 0, 0, 0)
+	bgHolder.ZIndex = 0
+	bgHolder.ClipsDescendants = true
+	bgHolder.Parent = main
+
 	local backgroundImage = Instance.new("ImageLabel")
 	backgroundImage.Name = "BackgroundImage"
 	backgroundImage.BackgroundTransparency = 1
@@ -3983,8 +4000,9 @@ local function CreateWindow(library, config)
 		Settings.BackgroundImage = configuredBackgroundImage
 	end
 	backgroundImage.Image = configuredBackgroundImage
+	-- Always parented; visibility driven by toggle + valid image
 	backgroundImage.Visible = Settings.UseBackgroundImage == true and configuredBackgroundImage ~= ""
-	backgroundImage.Parent = main
+	backgroundImage.Parent = bgHolder
 
 	local mainStroke = Instance.new("UIStroke")
 	mainStroke.Color = Theme.OutlineAccent or Theme.Border
@@ -4287,10 +4305,25 @@ local function CreateWindow(library, config)
 
 	root.Size = UDim2.fromOffset(0, 0)
 	main.BackgroundTransparency = 1
+	local openTransparency = 0.02
+	if Settings.Theme == "Glass" then
+		openTransparency = 0.28
+	elseif Settings.UseBackgroundImage == true and tostring(Settings.BackgroundImage or "") ~= "" then
+		openTransparency = 0.35
+	end
 	TweenEngine.Play(root, {
 		Size = UDim2.fromOffset(width, height),
 	}, { Duration = 0.4, Easing = "BackOut" })
-	TweenEngine.Play(main, { BackgroundTransparency = 0.02 }, { Duration = 0.32, Easing = "QuadOut" })
+	TweenEngine.Play(main, { BackgroundTransparency = openTransparency }, {
+		Duration = 0.32,
+		Easing = "QuadOut",
+		OnComplete = function()
+			-- Re-apply full theme (Glass transparency, image layer, etc.) after open anim
+			if not cleanup:IsDestroyed() and window and window.RefreshTheme then
+				window:RefreshTheme()
+			end
+		end,
+	})
 
 	cleanup:AddInstance(gui)
 
@@ -4351,9 +4384,10 @@ local function CreateWindow(library, config)
 		searchBox.Font = Theme.Font
 		outline.BackgroundColor3 = Theme.OutlineAccent or Color3.fromRGB(255, 255, 255)
 
-		-- Glass theme: wet / frosted window look (higher transparency + strong white outlines)
+		-- Glass + image background transparency
+		local useImg = Settings.UseBackgroundImage == true and tostring(Settings.BackgroundImage or "") ~= ""
 		if Settings.Theme == "Glass" then
-			main.BackgroundTransparency = 0.28
+			main.BackgroundTransparency = useImg and 0.45 or 0.28
 			mainStroke.Transparency = 0.15
 			mainStroke.Thickness = 1.8
 			titleBar.BackgroundTransparency = 0.35
@@ -4362,13 +4396,20 @@ local function CreateWindow(library, config)
 			outline.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 			searchBox.BackgroundTransparency = 0.35
 		else
-			main.BackgroundTransparency = 0
+			-- Let background image show through when enabled
+			main.BackgroundTransparency = useImg and 0.35 or 0
 			mainStroke.Transparency = 0.35
 			mainStroke.Thickness = 1.5
 			titleBar.BackgroundTransparency = 0.15
-			sidebar.BackgroundTransparency = 0.35
+			sidebar.BackgroundTransparency = useImg and 0.45 or 0.35
 			outline.BackgroundTransparency = 0.05
 			searchBox.BackgroundTransparency = 0.2
+		end
+
+		-- Keep image layer in sync
+		if backgroundImage then
+			backgroundImage.ImageTransparency = math.clamp(tonumber(Settings.BackgroundImageTransparency) or 0.32, 0, 1)
+			backgroundImage.Visible = useImg
 		end
 
 		DecorateGuiTree(main)
@@ -4484,17 +4525,22 @@ local function CreateWindow(library, config)
 		end
 		Settings.BackgroundImage = value
 		backgroundImage.Image = Settings.BackgroundImage
-		backgroundImage.Visible = Settings.UseBackgroundImage and Settings.BackgroundImage ~= ""
+		backgroundImage.Visible = Settings.UseBackgroundImage == true and Settings.BackgroundImage ~= ""
+		refreshWindowTheme()
 	end
 
 	function window:SetBackgroundImageEnabled(enabled)
 		Settings.UseBackgroundImage = enabled == true
 		backgroundImage.Visible = Settings.UseBackgroundImage and Settings.BackgroundImage ~= ""
+		refreshWindowTheme() -- update main/sidebar transparency so image shows through
 	end
 
 	function window:SetBackgroundImageTransparency(value)
 		Settings.BackgroundImageTransparency = math.clamp(tonumber(value) or 0.32, 0, 1)
 		backgroundImage.ImageTransparency = Settings.BackgroundImageTransparency
+		if backgroundImage.Visible then
+			refreshWindowTheme()
+		end
 	end
 
 	function window:ToggleMinimize()
