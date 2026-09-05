@@ -1,5 +1,3 @@
--- feel free to costume TS broski
--- this is made in 7 days
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -3012,6 +3010,390 @@ local function CreateDivider(tab)
 	return div
 end
 
+local function CreateColorPicker(tab, config)
+	config = config or {}
+	local cleanup = CreateCleanup()
+	local parent = GetParentForComponent(tab)
+	local color = config.Default or config.Color or Color3.fromRGB(255, 255, 255)
+	local h, s, v = color:ToHSV()
+	local open = false
+	local draggingSV, draggingHue = false, false
+
+	local frame = Instance.new("Frame")
+	frame.Name = "ColorPicker_" .. (config.Name or "Untitled")
+	frame.BackgroundColor3 = Theme.Secondary
+	frame.BackgroundTransparency = 0.15
+	frame.BorderSizePixel = 0
+	frame.Size = UDim2.new(1, 0, 0, Theme.ElementHeight)
+	frame.ClipsDescendants = true
+	frame.Parent = parent
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, Theme.CornerRadius)
+	corner.Parent = frame
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Theme.Border
+	stroke.Thickness = 1
+	stroke.Transparency = 0.5
+	stroke.Parent = frame
+
+	local title = Instance.new("TextLabel")
+	title.BackgroundTransparency = 1
+	title.Size = UDim2.new(1, -70, 1, 0)
+	title.Position = UDim2.new(0, 12, 0, 0)
+	title.Font = Theme.Font
+	title.TextSize = 13
+	title.TextColor3 = Theme.Text
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.Text = config.Name or "Color"
+	title.ZIndex = 2
+	title.Parent = frame
+
+	local preview = Instance.new("Frame")
+	preview.Name = "Preview"
+	preview.BackgroundColor3 = color
+	preview.BorderSizePixel = 0
+	preview.Size = UDim2.new(0, 36, 0, 20)
+	preview.Position = UDim2.new(1, -48, 0.5, -10)
+	preview.ZIndex = 2
+	preview.Parent = frame
+
+	local previewCorner = Instance.new("UICorner")
+	previewCorner.CornerRadius = UDim.new(0, 4)
+	previewCorner.Parent = preview
+
+	local previewStroke = Instance.new("UIStroke")
+	previewStroke.Color = Theme.Border
+	previewStroke.Thickness = 1
+	previewStroke.Transparency = 0.3
+	previewStroke.Parent = preview
+
+	-- Dropdown panel
+	local panel = Instance.new("Frame")
+	panel.Name = "Panel"
+	panel.BackgroundColor3 = Theme.Secondary
+	panel.BackgroundTransparency = 0.05
+	panel.BorderSizePixel = 0
+	panel.Size = UDim2.new(1, 0, 0, 0)
+	panel.Position = UDim2.new(0, 0, 0, Theme.ElementHeight)
+	panel.ClipsDescendants = true
+	panel.Visible = true
+	panel.ZIndex = 5
+	panel.Parent = frame
+
+	local panelStroke = Instance.new("UIStroke")
+	panelStroke.Color = Theme.OutlineAccent or Theme.Border
+	panelStroke.Thickness = 1.5
+	panelStroke.Transparency = 0.25
+	panelStroke.Parent = panel
+
+	local panelPad = Instance.new("UIPadding")
+	panelPad.PaddingTop = UDim.new(0, 10)
+	panelPad.PaddingBottom = UDim.new(0, 10)
+	panelPad.PaddingLeft = UDim.new(0, 12)
+	panelPad.PaddingRight = UDim.new(0, 12)
+	panelPad.Parent = panel
+
+	-- SV square
+	local svSize = 120
+	local sv = Instance.new("Frame")
+	sv.Name = "SV"
+	sv.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
+	sv.BorderSizePixel = 0
+	sv.Size = UDim2.new(0, svSize, 0, svSize)
+	sv.Position = UDim2.new(0, 0, 0, 0)
+	sv.ZIndex = 6
+	sv.Parent = panel
+
+	local svCorner = Instance.new("UICorner")
+	svCorner.CornerRadius = UDim.new(0, 6)
+	svCorner.Parent = sv
+
+	local whiteGrad = Instance.new("UIGradient")
+	whiteGrad.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
+		ColorSequenceKeypoint.new(1, Color3.new(1, 1, 1)),
+	})
+	whiteGrad.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	whiteGrad.Rotation = 0
+	whiteGrad.Parent = sv
+
+	local blackOverlay = Instance.new("Frame")
+	blackOverlay.BackgroundColor3 = Color3.new(0, 0, 0)
+	blackOverlay.BackgroundTransparency = 0
+	blackOverlay.BorderSizePixel = 0
+	blackOverlay.Size = UDim2.new(1, 0, 1, 0)
+	blackOverlay.ZIndex = 7
+	blackOverlay.Parent = sv
+
+	local blackCorner = Instance.new("UICorner")
+	blackCorner.CornerRadius = UDim.new(0, 6)
+	blackCorner.Parent = blackOverlay
+
+	local blackGrad = Instance.new("UIGradient")
+	blackGrad.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	blackGrad.Rotation = 90
+	blackGrad.Parent = blackOverlay
+
+	local svCursor = Instance.new("Frame")
+	svCursor.Name = "Cursor"
+	svCursor.BackgroundColor3 = Color3.new(1, 1, 1)
+	svCursor.BorderSizePixel = 0
+	svCursor.Size = UDim2.new(0, 12, 0, 12)
+	svCursor.AnchorPoint = Vector2.new(0.5, 0.5)
+	svCursor.Position = UDim2.new(s, 0, 1 - v, 0)
+	svCursor.ZIndex = 8
+	svCursor.Parent = sv
+
+	local svCursorCorner = Instance.new("UICorner")
+	svCursorCorner.CornerRadius = UDim.new(1, 0)
+	svCursorCorner.Parent = svCursor
+
+	local svCursorStroke = Instance.new("UIStroke")
+	svCursorStroke.Color = Color3.new(0, 0, 0)
+	svCursorStroke.Thickness = 1.5
+	svCursorStroke.Parent = svCursor
+
+	-- Hue bar
+	local hueBar = Instance.new("Frame")
+	hueBar.Name = "Hue"
+	hueBar.BackgroundColor3 = Color3.new(1, 1, 1)
+	hueBar.BorderSizePixel = 0
+	hueBar.Size = UDim2.new(0, 18, 0, svSize)
+	hueBar.Position = UDim2.new(0, svSize + 10, 0, 0)
+	hueBar.ZIndex = 6
+	hueBar.Parent = panel
+
+	local hueCorner = Instance.new("UICorner")
+	hueCorner.CornerRadius = UDim.new(0, 4)
+	hueCorner.Parent = hueBar
+
+	local hueGrad = Instance.new("UIGradient")
+	hueGrad.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255, 0, 0)),
+		ColorSequenceKeypoint.new(0.17, Color3.fromRGB(255, 255, 0)),
+		ColorSequenceKeypoint.new(0.33, Color3.fromRGB(0, 255, 0)),
+		ColorSequenceKeypoint.new(0.50, Color3.fromRGB(0, 255, 255)),
+		ColorSequenceKeypoint.new(0.67, Color3.fromRGB(0, 0, 255)),
+		ColorSequenceKeypoint.new(0.83, Color3.fromRGB(255, 0, 255)),
+		ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 0, 0)),
+	})
+	hueGrad.Rotation = 90
+	hueGrad.Parent = hueBar
+
+	local hueCursor = Instance.new("Frame")
+	hueCursor.BackgroundColor3 = Color3.new(1, 1, 1)
+	hueCursor.BorderSizePixel = 0
+	hueCursor.Size = UDim2.new(1, 4, 0, 4)
+	hueCursor.Position = UDim2.new(0, -2, h, -2)
+	hueCursor.ZIndex = 8
+	hueCursor.Parent = hueBar
+
+	local hueCursorCorner = Instance.new("UICorner")
+	hueCursorCorner.CornerRadius = UDim.new(1, 0)
+	hueCursorCorner.Parent = hueCursor
+
+	local hueCursorStroke = Instance.new("UIStroke")
+	hueCursorStroke.Color = Color3.new(0, 0, 0)
+	hueCursorStroke.Thickness = 1
+	hueCursorStroke.Parent = hueCursor
+
+	-- Hex label
+	local hexLabel = Instance.new("TextLabel")
+	hexLabel.BackgroundTransparency = 1
+	hexLabel.Size = UDim2.new(0, 80, 0, 18)
+	hexLabel.Position = UDim2.new(0, svSize + 36, 0, 0)
+	hexLabel.Font = Theme.FontMono
+	hexLabel.TextSize = 12
+	hexLabel.TextColor3 = Theme.SecondaryText
+	hexLabel.TextXAlignment = Enum.TextXAlignment.Left
+	hexLabel.Text = string.format("#%02X%02X%02X", color.R * 255, color.G * 255, color.B * 255)
+	hexLabel.ZIndex = 6
+	hexLabel.Parent = panel
+
+	local bigPreview = Instance.new("Frame")
+	bigPreview.BackgroundColor3 = color
+	bigPreview.BorderSizePixel = 0
+	bigPreview.Size = UDim2.new(0, 48, 0, 48)
+	bigPreview.Position = UDim2.new(0, svSize + 36, 0, 28)
+	bigPreview.ZIndex = 6
+	bigPreview.Parent = panel
+
+	local bigPreviewCorner = Instance.new("UICorner")
+	bigPreviewCorner.CornerRadius = UDim.new(0, 6)
+	bigPreviewCorner.Parent = bigPreview
+
+	local bigPreviewStroke = Instance.new("UIStroke")
+	bigPreviewStroke.Color = Theme.Border
+	bigPreviewStroke.Thickness = 1
+	bigPreviewStroke.Parent = bigPreview
+
+	local changed = CreateSignal()
+	local PANEL_H = svSize + 20
+
+	local function applyColor(fire)
+		color = Color3.fromHSV(h, s, v)
+		preview.BackgroundColor3 = color
+		bigPreview.BackgroundColor3 = color
+		sv.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
+		hexLabel.Text = string.format("#%02X%02X%02X", math.floor(color.R * 255 + 0.5), math.floor(color.G * 255 + 0.5), math.floor(color.B * 255 + 0.5))
+		svCursor.Position = UDim2.new(s, 0, 1 - v, 0)
+		hueCursor.Position = UDim2.new(0, -2, h, -2)
+		if fire then
+			changed:Fire(color)
+			if config.Callback then
+				task.spawn(config.Callback, color)
+			end
+		end
+	end
+
+	local function updateFromSV(inputPos)
+		local absPos = sv.AbsolutePosition
+		local absSize = sv.AbsoluteSize
+		if absSize.X < 1 or absSize.Y < 1 then return end
+		local relX = math.clamp((inputPos.X - absPos.X) / absSize.X, 0, 1)
+		local relY = math.clamp((inputPos.Y - absPos.Y) / absSize.Y, 0, 1)
+		s = relX
+		v = 1 - relY
+		applyColor(true)
+	end
+
+	local function updateFromHue(inputPos)
+		local absPos = hueBar.AbsolutePosition
+		local absSize = hueBar.AbsoluteSize
+		if absSize.Y < 1 then return end
+		local relY = math.clamp((inputPos.Y - absPos.Y) / absSize.Y, 0, 1)
+		h = relY
+		applyColor(true)
+	end
+
+	-- Input handling (PC + mobile)
+	local function isPrimary(input)
+		return input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch
+	end
+
+	cleanup:AddConnection(sv.InputBegan:Connect(function(input)
+		if not open or not isPrimary(input) then return end
+		draggingSV = true
+		updateFromSV(input.Position)
+	end))
+
+	cleanup:AddConnection(hueBar.InputBegan:Connect(function(input)
+		if not open or not isPrimary(input) then return end
+		draggingHue = true
+		updateFromHue(input.Position)
+	end))
+
+	cleanup:AddConnection(UserInputService.InputChanged:Connect(function(input)
+		if not open then return end
+		if input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch then
+			return
+		end
+		if draggingSV then
+			updateFromSV(input.Position)
+		elseif draggingHue then
+			updateFromHue(input.Position)
+		end
+	end))
+
+	cleanup:AddConnection(UserInputService.InputEnded:Connect(function(input)
+		if isPrimary(input) then
+			draggingSV = false
+			draggingHue = false
+		end
+	end))
+
+	local cp = {
+		Frame = frame,
+		Cleanup = cleanup,
+		Changed = changed,
+	}
+
+	local function setOpen(state)
+		open = state
+		if open then
+			-- close other dropdowns/colorpickers in tab
+			if tab and tab.Components then
+				for _, c in ipairs(tab.Components) do
+					if c ~= cp and c.Close then pcall(function() c:Close() end) end
+				end
+			end
+			frame.Size = UDim2.new(1, 0, 0, Theme.ElementHeight + PANEL_H)
+			panel.Size = UDim2.new(1, 0, 0, PANEL_H)
+			frame.ZIndex = 20
+		else
+			frame.Size = UDim2.new(1, 0, 0, Theme.ElementHeight)
+			panel.Size = UDim2.new(1, 0, 0, 0)
+			frame.ZIndex = 1
+			draggingSV = false
+			draggingHue = false
+		end
+	end
+
+	local hit = Instance.new("TextButton")
+	hit.BackgroundTransparency = 1
+	hit.Size = UDim2.new(1, 0, 0, Theme.ElementHeight)
+	hit.Text = ""
+	hit.ZIndex = 3
+	hit.Parent = frame
+
+	cleanup:AddConnection(hit.MouseButton1Click:Connect(function()
+		setOpen(not open)
+	end))
+
+	cleanup:AddInstance(frame)
+	applyColor(false)
+
+	function cp:Set(c, suppress)
+		if typeof(c) ~= "Color3" then return end
+		color = c
+		h, s, v = color:ToHSV()
+		applyColor(not suppress)
+	end
+
+	function cp:Get()
+		return color
+	end
+
+	function cp:Close()
+		setOpen(false)
+	end
+
+	function cp:RefreshTheme()
+		if cleanup:IsDestroyed() then return end
+		frame.BackgroundColor3 = Theme.Secondary
+		stroke.Color = Theme.Border
+		title.Font = Theme.Font
+		title.TextColor3 = Theme.Text
+		previewStroke.Color = Theme.Border
+		panel.BackgroundColor3 = Theme.Secondary
+		panelStroke.Color = Theme.OutlineAccent or Theme.Border
+		hexLabel.Font = Theme.FontMono
+		hexLabel.TextColor3 = Theme.SecondaryText
+		bigPreviewStroke.Color = Theme.Border
+	end
+
+	function cp:Destroy()
+		changed:Destroy()
+		cleanup:Destroy()
+	end
+
+	function cp:IsDestroyed()
+		return cleanup:IsDestroyed()
+	end
+
+	table.insert(tab.Components, cp)
+	return cp
+end
+
 local SIDEBAR_W_DEFAULT = 104
 local TITLE_H = 40
 
@@ -3090,12 +3472,14 @@ local function CreateTab(window, config)
 	tabBtn.Parent = window.TabBar
 
 	-- Background frame holds the gradient (DevForum fix: gradient on Frame, text stays readable)
+	-- Full size of the tab so the gradient is centered / not offset
 	local tabBg = Instance.new("Frame")
 	tabBg.Name = "TabBg"
 	tabBg.BackgroundColor3 = Theme.Secondary
 	tabBg.BackgroundTransparency = 1
 	tabBg.BorderSizePixel = 0
 	tabBg.Size = UDim2.new(1, 0, 1, 0)
+	tabBg.Position = UDim2.new(0, 0, 0, 0)
 	tabBg.ZIndex = 1
 	tabBg.Parent = tabBtn
 
@@ -3139,10 +3523,11 @@ local function CreateTab(window, config)
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.Text
 			indicator.Visible = true
-			-- Gradient lives on the background Frame so text is never tinted
+			-- Gradient on TabBg, shifted left so it sits katapat with the indicator
 			tabBg.BackgroundTransparency = 0.2
 			tabBg.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-			SetThemeGradient(tabBg, "Accent")
+			local g = SetThemeGradient(tabBg, "Accent")
+			if g then g.Rotation = 0 end -- left → right, flowing from indicator
 		else
 			content.Visible = false
 
@@ -3170,7 +3555,8 @@ local function CreateTab(window, config)
 			indicator.Visible = true
 			tabBg.BackgroundTransparency = 0.2
 			tabBg.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-			SetThemeGradient(tabBg, "Accent")
+			local g = SetThemeGradient(tabBg, "Accent")
+			if g then g.Rotation = 0 end -- left → right, flowing from indicator
 		else
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.SecondaryText
@@ -3197,6 +3583,7 @@ local function CreateTab(window, config)
 	function tab:CreateTextbox(c) return CreateTextbox(tab, c) end
 	function tab:CreateKeybind(c) return CreateKeybind(tab, c) end
 	function tab:CreateDivider() return CreateDivider(tab) end
+	function tab:CreateColorPicker(c) return CreateColorPicker(tab, c) end
 
 	function tab:Destroy()
 		for _, c in ipairs(tab.Components) do
@@ -5099,6 +5486,20 @@ local function wrapTab(tab)
 	end
 	function t:Line()
 		return self:CreateDivider()
+	end
+	function t:Color(name, default, callback)
+		if type(default) == "function" then
+			callback = default
+			default = Color3.fromRGB(255, 255, 255)
+		end
+		return self:CreateColorPicker({
+			Name = name,
+			Default = default or Color3.fromRGB(255, 255, 255),
+			Callback = callback,
+		})
+	end
+	function t:ColorPicker(name, default, callback)
+		return t:Color(name, default, callback)
 	end
 	return t
 end
