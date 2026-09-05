@@ -9,6 +9,47 @@ local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local HttpService = game:GetService("HttpService")
 local LocalizationService = game:GetService("LocalizationService")
 
+-- Normalize Roblox image references into a reliable asset URI.
+-- Accepts: 123456, rbxassetid://123456, Roblox asset URLs, and whitespace.
+local function NormalizeBackgroundImage(value)
+	value = tostring(value or "")
+	value = string.gsub(value, "^%s+", "")
+	value = string.gsub(value, "%s+$", "")
+
+	if value == "" then
+		return ""
+	end
+
+	-- Already a valid Roblox content URI. Keep rbxthumb for compatibility.
+	if string.sub(string.lower(value), 1, 13) == "rbxassetid://" then
+		local id = string.match(value, "rbxassetid://(%d+)")
+		return id and ("rbxassetid://" .. id) or ""
+	end
+	if string.sub(string.lower(value), 1, 10) == "rbxthumb://" then
+		return value
+	end
+
+	-- Raw numeric asset ID.
+	local numericId = string.match(value, "^(%d+)$")
+	if numericId then
+		return "rbxassetid://" .. numericId
+	end
+
+	-- Common Roblox asset URL forms.
+	local urlId = string.match(value, "[?&]id=(%d+)")
+	if not urlId then
+		urlId = string.match(value, "/asset/(%d+)")
+	end
+	if not urlId then
+		urlId = string.match(value, "assetId=(%d+)")
+	end
+	if urlId then
+		return "rbxassetid://" .. urlId
+	end
+
+	return value
+end
+
 local CONFIG_FOLDER = "VeyraUI"
 local CONFIG_FILE = "VeyraUI/settings.json"
 
@@ -3488,24 +3529,10 @@ local function CreateTab(window, config)
 	tabBgCorner.Parent = tabBg
 
 	local btnPad = Instance.new("UIPadding")
-	btnPad.PaddingLeft = UDim.new(0, 12)
+	btnPad.PaddingLeft = UDim.new(0, 16)
 	btnPad.PaddingRight = UDim.new(0, 4)
 	btnPad.Parent = tabBtn
 
-	-- Indicator bar: flush against the LEFT edge and kept inside the clipped tab button.
-	local indicator = Instance.new("Frame")
-	indicator.Name = "Indicator"
-	indicator.BackgroundColor3 = Theme.Accent
-	indicator.BorderSizePixel = 0
-	indicator.Size = UDim2.new(0, 3, 0.7, 0)
-	indicator.Position = UDim2.new(0, 2, 0.15, 0)
-	indicator.Visible = false
-	indicator.ZIndex = 4
-	indicator.Parent = tabBtn
-
-	local indicatorCorner = Instance.new("UICorner")
-	indicatorCorner.CornerRadius = UDim.new(1, 0)
-	indicatorCorner.Parent = indicator
 
 	cleanup:AddInstance(content)
 	cleanup:AddInstance(tabBtn)
@@ -3515,7 +3542,6 @@ local function CreateTab(window, config)
 		Content = content,
 		Button = tabBtn,
 		TabBg = tabBg,
-		Indicator = indicator,
 		Sections = {},
 		Components = {},
 		Cleanup = cleanup,
@@ -3531,8 +3557,6 @@ local function CreateTab(window, config)
 			content.Visible = true
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.Text
-			indicator.BackgroundColor3 = Theme.Accent
-			indicator.Visible = true
 			-- Full-tab gradient background
 			tabBg.BackgroundTransparency = 0.2
 			tabBg.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
@@ -3546,7 +3570,6 @@ local function CreateTab(window, config)
 			end
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.SecondaryText
-			indicator.Visible = false
 			tabBg.BackgroundTransparency = 1
 			local grad = tabBg:FindFirstChild("VeyraGradient")
 			if grad then grad:Destroy() end
@@ -3558,11 +3581,9 @@ local function CreateTab(window, config)
 		if cleanup:IsDestroyed() then return end
 		content.ScrollBarImageColor3 = Theme.Border
 		tabBtn.Font = Theme.Font
-		indicator.BackgroundColor3 = Theme.Accent
 		if content.Visible then
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.Text
-			indicator.Visible = true
 			tabBg.BackgroundTransparency = 0.2
 			tabBg.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 			local g = SetThemeGradient(tabBg, "Accent")
@@ -3570,7 +3591,6 @@ local function CreateTab(window, config)
 		else
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.SecondaryText
-			indicator.Visible = false
 			tabBg.BackgroundTransparency = 1
 			local grad = tabBg:FindFirstChild("VeyraGradient")
 			if grad then grad:Destroy() end
@@ -3993,17 +4013,15 @@ local function CreateWindow(library, config)
 	backgroundImage.Position = UDim2.new(0, 0, 0, 0)
 	backgroundImage.ZIndex = 0
 	backgroundImage.ScaleType = Enum.ScaleType.Crop
-	backgroundImage.ImageColor3 = Color3.new(1, 1, 1)
 	backgroundImage.ImageTransparency = math.clamp(tonumber(Settings.BackgroundImageTransparency) or 0.32, 0, 1)
-	local configuredBackgroundImage = tostring(Settings.BackgroundImage or "")
-	if configuredBackgroundImage ~= "" and tonumber(configuredBackgroundImage) then
-		configuredBackgroundImage = "rbxassetid://" .. configuredBackgroundImage
-		Settings.BackgroundImage = configuredBackgroundImage
-	end
+	local configuredBackgroundImage = NormalizeBackgroundImage(Settings.BackgroundImage)
+	Settings.BackgroundImage = configuredBackgroundImage
 	backgroundImage.Image = configuredBackgroundImage
-	-- Always parented; visibility driven by toggle + valid image
-	backgroundImage.Visible = Settings.UseBackgroundImage == true and configuredBackgroundImage ~= ""
+	backgroundImage.Visible = false
+	backgroundImage.ImageColor3 = Color3.fromRGB(255, 255, 255)
 	backgroundImage.Parent = bgHolder
+	backgroundImage.ZIndex = 1
+	backgroundImage.Visible = Settings.UseBackgroundImage == true and configuredBackgroundImage ~= ""
 
 	local mainStroke = Instance.new("UIStroke")
 	mainStroke.Color = Theme.OutlineAccent or Theme.Border
@@ -4127,8 +4145,8 @@ local function CreateWindow(library, config)
 	searchBox.BackgroundTransparency = 0.2
 	searchBox.BorderSizePixel = 0
 
-	searchBox.Size = UDim2.new(1, -8, 0, 26)
-	searchBox.Position = UDim2.new(0, 4, 0, 8)
+	searchBox.Size = UDim2.new(1, -6, 0, 26)
+	searchBox.Position = UDim2.new(0, 2, 0, 8)
 	searchBox.Font = Theme.Font
 	searchBox.TextSize = 11
 	searchBox.TextColor3 = Theme.Text
@@ -4310,7 +4328,7 @@ local function CreateWindow(library, config)
 	if Settings.Theme == "Glass" then
 		openTransparency = 0.28
 	elseif Settings.UseBackgroundImage == true and tostring(Settings.BackgroundImage or "") ~= "" then
-		openTransparency = 1
+		openTransparency = 0.35
 	end
 	TweenEngine.Play(root, {
 		Size = UDim2.fromOffset(width, height),
@@ -4367,7 +4385,7 @@ local function CreateWindow(library, config)
 	local function refreshWindowTheme()
 		if cleanup:IsDestroyed() then return end
 		Theme.CornerRadius = math.max(0, math.floor(tonumber(Settings.CornerRadius or Theme.CornerRadius or 2) or 2))
-		-- Main gradient is controlled below so an image can replace the base background cleanly.
+		SetThemeGradient(main, "Background")
 		mainStroke.Color = Theme.OutlineAccent or Theme.Border
 		mainStroke.Transparency = 0.35
 		SetThemeGradient(titleBar, "Surface")
@@ -4385,18 +4403,21 @@ local function CreateWindow(library, config)
 		searchBox.Font = Theme.Font
 		outline.BackgroundColor3 = Theme.OutlineAccent or Color3.fromRGB(255, 255, 255)
 
-		-- Image background is a BACKGROUND OVERRIDE, not a glass/transparency mode.
-		-- Keep the UI surfaces themed/opaque; only the Main base layer is replaced by the image.
-		local useImg = Settings.UseBackgroundImage == true and tostring(Settings.BackgroundImage or "") ~= ""
-		if useImg then
-			local mainGradient = main:FindFirstChild("VeyraGradient")
-			if mainGradient then mainGradient.Enabled = false end
-		else
-			local mainGradient = SetThemeGradient(main, "Background")
-			if mainGradient then mainGradient.Enabled = true end
+		-- Glass + image background transparency
+		local normalizedImage = NormalizeBackgroundImage(Settings.BackgroundImage)
+		if Settings.BackgroundImage ~= normalizedImage then
+			Settings.BackgroundImage = normalizedImage
 		end
+		if backgroundImage then
+			if backgroundImage.Image ~= normalizedImage then
+				backgroundImage.Image = normalizedImage
+			end
+			backgroundImage.ImageColor3 = Color3.fromRGB(255, 255, 255)
+			backgroundImage.ZIndex = 1
+		end
+		local useImg = Settings.UseBackgroundImage == true and normalizedImage ~= ""
 		if Settings.Theme == "Glass" then
-			main.BackgroundTransparency = useImg and 1 or 0.28
+			main.BackgroundTransparency = useImg and 0.45 or 0.28
 			mainStroke.Transparency = 0.15
 			mainStroke.Thickness = 1.8
 			titleBar.BackgroundTransparency = 0.35
@@ -4405,11 +4426,12 @@ local function CreateWindow(library, config)
 			outline.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 			searchBox.BackgroundTransparency = 0.35
 		else
-			main.BackgroundTransparency = useImg and 1 or 0
+			-- Let background image show through when enabled
+			main.BackgroundTransparency = useImg and 0.35 or 0
 			mainStroke.Transparency = 0.35
 			mainStroke.Thickness = 1.5
 			titleBar.BackgroundTransparency = 0.15
-			sidebar.BackgroundTransparency = 0.35
+			sidebar.BackgroundTransparency = useImg and 0.45 or 0.35
 			outline.BackgroundTransparency = 0.05
 			searchBox.BackgroundTransparency = 0.2
 		end
@@ -4525,23 +4547,23 @@ local function CreateWindow(library, config)
 	end
 
 	function window:SetBackgroundImage(image)
-		local value = tostring(image or "")
-		if value ~= "" and not string.find(value, "rbxassetid://", 1, true) and not string.find(value, "rbxthumb://", 1, true) then
-			if tonumber(value) then
-				value = "rbxassetid://" .. value
-			end
-		end
+		local value = NormalizeBackgroundImage(image)
 		Settings.BackgroundImage = value
-		backgroundImage.Image = Settings.BackgroundImage
-		backgroundImage.ImageColor3 = Color3.new(1, 1, 1)
-		backgroundImage.Visible = Settings.UseBackgroundImage == true and Settings.BackgroundImage ~= ""
+		backgroundImage.Image = value
+		backgroundImage.ImageColor3 = Color3.fromRGB(255, 255, 255)
+		backgroundImage.ZIndex = 1
+		backgroundImage.Visible = Settings.UseBackgroundImage == true and value ~= ""
 		refreshWindowTheme()
 	end
 
 	function window:SetBackgroundImageEnabled(enabled)
 		Settings.UseBackgroundImage = enabled == true
+		Settings.BackgroundImage = NormalizeBackgroundImage(Settings.BackgroundImage)
+		backgroundImage.Image = Settings.BackgroundImage
+		backgroundImage.ImageColor3 = Color3.fromRGB(255, 255, 255)
+		backgroundImage.ZIndex = 1
 		backgroundImage.Visible = Settings.UseBackgroundImage and Settings.BackgroundImage ~= ""
-		refreshWindowTheme() -- update main/sidebar transparency so image shows through
+		refreshWindowTheme()
 	end
 
 	function window:SetBackgroundImageTransparency(value)
