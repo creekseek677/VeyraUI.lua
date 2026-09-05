@@ -3506,7 +3506,7 @@ local function CreateTab(window, config)
 	tabBtn.TextSize = 12
 	tabBtn.TextColor3 = Theme.SecondaryText
 	tabBtn.Text = name
-	tabBtn.TextXAlignment = Enum.TextXAlignment.Left
+	tabBtn.TextXAlignment = Enum.TextXAlignment.Center
 	tabBtn.TextTruncate = Enum.TextTruncate.AtEnd
 	tabBtn.AutoButtonColor = false
 	tabBtn.Active = true
@@ -3532,7 +3532,7 @@ local function CreateTab(window, config)
 
 		local btnPad = Instance.new("UIPadding")
 	btnPad.PaddingLeft = UDim.new(0, 0)
-	btnPad.PaddingRight = UDim.new(0, 4)
+	btnPad.PaddingRight = UDim.new(0, 0)
 	btnPad.Parent = tabBtn
 
 
@@ -4173,8 +4173,8 @@ local function CreateWindow(library, config)
 	tabBar.Name = "TabBar"
 	tabBar.BackgroundTransparency = 1
 	tabBar.BorderSizePixel = 0
-	tabBar.Size = UDim2.new(1, 0, 1, -42)
-	tabBar.Position = UDim2.new(0, 0, 0, 40)
+	tabBar.Size = UDim2.new(1, 8, 1, -42)
+	tabBar.Position = UDim2.new(0, -8, 0, 40)
 	tabBar.CanvasSize = UDim2.new(0, 0, 0, 0)
 	tabBar.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	tabBar.ScrollBarThickness = 0
