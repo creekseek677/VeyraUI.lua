@@ -1,7 +1,7 @@
- local Players = game:GetService("Players")
+local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local GuiService = game:GetService("GuiService")
+local GuiService = game:GetService("GuiService") -- variaballs, haha!!! get itright?
 local SoundService = game:GetService("SoundService")
 
 local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
@@ -61,6 +61,7 @@ local DefaultSettings = {
 	UseBackgroundImage = false,
 	BackgroundImage = "",
 	BackgroundImageTransparency = 0.32,
+	BackgroundImageTint = Color3.fromRGB(255, 255, 255),
 }
 
 local Settings = {}
@@ -132,6 +133,9 @@ end
 pcall(ConfigLoad)
 Settings.CornerRadius = math.clamp(tonumber(Settings.CornerRadius) or 2, 0, 8)
 Settings.BackgroundImageTransparency = math.clamp(tonumber(Settings.BackgroundImageTransparency) or 0.32, 0, 1)
+if typeof(Settings.BackgroundImageTint) ~= "Color3" then
+	Settings.BackgroundImageTint = Color3.fromRGB(255, 255, 255)
+end
 
 local function KeyCodeFromName(name)
 	if typeof(name) == "EnumItem" then return name end
@@ -3834,6 +3838,18 @@ local function SetupSettingsTab(window)
 		end,
 	})
 
+	settingsTab:CreateColorPicker({
+		Name = "Background Tint",
+		Default = Settings.BackgroundImageTint or Color3.fromRGB(255, 255, 255),
+		Callback = function(color)
+			if typeof(color) ~= "Color3" then return end
+			Settings.BackgroundImageTint = color
+			if backgroundImage and backgroundImage.Parent then
+				backgroundImage.ImageColor3 = color
+			end
+		end,
+	})
+
 	settingsTab:CreateSection({ Name = "Controls" })
 
 
@@ -3940,6 +3956,13 @@ local function SetupSettingsTab(window)
 				kb:Set(KeyCodeFromName(Settings.ToggleUIKey))
 			end
 			window:SetUIVisible(true)
+			if window.SetBackgroundImage then
+				window:SetBackgroundImage(Settings.BackgroundImage)
+			end
+			if backgroundImage then
+				backgroundImage.ImageColor3 = Settings.BackgroundImageTint or Color3.fromRGB(255, 255, 255)
+				backgroundImage.ImageTransparency = Settings.BackgroundImageTransparency or 0.32
+			end
 			Library:Notify({
 				Title = "Reset",
 				Description = "Settings restored to defaults",
@@ -4446,10 +4469,26 @@ local function CreateWindow(library, config)
 			searchBox.BackgroundTransparency = 0.2
 		end
 
-		-- Keep image layer in sync
+		-- Keep image layer in sync.
+		-- Main is the image's parent, therefore it MUST be transparent
+		-- while an image is active or the image is completely covered.
 		if backgroundImage then
-			backgroundImage.ImageTransparency = math.clamp(tonumber(Settings.BackgroundImageTransparency) or 0.32, 0, 1)
-			backgroundImage.Visible = useImg
+			local bgValue = NormalizeBackgroundImage(Settings.BackgroundImage)
+			Settings.BackgroundImage = bgValue
+
+			backgroundImage.Image = bgValue
+			backgroundImage.ImageTransparency = math.clamp(
+				tonumber(Settings.BackgroundImageTransparency) or 0.32, 0, 1
+			)
+			backgroundImage.ImageColor3 = Settings.BackgroundImageTint or Color3.fromRGB(255, 255, 255)
+			backgroundImage.ZIndex = 1
+			backgroundImage.Visible = useImg and bgValue ~= ""
+
+			if backgroundImage.Visible then
+				main.BackgroundTransparency = 1
+			else
+				main.BackgroundTransparency = (Settings.Theme == "Glass") and 0.28 or 0
+			end
 		end
 
 		DecorateGuiTree(main)
@@ -4559,10 +4598,18 @@ local function CreateWindow(library, config)
 	function window:SetBackgroundImage(image)
 		local value = NormalizeBackgroundImage(image)
 		Settings.BackgroundImage = value
+
+		if value ~= "" then
+			Settings.UseBackgroundImage = true
+		else
+			Settings.UseBackgroundImage = false
+		end
+
 		backgroundImage.Image = value
-		backgroundImage.ImageColor3 = Color3.fromRGB(255, 255, 255)
+		backgroundImage.ImageTransparency = math.clamp(tonumber(Settings.BackgroundImageTransparency) or 0.32, 0, 1)
+		backgroundImage.ImageColor3 = Settings.BackgroundImageTint or Color3.fromRGB(255, 255, 255)
 		backgroundImage.ZIndex = 1
-		backgroundImage.Visible = Settings.UseBackgroundImage == true and value ~= ""
+		backgroundImage.Visible = Settings.UseBackgroundImage and value ~= ""
 		refreshWindowTheme()
 	end
 
