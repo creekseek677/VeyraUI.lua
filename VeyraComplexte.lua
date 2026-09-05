@@ -437,7 +437,39 @@ local ThemePresets = {
 		GradientAccentB = Color3.fromRGB(255, 255, 255),
 		GradientBackgroundA = Color3.fromRGB(22, 30, 48),
 		GradientBackgroundB = Color3.fromRGB(10, 16, 30),
-		GradientRotation = 125,
+		Crimson = {
+		Background = Color3.fromRGB(8, 8, 10),
+		Secondary = Color3.fromRGB(16, 16, 20),
+		Tertiary = Color3.fromRGB(28, 28, 34),
+		Hover = Color3.fromRGB(45, 20, 25),
+		Text = Color3.fromRGB(245, 245, 250),
+		SecondaryText = Color3.fromRGB(170, 170, 180),
+		MutedText = Color3.fromRGB(110, 110, 120),
+		Accent = Color3.fromRGB(220, 20, 60),
+		Border = Color3.fromRGB(60, 10, 20),
+		ToggleOn = Color3.fromRGB(220, 20, 60),
+		ToggleOff = Color3.fromRGB(40, 40, 48),
+		SliderTrack = Color3.fromRGB(35, 35, 42),
+		SliderFill = Color3.fromRGB(220, 20, 60),
+		NotificationBackground = Color3.fromRGB(10, 10, 12),
+		NotificationBorder = Color3.fromRGB(80, 15, 30),
+		NotificationTitle = Color3.fromRGB(250, 250, 255),
+		NotificationDescription = Color3.fromRGB(180, 180, 190),
+		NotificationInfo = Color3.fromRGB(220, 60, 60),
+		NotificationSuccess = Color3.fromRGB(80, 200, 120),
+		NotificationWarning = Color3.fromRGB(255, 180, 60),
+		NotificationError = Color3.fromRGB(255, 60, 60),
+		OutlineAccent = Color3.fromRGB(220, 20, 60),
+		GradientSurfaceA = Color3.fromRGB(14, 14, 18),
+		GradientSurfaceB = Color3.fromRGB(32, 32, 40),
+		GradientPanelA = Color3.fromRGB(20, 20, 26),
+		GradientPanelB = Color3.fromRGB(38, 38, 48),
+		GradientAccentA = Color3.fromRGB(60, 10, 20),
+		GradientAccentB = Color3.fromRGB(220, 20, 60),
+		GradientBackgroundA = Color3.fromRGB(8, 8, 10),
+		GradientBackgroundB = Color3.fromRGB(18, 18, 24),
+		GradientRotation = 135,
+	},
 	},
 }
 
@@ -3768,7 +3800,7 @@ local function SetupSettingsTab(window)
 	settingsTab:CreateSection({ Name = "Appearance" })
 
 
-	local themeNames = { "Dark", "Light", "Neon", "Cyan", "Glass" }
+	local themeNames = { "Dark", "Light", "Neon", "Cyan", "Glass", "Crimson" }
 	local currentTheme = Settings.Theme or "Dark"
 	if currentTheme == "Aurora" then currentTheme = "Cyan" end -- migrate old name
 	if not table.find(themeNames, currentTheme) then
@@ -3959,9 +3991,9 @@ local function SetupSettingsTab(window)
 			if window.SetBackgroundImage then
 				window:SetBackgroundImage(Settings.BackgroundImage)
 			end
-			if backgroundImage then
-				backgroundImage.ImageColor3 = Settings.BackgroundImageTint or Color3.fromRGB(255, 255, 255)
-				backgroundImage.ImageTransparency = Settings.BackgroundImageTransparency or 0.32
+			if window.BackgroundImage then
+				window.BackgroundImage.ImageColor3 = Settings.BackgroundImageTint or Color3.fromRGB(255, 255, 255)
+				window.BackgroundImage.ImageTransparency = Settings.BackgroundImageTransparency or 0.32
 			end
 			Library:Notify({
 				Title = "Reset",
@@ -4241,6 +4273,7 @@ local function CreateWindow(library, config)
 		ContentContainer = contentContainer,
 		SearchBox = searchBox,
 		BackgroundImage = backgroundImage,
+		BgHolder = bgHolder,
 		UIScale = uiScale,
 		Tabs = tabs,
 		Width = width,
@@ -4445,10 +4478,10 @@ local function CreateWindow(library, config)
 			if backgroundImage.Image ~= normalizedImage then
 				backgroundImage.Image = normalizedImage
 			end
-			backgroundImage.ImageColor3 = Color3.fromRGB(255, 255, 255)
 			backgroundImage.ZIndex = 1
 		end
 		local useImg = Settings.UseBackgroundImage == true and normalizedImage ~= ""
+		pcall(function() TweenEngine.CancelOnObject(main) end)
 		if Settings.Theme == "Glass" then
 			main.BackgroundTransparency = useImg and 0.45 or 0.28
 			mainStroke.Transparency = 0.15
@@ -4482,8 +4515,11 @@ local function CreateWindow(library, config)
 			)
 			backgroundImage.ImageColor3 = Settings.BackgroundImageTint or Color3.fromRGB(255, 255, 255)
 			backgroundImage.ZIndex = 1
+			if bgHolder and bgHolder.Parent then
+				bgHolder.ZIndex = 0
+			end
 			backgroundImage.Visible = useImg and bgValue ~= ""
-
+			pcall(function() TweenEngine.CancelOnObject(main) end)
 			if backgroundImage.Visible then
 				main.BackgroundTransparency = 1
 			else
