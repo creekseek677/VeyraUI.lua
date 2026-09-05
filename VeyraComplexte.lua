@@ -1,11 +1,10 @@
--- hai
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local GuiService = game:GetService("GuiService")
 local SoundService = game:GetService("SoundService")
 
-local LocalPlayer = Players.LocalPlayer
+local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local HttpService = game:GetService("HttpService")
 local LocalizationService = game:GetService("LocalizationService")
@@ -3714,7 +3713,7 @@ local function SetupSettingsTab(window)
 		userLabel.TextSize = 12
 		userLabel.TextColor3 = Theme.SecondaryText
 		userLabel.TextXAlignment = Enum.TextXAlignment.Left
-		userLabel.Text = "Whats up Bradar and welcome to Veyra UI, @" .. tostring(LocalPlayer.Name)
+		userLabel.Text = "Hello, And welcome to Crimsons UI Library, @" .. tostring(LocalPlayer.Name)
 		userLabel.Parent = card
 
 		local countryLabel = Instance.new("TextLabel")
