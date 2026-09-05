@@ -3435,7 +3435,7 @@ local function CreateColorPicker(tab, config)
 	return cp
 end
 
-local SIDEBAR_W_DEFAULT = 104
+local SIDEBAR_W_DEFAULT = 132
 local TITLE_H = 40
 
 local function CreateTab(window, config)
@@ -3531,7 +3531,7 @@ local function CreateTab(window, config)
 	tabBgCorner.Parent = tabBg
 
 		local btnPad = Instance.new("UIPadding")
-	btnPad.PaddingLeft = UDim.new(0, 14)
+	btnPad.PaddingLeft = UDim.new(0, 0)
 	btnPad.PaddingRight = UDim.new(0, 4)
 	btnPad.Parent = tabBtn
 
@@ -4130,9 +4130,9 @@ local function CreateWindow(library, config)
 	local SIDEBAR_W = SIDEBAR_W_DEFAULT
 	if isTouch then
 		if width < 400 then
-			SIDEBAR_W = 88
+			SIDEBAR_W = 108
 		elseif width < 480 then
-			SIDEBAR_W = 96
+			SIDEBAR_W = 120
 		end
 	end
 
