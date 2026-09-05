@@ -3467,21 +3467,25 @@ local function CreateTab(window, config)
 	tabBtn.TextXAlignment = Enum.TextXAlignment.Left
 	tabBtn.TextTruncate = Enum.TextTruncate.AtEnd
 	tabBtn.AutoButtonColor = false
-	tabBtn.ClipsDescendants = true
+	tabBtn.ClipsDescendants = false -- allow TabBg + indicator to reach left edge
 	tabBtn.ZIndex = 2
 	tabBtn.Parent = window.TabBar
 
-	-- Background frame holds the gradient (DevForum fix: gradient on Frame, text stays readable)
-	-- Full size of the tab so the gradient is centered / not offset
+	-- Background frame holds the gradient — full tab height, extends left to meet the indicator
 	local tabBg = Instance.new("Frame")
 	tabBg.Name = "TabBg"
 	tabBg.BackgroundColor3 = Theme.Secondary
 	tabBg.BackgroundTransparency = 1
 	tabBg.BorderSizePixel = 0
-	tabBg.Size = UDim2.new(1, 0, 1, 0)
-	tabBg.Position = UDim2.new(0, 0, 0, 0)
+	tabBg.Size = UDim2.new(1, 8, 1, 0)       -- full width + 8px extra left
+	tabBg.Position = UDim2.new(0, -8, 0, 0)  -- shift left so it reaches the indicator
 	tabBg.ZIndex = 1
 	tabBg.Parent = tabBtn
+
+	local tabBgCorner = Instance.new("UICorner")
+	tabBgCorner.Name = "VeyraCorner"
+	tabBgCorner.CornerRadius = UDim.new(0, Theme.CornerRadius or 2)
+	tabBgCorner.Parent = tabBg
 
 	local btnPad = Instance.new("UIPadding")
 	btnPad.PaddingLeft = UDim.new(0, 16)
@@ -3492,8 +3496,8 @@ local function CreateTab(window, config)
 	indicator.Name = "Indicator"
 	indicator.BackgroundColor3 = Theme.Accent
 	indicator.BorderSizePixel = 0
-	indicator.Size = UDim2.new(0, 2, 0.55, 0)
-	indicator.Position = UDim2.new(0, -6, 0.225, 0)
+	indicator.Size = UDim2.new(0, 3, 0.7, 0)
+	indicator.Position = UDim2.new(0, -8, 0.15, 0) -- flush with left edge of TabBg
 	indicator.Visible = false
 	indicator.ZIndex = 3
 	indicator.Parent = tabBtn
