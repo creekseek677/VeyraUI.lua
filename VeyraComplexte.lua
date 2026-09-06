@@ -62,11 +62,17 @@ local DefaultSettings = {
 	BackgroundImage = "",
 	BackgroundImageTransparency = 0.32,
 	BackgroundImageTint = Color3.fromRGB(255, 255, 255),
+	OutlineColor = Color3.fromRGB(255, 255, 255),
+	CustomImageThemes = {},
 }
 
 local Settings = {}
 for k, v in pairs(DefaultSettings) do
-	Settings[k] = v
+	if type(v) == "table" then
+		Settings[k] = table.clone(v)
+	else
+		Settings[k] = v
+	end
 end
 
 local function ConfigEncode(tbl)
@@ -134,7 +140,36 @@ pcall(ConfigLoad)
 Settings.CornerRadius = math.clamp(tonumber(Settings.CornerRadius) or 2, 0, 8)
 Settings.BackgroundImageTransparency = math.clamp(tonumber(Settings.BackgroundImageTransparency) or 0.32, 0, 1)
 if typeof(Settings.BackgroundImageTint) ~= "Color3" then
-	Settings.BackgroundImageTint = Color3.fromRGB(255, 255, 255)
+	local t = Settings.BackgroundImageTint
+	if type(t) == "table" and t.R then
+		Settings.BackgroundImageTint = Color3.new(tonumber(t.R) or 1, tonumber(t.G) or 1, tonumber(t.B) or 1)
+	else
+		Settings.BackgroundImageTint = Color3.fromRGB(255, 255, 255)
+	end
+end
+if typeof(Settings.OutlineColor) ~= "Color3" then
+	local t = Settings.OutlineColor
+	if type(t) == "table" and t.R then
+		Settings.OutlineColor = Color3.new(tonumber(t.R) or 1, tonumber(t.G) or 1, tonumber(t.B) or 1)
+	else
+		Settings.OutlineColor = Color3.fromRGB(255, 255, 255)
+	end
+end
+if type(Settings.CustomImageThemes) ~= "table" then
+	Settings.CustomImageThemes = {}
+end
+
+local function IsImageThemeActive()
+	return Settings.UseBackgroundImage == true
+		and type(Settings.BackgroundImage) == "string"
+		and Settings.BackgroundImage ~= ""
+end
+
+local function GetOutlineColor()
+	if typeof(Settings.OutlineColor) == "Color3" then
+		return Settings.OutlineColor
+	end
+	return Theme.OutlineAccent or Theme.Border or Color3.fromRGB(255, 255, 255)
 end
 
 local function KeyCodeFromName(name)
@@ -437,7 +472,9 @@ local ThemePresets = {
 		GradientAccentB = Color3.fromRGB(255, 255, 255),
 		GradientBackgroundA = Color3.fromRGB(22, 30, 48),
 		GradientBackgroundB = Color3.fromRGB(10, 16, 30),
-		Crimson = {
+		GradientRotation = 125,
+	},
+	Crimson = {
 		Background = Color3.fromRGB(8, 8, 10),
 		Secondary = Color3.fromRGB(16, 16, 20),
 		Tertiary = Color3.fromRGB(28, 28, 34),
@@ -469,7 +506,6 @@ local ThemePresets = {
 		GradientBackgroundA = Color3.fromRGB(8, 8, 10),
 		GradientBackgroundB = Color3.fromRGB(18, 18, 24),
 		GradientRotation = 135,
-	},
 	},
 }
 
@@ -1957,21 +1993,54 @@ local function CreateButton(tab, config)
 		descPadding.Parent = desc
 	end
 
+	local function applyImageStyle()
+		if IsImageThemeActive() then
+			frame.BackgroundTransparency = 0.82
+			stroke.Color = GetOutlineColor()
+			stroke.Thickness = 1.5
+			stroke.Transparency = 0.15
+		else
+			frame.BackgroundTransparency = enabled and 0.1 or 0.5
+			stroke.Color = Theme.Border
+			stroke.Thickness = 1
+			stroke.Transparency = 0.5
+		end
+	end
+	applyImageStyle()
+
 	cleanup:AddConnection(frame.MouseEnter:Connect(function()
 		if not enabled then return end
-		TweenEngine.Play(frame, { BackgroundColor3 = Theme.Hover }, { Duration = Theme.HoverSpeed, Easing = "QuadOut" })
+		if IsImageThemeActive() then
+			TweenEngine.Play(frame, { BackgroundTransparency = 0.65 }, { Duration = Theme.HoverSpeed, Easing = "QuadOut" })
+			TweenEngine.Play(stroke, { Transparency = 0.05 }, { Duration = Theme.HoverSpeed })
+		else
+			TweenEngine.Play(frame, { BackgroundColor3 = Theme.Hover }, { Duration = Theme.HoverSpeed, Easing = "QuadOut" })
+		end
 	end))
 	cleanup:AddConnection(frame.MouseLeave:Connect(function()
 		if not enabled then return end
-		TweenEngine.Play(frame, { BackgroundColor3 = Theme.Secondary }, { Duration = Theme.HoverSpeed, Easing = "QuadOut" })
+		if IsImageThemeActive() then
+			TweenEngine.Play(frame, { BackgroundTransparency = 0.82 }, { Duration = Theme.HoverSpeed, Easing = "QuadOut" })
+			TweenEngine.Play(stroke, { Transparency = 0.15 }, { Duration = Theme.HoverSpeed })
+		else
+			TweenEngine.Play(frame, { BackgroundColor3 = Theme.Secondary }, { Duration = Theme.HoverSpeed, Easing = "QuadOut" })
+		end
 	end))
 	cleanup:AddConnection(frame.MouseButton1Down:Connect(function()
 		if not enabled then return end
-		TweenEngine.Play(frame, { BackgroundColor3 = Theme.Tertiary }, { Duration = 0.08 })
+		if IsImageThemeActive() then
+			TweenEngine.Play(frame, { BackgroundTransparency = 0.55 }, { Duration = 0.08 })
+		else
+			TweenEngine.Play(frame, { BackgroundColor3 = Theme.Tertiary }, { Duration = 0.08 })
+		end
 	end))
 	cleanup:AddConnection(frame.MouseButton1Up:Connect(function()
 		if not enabled then return end
-		TweenEngine.Play(frame, { BackgroundColor3 = Theme.Hover }, { Duration = 0.1 })
+		if IsImageThemeActive() then
+			TweenEngine.Play(frame, { BackgroundTransparency = 0.65 }, { Duration = 0.1 })
+		else
+			TweenEngine.Play(frame, { BackgroundColor3 = Theme.Hover }, { Duration = 0.1 })
+		end
 	end))
 
 	cleanup:AddConnection(frame.MouseButton1Click:Connect(function()
@@ -2005,20 +2074,23 @@ local function CreateButton(tab, config)
 	function btn:RefreshTheme()
 		if cleanup:IsDestroyed() then return end
 		frame.BackgroundColor3 = Theme.Secondary
-		stroke.Color = Theme.Border
 		title.Font = Theme.Font
 		title.TextColor3 = enabled and Theme.Text or Theme.MutedText
 		if desc then
 			desc.Font = Theme.Font
 			desc.TextColor3 = enabled and Theme.SecondaryText or Theme.MutedText
 		end
+		applyImageStyle()
 	end
 
 	function btn:SetEnabled(state)
 		enabled = state
-		frame.BackgroundTransparency = state and 0.1 or 0.5
+		if not IsImageThemeActive() then
+			frame.BackgroundTransparency = state and 0.1 or 0.5
+		end
 		title.TextColor3 = state and Theme.Text or Theme.MutedText
 		if desc then desc.TextColor3 = state and Theme.SecondaryText or Theme.MutedText end
+		applyImageStyle()
 	end
 
 	function btn:SetCallback(fn)
@@ -2057,6 +2129,21 @@ local function CreateToggle(tab, config)
 	stroke.Thickness = 1
 	stroke.Transparency = 0.5
 	stroke.Parent = frame
+
+	local function applyToggleImageStyle()
+		if IsImageThemeActive() then
+			frame.BackgroundTransparency = 0.82
+			stroke.Color = GetOutlineColor()
+			stroke.Thickness = 1.5
+			stroke.Transparency = 0.15
+		else
+			frame.BackgroundTransparency = enabled and 0.15 or 0.5
+			stroke.Color = Theme.Border
+			stroke.Thickness = 1
+			stroke.Transparency = 0.5
+		end
+	end
+	applyToggleImageStyle()
 
 	local title = Instance.new("TextLabel")
 	title.BackgroundTransparency = 1
@@ -2153,10 +2240,10 @@ local function CreateToggle(tab, config)
 	function toggle:RefreshTheme()
 		if cleanup:IsDestroyed() then return end
 		frame.BackgroundColor3 = Theme.Secondary
-		stroke.Color = Theme.Border
 		title.Font = Theme.Font
 		title.TextColor3 = Theme.Text
 		updateVisual(false)
+		applyToggleImageStyle()
 	end
 
 	function toggle:Set(v, suppress)
@@ -2175,7 +2262,7 @@ local function CreateToggle(tab, config)
 
 	function toggle:SetEnabled(state)
 		enabled = state
-		frame.BackgroundTransparency = state and 0.15 or 0.5
+		applyToggleImageStyle()
 	end
 
 	function toggle:Destroy()
@@ -2219,6 +2306,21 @@ local function CreateSlider(tab, config)
 	stroke.Thickness = 1
 	stroke.Transparency = 0.5
 	stroke.Parent = frame
+
+	local function applySliderImageStyle()
+		if IsImageThemeActive() then
+			frame.BackgroundTransparency = 0.82
+			stroke.Color = GetOutlineColor()
+			stroke.Thickness = 1.5
+			stroke.Transparency = 0.15
+		else
+			frame.BackgroundTransparency = 0.15
+			stroke.Color = Theme.Border
+			stroke.Thickness = 1
+			stroke.Transparency = 0.5
+		end
+	end
+	applySliderImageStyle()
 
 	local title = Instance.new("TextLabel")
 	title.BackgroundTransparency = 1
@@ -2361,13 +2463,13 @@ local function CreateSlider(tab, config)
 	function slider:RefreshTheme()
 		if cleanup:IsDestroyed() then return end
 		frame.BackgroundColor3 = Theme.Secondary
-		stroke.Color = Theme.Border
 		title.Font = Theme.Font
 		title.TextColor3 = Theme.Text
 		valueLabel.Font = Theme.FontMono
 		valueLabel.TextColor3 = Theme.SecondaryText
 		track.BackgroundColor3 = Theme.SliderTrack
 		fill.BackgroundColor3 = Theme.SliderFill
+		applySliderImageStyle()
 	end
 
 	function slider:Set(v, suppress)
@@ -2778,6 +2880,57 @@ local function CreateDropdown(tab, config)
 
 	function dd:Close()
 		forceClose(true)
+	end
+
+	function dd:SetOptions(newOptions, keepValue)
+		if destroyed then return end
+		options = newOptions or {}
+		for _, child in ipairs(list:GetChildren()) do
+			if child:IsA("TextButton") then
+				child:Destroy()
+			end
+		end
+		for i, opt in ipairs(options) do
+			local btn = Instance.new("TextButton")
+			btn.Name = "Opt_" .. tostring(i)
+			btn.BackgroundColor3 = Theme.Secondary
+			btn.BackgroundTransparency = 0
+			btn.BorderSizePixel = 0
+			btn.Size = UDim2.new(1, 0, 0, optionH)
+			btn.Font = Theme.Font
+			btn.TextSize = 13
+			btn.TextColor3 = Theme.Text
+			btn.Text = tostring(opt)
+			btn.TextXAlignment = Enum.TextXAlignment.Left
+			btn.AutoButtonColor = false
+			btn.ZIndex = 4
+			btn.LayoutOrder = i
+			btn.Parent = list
+			local pad = Instance.new("UIPadding")
+			pad.PaddingLeft = UDim.new(0, 12)
+			pad.Parent = btn
+			btn.MouseEnter:Connect(function()
+				if destroyed then return end
+				TweenEngine.Play(btn, { BackgroundColor3 = Theme.Hover }, { Duration = 0.1 })
+			end)
+			btn.MouseLeave:Connect(function()
+				if destroyed then return end
+				TweenEngine.Play(btn, { BackgroundColor3 = Theme.Secondary }, { Duration = 0.1 })
+			end)
+			btn.MouseButton1Click:Connect(function()
+				if destroyed or transitioning then return end
+				value = opt
+				title.Text = (config.Name or "Dropdown") .. ": " .. tostring(opt)
+				changed:Fire(opt)
+				if config.Callback then task.spawn(config.Callback, opt) end
+				forceClose(false)
+			end)
+		end
+		if not keepValue or not table.find(options, value) then
+			value = options[1] or ""
+		end
+		title.Text = (config.Name or "Dropdown") .. ": " .. tostring(value)
+		if open then forceClose(true) end
 	end
 
 	function dd:Destroy()
@@ -3800,30 +3953,85 @@ local function SetupSettingsTab(window)
 	settingsTab:CreateSection({ Name = "Appearance" })
 
 
-	local themeNames = { "Dark", "Light", "Neon", "Cyan", "Glass", "Crimson" }
-	local currentTheme = Settings.Theme or "Dark"
-	if currentTheme == "Aurora" then currentTheme = "Cyan" end -- migrate old name
-	if not table.find(themeNames, currentTheme) then
-		currentTheme = "Dark"
+	local baseThemeNames = { "Dark", "Light", "Neon", "Cyan", "Glass", "Crimson" }
+	if type(Settings.CustomImageThemes) ~= "table" then
+		Settings.CustomImageThemes = {}
 	end
 
-	pcall(function() ApplyThemePreset(currentTheme) end)
+	local function buildThemeNames()
+		local names = {}
+		for _, n in ipairs(baseThemeNames) do
+			table.insert(names, n)
+		end
+		for _, id in ipairs(Settings.CustomImageThemes) do
+			if type(id) == "string" and #id > 0 and not table.find(names, id) then
+				table.insert(names, id)
+			end
+		end
+		return names
+	end
 
-	settingsTab:CreateDropdown({
+	local themeNames = buildThemeNames()
+	local currentTheme = Settings.Theme or "Dark"
+	if currentTheme == "Aurora" then currentTheme = "Cyan" end
+	if not table.find(themeNames, currentTheme) then
+		if type(currentTheme) == "string" and #currentTheme > 0 and not ThemePresets[currentTheme] then
+			if not table.find(Settings.CustomImageThemes, currentTheme) then
+				table.insert(Settings.CustomImageThemes, currentTheme)
+			end
+			themeNames = buildThemeNames()
+		else
+			currentTheme = "Dark"
+		end
+	end
+
+	pcall(function()
+		if ThemePresets[currentTheme] then
+			ApplyThemePreset(currentTheme)
+		end
+	end)
+
+	local themeDropdown = settingsTab:CreateDropdown({
 		Name = "Theme",
 		Options = themeNames,
 		Default = currentTheme,
 		Callback = function(v)
 			Settings.Theme = v
-			ApplyThemePreset(v)
-			Library:Notify({
-				Title = "Theme",
-				Description = "Applied " .. tostring(v),
-				Duration = 2,
-				Type = "Success",
-			})
+			if ThemePresets[v] then
+				Settings.UseBackgroundImage = false
+				if window.SetBackgroundImageEnabled then
+					window:SetBackgroundImageEnabled(false)
+				end
+				ApplyThemePreset(v)
+				if window.RefreshTheme then window:RefreshTheme() end
+				Library:Notify({
+					Title = "Theme",
+					Description = "Applied " .. tostring(v),
+					Duration = 2,
+					Type = "Success",
+				})
+			else
+				local img = NormalizeBackgroundImage(v)
+				if img == "" then
+					img = NormalizeBackgroundImage("rbxassetid://" .. tostring(v))
+				end
+				Settings.BackgroundImage = img
+				Settings.UseBackgroundImage = true
+				if window.SetBackgroundImage then window:SetBackgroundImage(img) end
+				if window.SetBackgroundImageEnabled then window:SetBackgroundImageEnabled(true) end
+				if ThemePresets.Dark then ApplyThemePreset("Dark") end
+				Settings.Theme = v
+				if window.RefreshTheme then window:RefreshTheme() end
+				Library:Notify({
+					Title = "Image Theme",
+					Description = "Applied " .. tostring(v),
+					Duration = 2,
+					Type = "Success",
+				})
+			end
 		end,
 	})
+	window._ThemeDropdown = themeDropdown
 
 	settingsTab:CreateSlider({
 		Name = "Corner Radius",
@@ -3844,17 +4052,52 @@ local function SetupSettingsTab(window)
 		Default = Settings.UseBackgroundImage == true,
 		Callback = function(v)
 			Settings.UseBackgroundImage = v == true
-			if window.SetBackgroundImageEnabled then window:SetBackgroundImageEnabled(Settings.UseBackgroundImage) end
+			if window.SetBackgroundImageEnabled then
+				window:SetBackgroundImageEnabled(Settings.UseBackgroundImage)
+			end
+			if window.RefreshTheme then window:RefreshTheme() end
 		end,
 	})
 
 	settingsTab:CreateTextbox({
 		Name = "Background Image",
-		Placeholder = "rbxassetid://...",
+		Placeholder = "rbxassetid://... or texture id",
 		Default = Settings.BackgroundImage or "",
 		Callback = function(v)
-			Settings.BackgroundImage = tostring(v or "")
-			if window.SetBackgroundImage then window:SetBackgroundImage(Settings.BackgroundImage) end
+			local raw = tostring(v or "")
+			local img = NormalizeBackgroundImage(raw)
+			Settings.BackgroundImage = img
+			if img ~= "" then
+				Settings.UseBackgroundImage = true
+				if window.SetBackgroundImage then window:SetBackgroundImage(img) end
+				if window.SetBackgroundImageEnabled then window:SetBackgroundImageEnabled(true) end
+
+				local displayName = string.match(raw, "(%d+)") or raw
+				displayName = tostring(displayName)
+				if type(Settings.CustomImageThemes) ~= "table" then
+					Settings.CustomImageThemes = {}
+				end
+				if not table.find(Settings.CustomImageThemes, displayName) then
+					table.insert(Settings.CustomImageThemes, displayName)
+				end
+				Settings.Theme = displayName
+				local newNames = buildThemeNames()
+				if themeDropdown and themeDropdown.SetOptions then
+					themeDropdown:SetOptions(newNames, true)
+					themeDropdown:Set(displayName, true)
+				end
+				if ThemePresets.Dark then ApplyThemePreset("Dark") end
+				if window.RefreshTheme then window:RefreshTheme() end
+				Library:Notify({
+					Title = "Image Theme Saved",
+					Description = "Added to Theme dropdown: " .. displayName,
+					Duration = 2.5,
+					Type = "Success",
+				})
+			else
+				if window.SetBackgroundImage then window:SetBackgroundImage("") end
+				if window.RefreshTheme then window:RefreshTheme() end
+			end
 		end,
 	})
 
@@ -3866,7 +4109,9 @@ local function SetupSettingsTab(window)
 		Callback = function(v)
 			local opacity = math.clamp(tonumber(v) or 68, 0, 100) / 100
 			Settings.BackgroundImageTransparency = 1 - opacity
-			if window.SetBackgroundImageTransparency then window:SetBackgroundImageTransparency(Settings.BackgroundImageTransparency) end
+			if window.SetBackgroundImageTransparency then
+				window:SetBackgroundImageTransparency(Settings.BackgroundImageTransparency)
+			end
 		end,
 	})
 
@@ -3876,9 +4121,20 @@ local function SetupSettingsTab(window)
 		Callback = function(color)
 			if typeof(color) ~= "Color3" then return end
 			Settings.BackgroundImageTint = color
-			if backgroundImage and backgroundImage.Parent then
-				backgroundImage.ImageColor3 = color
+			if window.BackgroundImage and window.BackgroundImage.Parent then
+				window.BackgroundImage.ImageColor3 = color
 			end
+			if window.RefreshTheme then window:RefreshTheme() end
+		end,
+	})
+
+	settingsTab:CreateColorPicker({
+		Name = "Outline Color",
+		Default = Settings.OutlineColor or Color3.fromRGB(255, 255, 255),
+		Callback = function(color)
+			if typeof(color) ~= "Color3" then return end
+			Settings.OutlineColor = color
+			if window.RefreshTheme then window:RefreshTheme() end
 		end,
 	})
 
@@ -4448,82 +4704,102 @@ local function CreateWindow(library, config)
 		end
 	end))
 
+	local function clearVeyraGradients(rootObj)
+		if not rootObj then return end
+		local function clearOne(obj)
+			if not obj or not obj:IsA("GuiObject") then return end
+			local g = obj:FindFirstChild("VeyraGradient")
+			if g then pcall(function() g:Destroy() end) end
+		end
+		clearOne(rootObj)
+		for _, d in ipairs(rootObj:GetDescendants()) do
+			clearOne(d)
+		end
+	end
+
 	local function refreshWindowTheme()
 		if cleanup:IsDestroyed() then return end
 		Theme.CornerRadius = math.max(0, math.floor(tonumber(Settings.CornerRadius or Theme.CornerRadius or 2) or 2))
-		SetThemeGradient(main, "Background")
-		mainStroke.Color = Theme.OutlineAccent or Theme.Border
-		mainStroke.Transparency = 0.35
-		SetThemeGradient(titleBar, "Surface")
-		titleFix.BackgroundColor3 = Theme.Secondary
 		titleLabel.TextColor3 = Theme.Text
 		titleLabel.Font = Theme.FontBold
 		subtitle.TextColor3 = Theme.SecondaryText
 		subtitle.Font = Theme.Font
 		closeBtn.TextColor3 = Theme.SecondaryText
 		minBtn.TextColor3 = Theme.SecondaryText
-		SetThemeGradient(sidebar, "Panel")
-		searchBox.BackgroundColor3 = Theme.Tertiary
 		searchBox.TextColor3 = Theme.Text
 		searchBox.PlaceholderColor3 = Theme.MutedText
 		searchBox.Font = Theme.Font
-		outline.BackgroundColor3 = Theme.OutlineAccent or Color3.fromRGB(255, 255, 255)
 
-		-- Glass + image background transparency
 		local normalizedImage = NormalizeBackgroundImage(Settings.BackgroundImage)
 		if Settings.BackgroundImage ~= normalizedImage then
 			Settings.BackgroundImage = normalizedImage
 		end
-		if backgroundImage then
-			if backgroundImage.Image ~= normalizedImage then
-				backgroundImage.Image = normalizedImage
-			end
-			backgroundImage.ZIndex = 1
-		end
-		local useImg = Settings.UseBackgroundImage == true and normalizedImage ~= ""
+		local useImg = IsImageThemeActive()
+		local outlineCol = GetOutlineColor()
 		pcall(function() TweenEngine.CancelOnObject(main) end)
-		if Settings.Theme == "Glass" then
-			main.BackgroundTransparency = useImg and 0.45 or 0.28
+
+		if useImg then
+			-- Full image cover: strip gradients, make chrome transparent so image
+			-- shows through top bar, sidebar, and background.
+			clearVeyraGradients(main)
+			main.BackgroundColor3 = Theme.Background
+			main.BackgroundTransparency = 1
+			mainStroke.Color = outlineCol
 			mainStroke.Transparency = 0.15
-			mainStroke.Thickness = 1.8
-			titleBar.BackgroundTransparency = 0.35
-			sidebar.BackgroundTransparency = 0.42
+			mainStroke.Thickness = 1.6
+			titleBar.BackgroundColor3 = Theme.Secondary
+			titleBar.BackgroundTransparency = 0.72
+			titleFix.BackgroundColor3 = Theme.Secondary
+			titleFix.BackgroundTransparency = 0.72
+			sidebar.BackgroundColor3 = Theme.Secondary
+			sidebar.BackgroundTransparency = 0.72
+			searchBox.BackgroundColor3 = Theme.Tertiary
+			searchBox.BackgroundTransparency = 0.55
+			outline.BackgroundColor3 = outlineCol
 			outline.BackgroundTransparency = 0.05
-			outline.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-			searchBox.BackgroundTransparency = 0.35
-		else
-			-- Let background image show through when enabled
-			main.BackgroundTransparency = useImg and 0.35 or 0
-			mainStroke.Transparency = 0.35
-			mainStroke.Thickness = 1.5
-			titleBar.BackgroundTransparency = 0.15
-			sidebar.BackgroundTransparency = useImg and 0.45 or 0.35
-			outline.BackgroundTransparency = 0.05
-			searchBox.BackgroundTransparency = 0.2
-		end
-
-		-- Keep image layer in sync.
-		-- Main is the image's parent, therefore it MUST be transparent
-		-- while an image is active or the image is completely covered.
-		if backgroundImage then
-			local bgValue = NormalizeBackgroundImage(Settings.BackgroundImage)
-			Settings.BackgroundImage = bgValue
-
-			backgroundImage.Image = bgValue
-			backgroundImage.ImageTransparency = math.clamp(
-				tonumber(Settings.BackgroundImageTransparency) or 0.32, 0, 1
-			)
-			backgroundImage.ImageColor3 = Settings.BackgroundImageTint or Color3.fromRGB(255, 255, 255)
-			backgroundImage.ZIndex = 1
+			if backgroundImage then
+				backgroundImage.Image = normalizedImage
+				backgroundImage.ImageTransparency = math.clamp(
+					tonumber(Settings.BackgroundImageTransparency) or 0.32, 0, 1
+				)
+				backgroundImage.ImageColor3 = Settings.BackgroundImageTint or Color3.fromRGB(255, 255, 255)
+				backgroundImage.ZIndex = 0
+				backgroundImage.Visible = true
+			end
 			if bgHolder and bgHolder.Parent then
 				bgHolder.ZIndex = 0
 			end
-			backgroundImage.Visible = useImg and bgValue ~= ""
-			pcall(function() TweenEngine.CancelOnObject(main) end)
-			if backgroundImage.Visible then
-				main.BackgroundTransparency = 1
+		else
+			SetThemeGradient(main, "Background")
+			SetThemeGradient(titleBar, "Surface")
+			SetThemeGradient(sidebar, "Panel")
+			mainStroke.Color = Theme.OutlineAccent or Theme.Border
+			outline.BackgroundColor3 = Theme.OutlineAccent or Color3.fromRGB(255, 255, 255)
+			searchBox.BackgroundColor3 = Theme.Tertiary
+			titleFix.BackgroundColor3 = Theme.Secondary
+
+			if Settings.Theme == "Glass" then
+				main.BackgroundTransparency = 0.28
+				mainStroke.Transparency = 0.15
+				mainStroke.Thickness = 1.8
+				titleBar.BackgroundTransparency = 0.35
+				titleFix.BackgroundTransparency = 0.35
+				sidebar.BackgroundTransparency = 0.42
+				outline.BackgroundTransparency = 0.05
+				outline.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+				searchBox.BackgroundTransparency = 0.35
 			else
-				main.BackgroundTransparency = (Settings.Theme == "Glass") and 0.28 or 0
+				main.BackgroundTransparency = 0
+				mainStroke.Transparency = 0.35
+				mainStroke.Thickness = 1.5
+				titleBar.BackgroundTransparency = 0.15
+				titleFix.BackgroundTransparency = 0.15
+				sidebar.BackgroundTransparency = 0.35
+				outline.BackgroundTransparency = 0.05
+				searchBox.BackgroundTransparency = 0.2
+			end
+			if backgroundImage then
+				backgroundImage.Visible = false
 			end
 		end
 
