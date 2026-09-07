@@ -2663,23 +2663,41 @@ function Window.new(library, title, themeName)
         Parent = main
     })
     local footerLabel = create("TextLabel", {
-        BackgroundTransparency = 1,
-        Size = UDim2.new(1, -16, 1, 0),
-        Position = UDim2.new(0, 8, 0, 0),
-        Font = Enum.Font.Gotham,
-        Text = "thanks for using Lumina UI Library, benefits: no skibidi toilet images will be shown",
-        TextColor3 = CurrentTheme.MutedText,
-        TextSize = 11,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextTruncate = Enum.TextTruncate.AtEnd,
-        Parent = footer
-    })
-    registerTheme(footer, "BackgroundColor3", "Secondary")
-    registerTheme(footerLabel, "TextColor3", "MutedText")
-    registerTheme(minimizeBtn, "TextColor3", "MutedText")
-    registerTheme(closeBtn, "TextColor3", "MutedText")
-    registerTheme(minimizeIcon, "ImageColor3", "MutedText")
-    registerTheme(closeIcon, "ImageColor3", "MutedText")
+    BackgroundTransparency = 1,
+    Size = UDim2.new(1, -16, 1, 0),
+    Position = UDim2.new(0, 8, 0, 0),
+    Font = Enum.Font.Gotham,
+    Text = "This UI Library is Lumina if u were wondering.",
+    TextColor3 = CurrentTheme.MutedText,
+    TextSize = 11,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    TextTruncate = Enum.TextTruncate.AtEnd,
+    Parent = footer
+})
+
+-- Rounded corners for the footer
+local footerCorner = create("UICorner", {
+    CornerRadius = UDim.new(0, 8),
+    Parent = footer
+})
+
+-- Border around the footer
+local footerStroke = create("UIStroke", {
+    Thickness = 1.5,
+    Transparency = 0.5,
+    Color = CurrentTheme.MutedText,
+    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+    Parent = footer
+})
+
+registerTheme(footer, "BackgroundColor3", "Secondary")
+registerTheme(footerLabel, "TextColor3", "MutedText")
+registerTheme(footerStroke, "Color", "MutedText")
+
+registerTheme(minimizeBtn, "TextColor3", "MutedText")
+registerTheme(closeBtn, "TextColor3", "MutedText")
+registerTheme(minimizeIcon, "ImageColor3", "MutedText")
+registerTheme(closeIcon, "ImageColor3", "MutedText")
 
     self.ScreenGui = screenGui
     self.Main = main
@@ -2801,7 +2819,7 @@ function Window:NewWelcomeTab()
         displayName = LocalPlayer.DisplayName or LocalPlayer.Name or "Player"
     end)
 
-    sec:NewLabel("Wazzup n welcome to Lumina UI @" .. displayName)
+    sec:NewLabel("Wazzup @" .. displayName)
 
     local region = "Unknown"
     pcall(function()
@@ -2810,12 +2828,12 @@ function Window:NewWelcomeTab()
             region = tostring(loc.RobloxLocaleId)
         end
     end)
-    sec:NewLabel('Oh hey! You\'re in "' .. region .. '" THATS COOL!')
+    sec:NewLabel('Oh hey! You\'re server region is: "' .. region .. '" nice I guess...') 
 
     sec:NewDivider()
     sec:NewParagraph(
         "Info",
-        "You're running LuminaUI. Clean, fast, no skibidi. Tabs, toggles, sliders, color pickers and more are ready."
+        "Welcome to UI Library, please enjoy."
     )
 
     return tab
