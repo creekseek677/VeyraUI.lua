@@ -9,9 +9,9 @@ local SoundService = game:GetService("SoundService")
 
 local player = Players.LocalPlayer
 
--- destroy old
-if player.PlayerGui:FindFirstChild("CoffeeIFY") then
-	player.PlayerGui.CoffeeIFY:Destroy()
+local oldGui = player.PlayerGui:FindFirstChild("CoffeeIFY")
+if oldGui then
+	oldGui:Destroy()
 end
 
 local function Create(class, props)
@@ -23,47 +23,86 @@ local function Create(class, props)
 end
 
 local function Tween(obj, props, duration, style, dir)
+	if not obj or not obj.Parent then
+		return nil
+	end
+
 	local tw = TweenService:Create(
 		obj,
 		TweenInfo.new(duration or 0.35, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out),
 		props
 	)
+
 	tw:Play()
 	return tw
 end
 
--- sound system
 local HOVER_SOUND = 408524543
 local CLICK_SOUND = 4307186075
 
 local function PlaySound(id, volume)
-	local s = Instance.new("Sound")
-	s.SoundId = "rbxassetid://" .. tostring(id)
-	s.Volume = volume or 0.4
-	s.PlaybackSpeed = 1
-	s.Parent = SoundService
-	s:Play()
-	s.Ended:Connect(function()
-		s:Destroy()
+	local sound = Instance.new("Sound")
+	sound.SoundId = "rbxassetid://" .. tostring(id)
+	sound.Volume = volume or 0.4
+	sound.PlaybackSpeed = 1
+	sound.Parent = SoundService
+	sound:Play()
+
+	sound.Ended:Connect(function()
+		if sound then
+			sound:Destroy()
+		end
 	end)
+
+	return sound
 end
 
-local function AddHoverClick(btn)
-	btn.MouseEnter:Connect(function()
-		PlaySound(HOVER_SOUND, 0.25)
-	end)
-	btn.MouseButton1Click:Connect(function()
-		PlaySound(CLICK_SOUND, 0.45)
-	end)
-	-- touch support
-	btn.TouchTap:Connect(function()
-		PlaySound(CLICK_SOUND, 0.45)
-	end)
+local function BindActivated(button, callback)
+	return button.Activated:Connect(callback)
+end
+
+function CoffeeIFY:_Track(connection)
+	self._connections = self._connections or {}
+	table.insert(self._connections, connection)
+	return connection
+end
+
+function CoffeeIFY:_CleanupConnections()
+	if not self._connections then
+		return
+	end
+
+	for _, connection in ipairs(self._connections) do
+		if connection and connection.Connected then
+			connection:Disconnect()
+		end
+	end
+
+	table.clear(self._connections)
+end
+
+function CoffeeIFY:_GetPage(tab)
+	if typeof(tab) == "table" then
+		return tab.Page
+	end
+
+	local tabData = self.tabs and self.tabs[tab]
+
+	if not tabData then
+		error(("CoffeeIFY: tab '%s' does not exist."):format(tostring(tab)))
+	end
+
+	return tabData.Page
 end
 
 function CoffeeIFY.new(config)
 	config = config or {}
+
 	local self = setmetatable({}, CoffeeIFY)
+
+	self._connections = {}
+	self._closing = false
+	self._minimized = false
 
 	self.gui = Create("ScreenGui", {
 		Name = "CoffeeIFY",
@@ -73,7 +112,6 @@ function CoffeeIFY.new(config)
 		Parent = player.PlayerGui
 	})
 
-	-- ===================== FULLSCREEN INTRO =====================
 	local intro = Create("Frame", {
 		Name = "Intro",
 		Size = UDim2.new(1, 0, 1, 0),
@@ -106,8 +144,8 @@ function CoffeeIFY.new(config)
 		Parent = intro
 	})
 
-	-- fake "piecing" frames that assemble
 	local pieces = {}
+
 	for i = 1, 8 do
 		local p = Create("Frame", {
 			Size = UDim2.new(0, 18, 0, 18),
@@ -117,57 +155,10 @@ function CoffeeIFY.new(config)
 			BackgroundTransparency = 0.4,
 			Parent = intro
 		})
+
 		pieces[i] = p
 	end
 
-	-- animate pieces flying to center then form the window shape
-	task.spawn(function()
-		-- dots animation
-		local dots = 0
-		local dotConn
-		dotConn = RunService.Heartbeat:Connect(function()
-			dots = (dots % 3) + 1
-			loadingText.Text = "loading" .. string.rep(".", dots)
-		end)
-
-		task.wait(0.4)
-
-		-- pieces move toward center
-		for i, p in ipairs(pieces) do
-			Tween(p, {
-				Position = UDim2.new(0.5, -40 + (i % 4) * 22, 0.5, -30 + math.floor((i - 1) / 4) * 22),
-				BackgroundTransparency = 0.15
-			}, 0.55 + i * 0.04, Enum.EasingStyle.Back)
-		end
-
-		task.wait(0.85)
-
-		-- final assemble flash
-		for _, p in ipairs(pieces) do
-			Tween(p, {BackgroundTransparency = 0, Size = UDim2.new(0, 22, 0, 22)}, 0.25)
-		end
-
-		task.wait(0.35)
-
-		-- fade intro out
-		Tween(introTitle, {TextTransparency = 1}, 0.4)
-		Tween(loadingText, {TextTransparency = 1}, 0.4)
-		for _, p in ipairs(pieces) do
-			Tween(p, {BackgroundTransparency = 1}, 0.4)
-		end
-		Tween(intro, {BackgroundTransparency = 1}, 0.5)
-
-		task.wait(0.55)
-		dotConn:Disconnect()
-		intro:Destroy()
-
-		-- finally show main UI
-		self.main.Visible = true
-		Tween(self.main, {BackgroundTransparency = 0}, 0.35)
-	end)
-
-	-- ===================== MAIN WINDOW =====================
-	-- responsive base size (clamped)
 	local cam = workspace.CurrentCamera
 	local vp = cam.ViewportSize
 	local base = math.clamp(math.min(vp.X, vp.Y) * 0.42, 300, 420)
@@ -177,7 +168,7 @@ function CoffeeIFY.new(config)
 		Size = UDim2.new(0, base, 0, base),
 		Position = UDim2.new(0.5, -base / 2, 0.5, -base / 2),
 		BackgroundColor3 = Color3.fromRGB(232, 224, 205),
-		BackgroundTransparency = 1, -- starts invisible until intro ends
+		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		Visible = false,
 		Parent = self.gui
@@ -189,7 +180,6 @@ function CoffeeIFY.new(config)
 		Parent = self.main
 	})
 
-	-- TOP BAR
 	self.topBar = Create("Frame", {
 		Name = "TopBar",
 		Size = UDim2.new(1, 0, 0, 28),
@@ -210,7 +200,6 @@ function CoffeeIFY.new(config)
 		Parent = self.topBar
 	})
 
-	-- MINIMIZE BUTTON (lucide-style)
 	local minBtn = Create("TextButton", {
 		Name = "Minimize",
 		Size = UDim2.new(0, 28, 0, 28),
@@ -224,7 +213,6 @@ function CoffeeIFY.new(config)
 		Parent = self.topBar
 	})
 
-	-- CLOSE BUTTON
 	local closeBtn = Create("TextButton", {
 		Name = "Close",
 		Size = UDim2.new(0, 28, 0, 28),
@@ -238,95 +226,6 @@ function CoffeeIFY.new(config)
 		Parent = self.topBar
 	})
 
-	minBtn.MouseEnter:Connect(function()
-		PlaySound(HOVER_SOUND, 0.2)
-		Tween(minBtn, {TextColor3 = Color3.fromRGB(255, 255, 255)}, 0.15)
-	end)
-	minBtn.MouseLeave:Connect(function()
-		Tween(minBtn, {TextColor3 = Color3.fromRGB(200, 190, 170)}, 0.15)
-	end)
-
-	closeBtn.MouseEnter:Connect(function()
-		PlaySound(HOVER_SOUND, 0.2)
-		Tween(closeBtn, {TextColor3 = Color3.fromRGB(255, 120, 120)}, 0.15)
-	end)
-	closeBtn.MouseLeave:Connect(function()
-		Tween(closeBtn, {TextColor3 = Color3.fromRGB(200, 190, 170)}, 0.15)
-	end)
-
-	local minimized = false
-	minBtn.MouseButton1Click:Connect(function()
-		PlaySound(CLICK_SOUND, 0.4)
-		minimized = not minimized
-		if minimized then
-			Tween(self.main, {Size = UDim2.new(0, base, 0, 28)}, 0.3, Enum.EasingStyle.Quad)
-		else
-			Tween(self.main, {Size = UDim2.new(0, base, 0, base)}, 0.3, Enum.EasingStyle.Quad)
-		end
-	end)
-	minBtn.TouchTap:Connect(function()
-		PlaySound(CLICK_SOUND, 0.4)
-		minimized = not minimized
-		if minimized then
-			Tween(self.main, {Size = UDim2.new(0, base, 0, 28)}, 0.3, Enum.EasingStyle.Quad)
-		else
-			Tween(self.main, {Size = UDim2.new(0, base, 0, base)}, 0.3, Enum.EasingStyle.Quad)
-		end
-	end)
-
-	-- CLOSE + DISASSEMBLY ANIMATION
-	local function doClose()
-		PlaySound(CLICK_SOUND, 0.45)
-		-- first fade everything to plain beige
-		Tween(self.topBar, {BackgroundTransparency = 1}, 0.35)
-		Tween(self.sidebar, {BackgroundTransparency = 1}, 0.35)
-		Tween(self.content, {BackgroundTransparency = 1}, 0.35)
-		Tween(self.title, {TextTransparency = 1}, 0.3)
-		Tween(minBtn, {TextTransparency = 1}, 0.3)
-		Tween(closeBtn, {TextTransparency = 1}, 0.3)
-
-		for _, child in ipairs(self.sidebar:GetDescendants()) do
-			if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("Frame") then
-				if child:IsA("TextLabel") or child:IsA("TextButton") then
-					Tween(child, {TextTransparency = 1}, 0.3)
-				else
-					Tween(child, {BackgroundTransparency = 1}, 0.3)
-				end
-			end
-		end
-		for _, child in ipairs(self.content:GetDescendants()) do
-			if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("Frame") or child:IsA("TextBox") then
-				if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
-					Tween(child, {TextTransparency = 1}, 0.3)
-				else
-					Tween(child, {BackgroundTransparency = 1}, 0.3)
-				end
-			end
-		end
-
-		-- then shrink + fade the whole window to beige
-		task.wait(0.25)
-		Tween(self.main, {
-			Size = UDim2.new(0, base * 0.7, 0, base * 0.7),
-			BackgroundColor3 = Color3.fromRGB(232, 224, 205),
-			BackgroundTransparency = 0.2
-		}, 0.4)
-
-		task.wait(0.35)
-		Tween(self.main, {
-			Size = UDim2.new(0, 20, 0, 20),
-			BackgroundTransparency = 1,
-			Position = UDim2.new(0.5, -10, 0.5, -10)
-		}, 0.35, Enum.EasingStyle.Back, Enum.EasingDirection.In)
-
-		task.wait(0.4)
-		self.gui:Destroy()
-	end
-
-	closeBtn.MouseButton1Click:Connect(doClose)
-	closeBtn.TouchTap:Connect(doClose)
-
-	-- SIDEBAR
 	self.sidebar = Create("Frame", {
 		Name = "Sidebar",
 		Size = UDim2.new(0, 98, 1, -28),
@@ -342,7 +241,6 @@ function CoffeeIFY.new(config)
 		Parent = self.sidebar
 	})
 
-	-- CONTENT
 	self.content = Create("Frame", {
 		Name = "Content",
 		Size = UDim2.new(1, -98, 1, -28),
@@ -375,51 +273,338 @@ function CoffeeIFY.new(config)
 	self.currentTab = nil
 	self.tabCount = 0
 
-	-- dragging (mouse + touch)
-	local dragging, dragStart, startPos
-	local function beginDrag(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+	local minimizedSize = UDim2.new(0, base, 0, 28)
+	local normalSize = UDim2.new(0, base, 0, base)
+
+	local function setMinimized(value)
+		if self._closing then
+			return
+		end
+
+		self._minimized = value
+
+		if value then
+			for _, child in ipairs(self.main:GetChildren()) do
+				if child ~= self.topBar and child:IsA("GuiObject") then
+					Tween(child, {
+						BackgroundTransparency = 1
+					}, 0.18)
+				end
+			end
+
+			Tween(self.main, {
+				Size = minimizedSize
+			}, 0.3, Enum.EasingStyle.Quad)
+
+			task.delay(0.22, function()
+				if self._minimized and not self._closing then
+					for _, child in ipairs(self.main:GetChildren()) do
+						if child ~= self.topBar and child:IsA("GuiObject") then
+							child.Visible = false
+						end
+					end
+				end
+			end)
+		else
+			for _, child in ipairs(self.main:GetChildren()) do
+				if child ~= self.topBar and child:IsA("GuiObject") then
+					child.Visible = true
+				end
+			end
+
+			Tween(self.main, {
+				Size = normalSize
+			}, 0.3, Enum.EasingStyle.Quad)
+
+			task.delay(0.05, function()
+				if not self._minimized and not self._closing then
+					Tween(self.sidebar, {BackgroundTransparency = 0}, 0.18)
+					Tween(self.content, {BackgroundTransparency = 0}, 0.18)
+
+					for _, child in ipairs(self.content:GetDescendants()) do
+						if child:IsA("GuiObject") then
+							if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+								local props = {}
+								if child.TextTransparency < 1 then
+									props.TextTransparency = 0
+								end
+								if next(props) then
+									Tween(child, props, 0.18)
+								end
+							end
+						end
+					end
+				end
+			end)
+		end
+	end
+
+	self:_Track(minBtn.MouseEnter:Connect(function()
+		if self._closing then return end
+		PlaySound(HOVER_SOUND, 0.2)
+		Tween(minBtn, {TextColor3 = Color3.fromRGB(255, 255, 255)}, 0.15)
+	end))
+
+	self:_Track(minBtn.MouseLeave:Connect(function()
+		if self._closing then return end
+		Tween(minBtn, {TextColor3 = Color3.fromRGB(200, 190, 170)}, 0.15)
+	end))
+
+	self:_Track(closeBtn.MouseEnter:Connect(function()
+		if self._closing then return end
+		PlaySound(HOVER_SOUND, 0.2)
+		Tween(closeBtn, {TextColor3 = Color3.fromRGB(255, 120, 120)}, 0.15)
+	end))
+
+	self:_Track(closeBtn.MouseLeave:Connect(function()
+		if self._closing then return end
+		Tween(closeBtn, {TextColor3 = Color3.fromRGB(200, 190, 170)}, 0.15)
+	end))
+
+	self:_Track(BindActivated(minBtn, function()
+		if self._closing then return end
+		PlaySound(CLICK_SOUND, 0.4)
+		setMinimized(not self._minimized)
+	end))
+
+	local function doClose()
+		if self._closing then
+			return
+		end
+
+		self._closing = true
+		PlaySound(CLICK_SOUND, 0.45)
+
+		for _, child in ipairs(self.main:GetDescendants()) do
+			if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+				Tween(child, {TextTransparency = 1}, 0.25)
+			elseif child:IsA("GuiObject") and child ~= self.main then
+				Tween(child, {BackgroundTransparency = 1}, 0.28)
+			end
+		end
+
+		Tween(self.main, {
+			BackgroundColor3 = Color3.fromRGB(232, 224, 205)
+		}, 0.2)
+
+		task.wait(0.18)
+
+		local originalPosition = self.main.Position
+
+		Tween(self.main, {
+			Size = UDim2.new(0, base * 0.78, 0, base * 0.78),
+			Position = UDim2.new(
+				originalPosition.X.Scale,
+				originalPosition.X.Offset + base * 0.11,
+				originalPosition.Y.Scale,
+				originalPosition.Y.Offset + base * 0.11
+			)
+		}, 0.32, Enum.EasingStyle.Back, Enum.EasingDirection.InOut)
+
+		task.wait(0.2)
+
+		local fragments = {}
+
+		for i = 1, 8 do
+			local fragment = Create("Frame", {
+				Name = "DisassemblyPiece" .. i,
+				Size = UDim2.new(0, math.max(8, base * 0.06), 0, math.max(8, base * 0.06)),
+				Position = UDim2.new(
+					0.5,
+					math.cos(i / 8 * math.pi * 2) * base * 0.15,
+					0.5,
+					math.sin(i / 8 * math.pi * 2) * base * 0.15
+				),
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				BackgroundColor3 = Color3.fromRGB(232, 224, 205),
+				BorderSizePixel = 0,
+				ZIndex = 200,
+				Parent = self.gui
+			})
+
+			fragments[i] = fragment
+		end
+
+		self.main.Visible = false
+
+		for i, fragment in ipairs(fragments) do
+			local angle = (i / #fragments) * math.pi * 2
+			local distance = base * (0.25 + i * 0.025)
+
+			Tween(fragment, {
+				Position = UDim2.new(
+					0.5,
+					math.cos(angle) * distance,
+					0.5,
+					math.sin(angle) * distance
+				),
+				Rotation = math.random(-180, 180),
+				BackgroundTransparency = 1,
+				Size = UDim2.new(0, 2, 0, 2)
+			}, 0.42 + i * 0.025, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		end
+
+		task.wait(0.55)
+
+		for _, fragment in ipairs(fragments) do
+			if fragment and fragment.Parent then
+				fragment:Destroy()
+			end
+		end
+
+		self:_CleanupConnections()
+
+		if self.gui then
+			self.gui:Destroy()
+		end
+	end
+
+	self:_Track(BindActivated(closeBtn, doClose))
+
+	local dragging = false
+	local dragStart
+	local startPos
+	local dragInput
+
+	self:_Track(self.topBar.InputBegan:Connect(function(input)
+		if self._closing then
+			return
+		end
+
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
+
 			dragging = true
 			dragStart = input.Position
 			startPos = self.main.Position
+			dragInput = input
 		end
-	end
-	local function endDrag(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			dragging = false
+	end))
+
+	self:_Track(UserInputService.InputChanged:Connect(function(input)
+		if not dragging or self._closing then
+			return
 		end
-	end
-	local function updateDrag(input)
-		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+
+		if input.UserInputType == Enum.UserInputType.MouseMovement
+			or input.UserInputType == Enum.UserInputType.Touch then
+
 			local delta = input.Position - dragStart
+
 			self.main.Position = UDim2.new(
-				startPos.X.Scale, startPos.X.Offset + delta.X,
-				startPos.Y.Scale, startPos.Y.Offset + delta.Y
+				startPos.X.Scale,
+				startPos.X.Offset + delta.X,
+				startPos.Y.Scale,
+				startPos.Y.Offset + delta.Y
 			)
 		end
-	end
+	end))
 
-	self.topBar.InputBegan:Connect(beginDrag)
-	UserInputService.InputEnded:Connect(endDrag)
-	UserInputService.InputChanged:Connect(updateDrag)
+	self:_Track(UserInputService.InputEnded:Connect(function(input)
+		if input == dragInput
+			or input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
 
-	-- responsive resize on viewport change
-	cam:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+			dragging = false
+			dragInput = nil
+		end
+	end))
+
+	self:_Track(cam:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+		if self._closing then
+			return
+		end
+
 		local newVp = cam.ViewportSize
 		local newBase = math.clamp(math.min(newVp.X, newVp.Y) * 0.42, 300, 420)
-		if not minimized then
-			self.main.Size = UDim2.new(0, newBase, 0, newBase)
-		else
-			self.main.Size = UDim2.new(0, newBase, 0, 28)
-		end
+
 		base = newBase
+		normalSize = UDim2.new(0, newBase, 0, newBase)
+		minimizedSize = UDim2.new(0, newBase, 0, 28)
+
+		if self._minimized then
+			self.main.Size = minimizedSize
+		else
+			self.main.Size = normalSize
+		end
+	end))
+
+	task.spawn(function()
+		local dots = 0
+
+		while intro.Parent and not self._closing do
+			dots = (dots % 3) + 1
+			loadingText.Text = "loading" .. string.rep(".", dots)
+			task.wait(0.3)
+		end
+	end)
+
+	task.spawn(function()
+		task.wait(0.4)
+
+		for i, p in ipairs(pieces) do
+			if not p.Parent then
+				return
+			end
+
+			Tween(p, {
+				Position = UDim2.new(
+					0.5,
+					-40 + (i % 4) * 22,
+					0.5,
+					-30 + math.floor((i - 1) / 4) * 22
+				),
+				BackgroundTransparency = 0.15
+			}, 0.55 + i * 0.04, Enum.EasingStyle.Back)
+		end
+
+		task.wait(0.85)
+
+		for _, p in ipairs(pieces) do
+			if p.Parent then
+				Tween(p, {
+					BackgroundTransparency = 0,
+					Size = UDim2.new(0, 22, 0, 22)
+				}, 0.25)
+			end
+		end
+
+		task.wait(0.35)
+
+		Tween(introTitle, {TextTransparency = 1}, 0.4)
+		Tween(loadingText, {TextTransparency = 1}, 0.4)
+
+		for _, p in ipairs(pieces) do
+			Tween(p, {BackgroundTransparency = 1}, 0.4)
+		end
+
+		Tween(intro, {BackgroundTransparency = 1}, 0.5)
+
+		task.wait(0.55)
+
+		if intro.Parent then
+			intro:Destroy()
+		end
+
+		if not self._closing and self.main then
+			self.main.Visible = true
+			Tween(self.main, {BackgroundTransparency = 0}, 0.35)
+		end
 	end)
 
 	return self
 end
 
--- ===================== CREATE TAB =====================
 function CoffeeIFY:CreateTab(name)
+	if self._closing then
+		return
+	end
+
+	if self.tabs[name] then
+		warn(("CoffeeIFY: tab '%s' already exists."):format(name))
+		return self.tabs[name]
+	end
+
 	self.tabCount += 1
 	local index = self.tabCount
 
@@ -492,35 +677,46 @@ function CoffeeIFY:CreateTab(name)
 	self.tabButtons[index] = tabData
 
 	local function select()
+		if self._closing then
+			return
+		end
+
 		PlaySound(CLICK_SOUND, 0.35)
+
 		for _, t in pairs(self.tabs) do
 			Tween(t.Button, {BackgroundColor3 = Color3.fromRGB(185, 175, 155)}, 0.2)
 			Tween(t.Label, {TextColor3 = Color3.fromRGB(45, 40, 35)}, 0.2)
 			Tween(t.Icon, {BackgroundColor3 = Color3.fromRGB(70, 60, 50)}, 0.2)
 			t.Page.Visible = false
 		end
+
 		Tween(btn, {BackgroundColor3 = Color3.fromRGB(48, 43, 38)}, 0.22)
 		Tween(label, {TextColor3 = Color3.fromRGB(230, 220, 200)}, 0.22)
 		Tween(icon, {BackgroundColor3 = Color3.fromRGB(230, 220, 200)}, 0.22)
+
 		page.Visible = true
 		self.contentTitle.Text = name
 		self.currentTab = tabData
 	end
 
-	btn.MouseEnter:Connect(function()
+	self:_Track(btn.MouseEnter:Connect(function()
+		if self._closing then return end
 		PlaySound(HOVER_SOUND, 0.18)
+
 		if self.currentTab ~= tabData then
 			Tween(btn, {BackgroundColor3 = Color3.fromRGB(200, 190, 170)}, 0.15)
 		end
-	end)
-	btn.MouseLeave:Connect(function()
+	end))
+
+	self:_Track(btn.MouseLeave:Connect(function()
+		if self._closing then return end
+
 		if self.currentTab ~= tabData then
 			Tween(btn, {BackgroundColor3 = Color3.fromRGB(185, 175, 155)}, 0.15)
 		end
-	end)
+	end))
 
-	btn.MouseButton1Click:Connect(select)
-	btn.TouchTap:Connect(select)
+	self:_Track(BindActivated(btn, select))
 
 	if index == 1 then
 		select()
@@ -529,10 +725,8 @@ function CoffeeIFY:CreateTab(name)
 	return tabData
 end
 
--- ===================== ELEMENTS =====================
-
 function CoffeeIFY:CreateButton(tab, text, callback)
-	local page = typeof(tab) == "table" and tab.Page or self.tabs[tab].Page
+	local page = self:_GetPage(tab)
 
 	local frame = Create("Frame", {
 		Size = UDim2.new(1, 0, 0, 26),
@@ -565,41 +759,71 @@ function CoffeeIFY:CreateButton(tab, text, callback)
 		Size = UDim2.new(1, 0, 1, 0),
 		BackgroundTransparency = 1,
 		Text = "",
+		AutoButtonColor = false,
 		Parent = frame
 	})
 
-	btn.MouseEnter:Connect(function()
+	self:_Track(btn.MouseEnter:Connect(function()
 		PlaySound(HOVER_SOUND, 0.22)
-		Tween(frame, {BackgroundColor3 = Color3.fromRGB(230, 220, 200)}, 0.15)
-		Tween(box, {Size = UDim2.new(0, 13, 0, 13), Position = UDim2.new(0, 7.5, 0.5, -6.5)}, 0.15)
-	end)
-	btn.MouseLeave:Connect(function()
-		Tween(frame, {BackgroundColor3 = Color3.fromRGB(218, 208, 188)}, 0.15)
-		Tween(box, {Size = UDim2.new(0, 12, 0, 12), Position = UDim2.new(0, 8, 0.5, -6)}, 0.15)
-	end)
 
-	local function onClick()
+		Tween(frame, {
+			BackgroundColor3 = Color3.fromRGB(230, 220, 200)
+		}, 0.15)
+
+		Tween(box, {
+			Size = UDim2.new(0, 13, 0, 13),
+			Position = UDim2.new(0, 7.5, 0.5, -6.5)
+		}, 0.15)
+	end))
+
+	self:_Track(btn.MouseLeave:Connect(function()
+		Tween(frame, {
+			BackgroundColor3 = Color3.fromRGB(218, 208, 188)
+		}, 0.15)
+
+		Tween(box, {
+			Size = UDim2.new(0, 12, 0, 12),
+			Position = UDim2.new(0, 8, 0.5, -6)
+		}, 0.15)
+	end))
+
+	self:_Track(BindActivated(btn, function()
 		PlaySound(CLICK_SOUND, 0.4)
-		Tween(frame, {BackgroundColor3 = Color3.fromRGB(200, 190, 170)}, 0.08)
-		Tween(box, {BackgroundColor3 = Color3.fromRGB(180, 160, 130), Size = UDim2.new(0, 11, 0, 11)}, 0.08)
-		task.delay(0.12, function()
-			Tween(frame, {BackgroundColor3 = Color3.fromRGB(218, 208, 188)}, 0.18)
-			Tween(box, {BackgroundColor3 = Color3.fromRGB(40, 35, 30), Size = UDim2.new(0, 12, 0, 12), Position = UDim2.new(0, 8, 0.5, -6)}, 0.18)
-		end)
-		if callback then
-			callback()
-		end
-	end
 
-	btn.MouseButton1Click:Connect(onClick)
-	btn.TouchTap:Connect(onClick)
+		Tween(frame, {
+			BackgroundColor3 = Color3.fromRGB(200, 190, 170)
+		}, 0.08)
+
+		Tween(box, {
+			BackgroundColor3 = Color3.fromRGB(180, 160, 130),
+			Size = UDim2.new(0, 11, 0, 11)
+		}, 0.08)
+
+		task.delay(0.12, function()
+			if not frame.Parent then return end
+
+			Tween(frame, {
+				BackgroundColor3 = Color3.fromRGB(218, 208, 188)
+			}, 0.18)
+
+			Tween(box, {
+				BackgroundColor3 = Color3.fromRGB(40, 35, 30),
+				Size = UDim2.new(0, 12, 0, 12),
+				Position = UDim2.new(0, 8, 0.5, -6)
+			}, 0.18)
+		end)
+
+		if callback then
+			task.spawn(callback)
+		end
+	end))
 
 	return frame
 end
 
 function CoffeeIFY:CreateToggle(tab, text, default, callback)
-	local page = typeof(tab) == "table" and tab.Page or self.tabs[tab].Page
-	local state = default or false
+	local page = self:_GetPage(tab)
+	local state = default == true
 
 	local frame = Create("Frame", {
 		Size = UDim2.new(1, 0, 0, 26),
@@ -632,47 +856,84 @@ function CoffeeIFY:CreateToggle(tab, text, default, callback)
 		Size = UDim2.new(1, 0, 1, 0),
 		BackgroundTransparency = 1,
 		Text = "",
+		AutoButtonColor = false,
 		Parent = frame
 	})
 
-	btn.MouseEnter:Connect(function()
+	self:_Track(btn.MouseEnter:Connect(function()
 		PlaySound(HOVER_SOUND, 0.22)
-		Tween(frame, {BackgroundColor3 = Color3.fromRGB(230, 220, 200)}, 0.15)
-		Tween(box, {Size = UDim2.new(0, 13, 0, 13), Position = UDim2.new(0, 7.5, 0.5, -6.5)}, 0.15)
-	end)
-	btn.MouseLeave:Connect(function()
-		Tween(frame, {BackgroundColor3 = Color3.fromRGB(218, 208, 188)}, 0.15)
-		Tween(box, {Size = UDim2.new(0, 12, 0, 12), Position = UDim2.new(0, 8, 0.5, -6)}, 0.15)
-	end)
 
-	local function onToggle()
+		Tween(frame, {
+			BackgroundColor3 = Color3.fromRGB(230, 220, 200)
+		}, 0.15)
+
+		Tween(box, {
+			Size = UDim2.new(0, 13, 0, 13),
+			Position = UDim2.new(0, 7.5, 0.5, -6.5)
+		}, 0.15)
+	end))
+
+	self:_Track(btn.MouseLeave:Connect(function()
+		Tween(frame, {
+			BackgroundColor3 = Color3.fromRGB(218, 208, 188)
+		}, 0.15)
+
+		Tween(box, {
+			Size = UDim2.new(0, 12, 0, 12),
+			Position = UDim2.new(0, 8, 0.5, -6)
+		}, 0.15)
+	end))
+
+	self:_Track(BindActivated(btn, function()
 		PlaySound(CLICK_SOUND, 0.4)
+
 		state = not state
-		Tween(frame, {BackgroundColor3 = Color3.fromRGB(200, 190, 170)}, 0.08)
+
+		Tween(frame, {
+			BackgroundColor3 = Color3.fromRGB(200, 190, 170)
+		}, 0.08)
+
 		Tween(box, {
 			BackgroundColor3 = state and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(40, 35, 30),
 			Size = UDim2.new(0, 11, 0, 11)
 		}, 0.12)
-		task.delay(0.12, function()
-			Tween(frame, {BackgroundColor3 = Color3.fromRGB(218, 208, 188)}, 0.18)
-			Tween(box, {Size = UDim2.new(0, 12, 0, 12), Position = UDim2.new(0, 8, 0.5, -6)}, 0.18)
-		end)
-		if callback then
-			callback(state)
-		end
-	end
 
-	btn.MouseButton1Click:Connect(onToggle)
-	btn.TouchTap:Connect(onToggle)
+		task.delay(0.12, function()
+			if not frame.Parent then return end
+
+			Tween(frame, {
+				BackgroundColor3 = Color3.fromRGB(218, 208, 188)
+			}, 0.18)
+
+			Tween(box, {
+				Size = UDim2.new(0, 12, 0, 12),
+				Position = UDim2.new(0, 8, 0.5, -6)
+			}, 0.18)
+		end)
+
+		if callback then
+			task.spawn(callback, state)
+		end
+	end))
 
 	return frame
 end
 
 function CoffeeIFY:CreateSlider(tab, text, min, max, default, callback)
-	local page = typeof(tab) == "table" and tab.Page or self.tabs[tab].Page
-	min = min or 0
-	max = max or 100
-	local value = default or min
+	local page = self:_GetPage(tab)
+
+	min = tonumber(min) or 0
+	max = tonumber(max) or 100
+
+	if max < min then
+		min, max = max, min
+	end
+
+	if max == min then
+		max = min + 1
+	end
+
+	local value = math.clamp(tonumber(default) or min, min, max)
 
 	local frame = Create("Frame", {
 		Size = UDim2.new(1, 0, 0, 26),
@@ -709,6 +970,7 @@ function CoffeeIFY:CreateSlider(tab, text, min, max, default, callback)
 		Position = UDim2.new(1, -132, 0.5, -1.5),
 		BackgroundColor3 = Color3.fromRGB(155, 145, 125),
 		BorderSizePixel = 0,
+		Active = true,
 		Parent = frame
 	})
 
@@ -724,37 +986,84 @@ function CoffeeIFY:CreateSlider(tab, text, min, max, default, callback)
 		Position = UDim2.new((value - min) / (max - min), -5, 0.5, -5),
 		BackgroundColor3 = Color3.fromRGB(45, 40, 35),
 		BorderSizePixel = 0,
+		Active = true,
 		Parent = bar
 	})
 
 	local dragging = false
-	knob.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			dragging = true
+
+	local function updateFromX(x)
+		if not bar.Parent then
+			return
 		end
-	end)
-	UserInputService.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+
+		local width = bar.AbsoluteSize.X
+
+		if width <= 0 then
+			return
+		end
+
+		local rel = math.clamp(
+			(x - bar.AbsolutePosition.X) / width,
+			0,
+			1
+		)
+
+		local raw = min + (max - min) * rel
+		value = math.floor(raw + 0.5)
+
+		local normalized = (value - min) / (max - min)
+
+		fill.Size = UDim2.new(normalized, 0, 1, 0)
+		knob.Position = UDim2.new(normalized, -5, 0.5, -5)
+
+		if callback then
+			task.spawn(callback, value)
+		end
+	end
+
+	local function beginSlider(input)
+		if self._closing then
+			return
+		end
+
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
+
+			dragging = true
+			PlaySound(CLICK_SOUND, 0.3)
+			updateFromX(input.Position.X)
+		end
+	end
+
+	self:_Track(bar.InputBegan:Connect(beginSlider))
+	self:_Track(knob.InputBegan:Connect(beginSlider))
+
+	self:_Track(UserInputService.InputChanged:Connect(function(input)
+		if not dragging or self._closing then
+			return
+		end
+
+		if input.UserInputType == Enum.UserInputType.MouseMovement
+			or input.UserInputType == Enum.UserInputType.Touch then
+
+			updateFromX(input.Position.X)
+		end
+	end))
+
+	self:_Track(UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
+
 			dragging = false
 		end
-	end)
-	UserInputService.InputChanged:Connect(function(input)
-		if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-			local rel = math.clamp((input.Position.X - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
-			fill.Size = UDim2.new(rel, 0, 1, 0)
-			knob.Position = UDim2.new(rel, -5, 0.5, -5)
-			value = math.floor(min + (max - min) * rel)
-			if callback then
-				callback(value)
-			end
-		end
-	end)
+	end))
 
 	return frame
 end
 
 function CoffeeIFY:CreateTextBox(tab, placeholder, callback)
-	local page = typeof(tab) == "table" and tab.Page or self.tabs[tab].Page
+	local page = self:_GetPage(tab)
 
 	local frame = Create("Frame", {
 		Size = UDim2.new(1, 0, 0, 28),
@@ -784,17 +1093,17 @@ function CoffeeIFY:CreateTextBox(tab, placeholder, callback)
 		Parent = box
 	})
 
-	box.FocusLost:Connect(function(enter)
+	self:_Track(box.FocusLost:Connect(function(enter)
 		if callback then
-			callback(box.Text, enter)
+			task.spawn(callback, box.Text, enter)
 		end
-	end)
+	end))
 
 	return frame, box
 end
 
 function CoffeeIFY:CreateLabel(tab, text)
-	local page = typeof(tab) == "table" and tab.Page or self.tabs[tab].Page
+	local page = self:_GetPage(tab)
 
 	local label = Create("TextLabel", {
 		Size = UDim2.new(1, 0, 0, 20),
@@ -810,17 +1119,17 @@ function CoffeeIFY:CreateLabel(tab, text)
 	return label
 end
 
-
--- ===================== DROPDOWN =====================
--- theme support: pass a theme table as 6th arg
 function CoffeeIFY:CreateDropdown(tab, text, options, default, callback, theme)
-	local page = typeof(tab) == "table" and tab.Page or self.tabs[tab].Page
-	options = options or {"Option 1", "Option 2", "Option 3"}
-	local selected = default or options[1]
-	local open = false
+	local page = self:_GetPage(tab)
 
-	-- theme defaults (coffee style)
+	options = options or {"Option 1", "Option 2", "Option 3"}
+
+	if #options == 0 then
+		options = {"Option 1"}
+	end
+
 	theme = theme or {}
+
 	local t = {
 		Bg = theme.Bg or Color3.fromRGB(218, 208, 188),
 		ListBg = theme.ListBg or Color3.fromRGB(210, 200, 180),
@@ -828,8 +1137,26 @@ function CoffeeIFY:CreateDropdown(tab, text, options, default, callback, theme)
 		Text = theme.Text or Color3.fromRGB(40, 35, 30),
 		SelectedText = theme.SelectedText or Color3.fromRGB(80, 70, 60),
 		Stroke = theme.Stroke or Color3.fromRGB(170, 160, 140),
-		Arrow = theme.Arrow or Color3.fromRGB(60, 55, 50),
+		Arrow = theme.Arrow or Color3.fromRGB(60, 55, 50)
 	}
+
+	local selected = default
+
+	local validDefault = false
+
+	for _, option in ipairs(options) do
+		if option == selected then
+			validDefault = true
+			break
+		end
+	end
+
+	if not validDefault then
+		selected = options[1]
+	end
+
+	local open = false
+	local destroyed = false
 
 	local frame = Create("Frame", {
 		Size = UDim2.new(1, 0, 0, 26),
@@ -862,7 +1189,7 @@ function CoffeeIFY:CreateDropdown(tab, text, options, default, callback, theme)
 
 	local selectedLabel = Create("TextLabel", {
 		Name = "Selected",
-		Text = selected,
+		Text = tostring(selected),
 		Size = UDim2.new(0.4, -10, 1, 0),
 		Position = UDim2.new(0.55, 0, 0, 0),
 		BackgroundTransparency = 1,
@@ -909,112 +1236,160 @@ function CoffeeIFY:CreateDropdown(tab, text, options, default, callback, theme)
 	})
 
 	local function closeDropdown()
+		if not open then
+			return
+		end
+
 		open = false
-		Tween(list, {Size = UDim2.new(1, 0, 0, 0)}, 0.2)
 		arrow.Text = "▾"
+
+		Tween(list, {
+			Size = UDim2.new(1, 0, 0, 0)
+		}, 0.2)
+
 		task.delay(0.2, function()
-			if not open then
+			if not open and list.Parent then
 				list.Visible = false
 			end
 		end)
 	end
 
 	local function openDropdown()
+		if open or destroyed or self._closing then
+			return
+		end
+
 		open = true
 		list.Visible = true
+
 		local height = #options * 24
-		Tween(list, {Size = UDim2.new(1, 0, 0, height)}, 0.22, Enum.EasingStyle.Quad)
+
+		Tween(list, {
+			Size = UDim2.new(1, 0, 0, height)
+		}, 0.22, Enum.EasingStyle.Quad)
+
 		arrow.Text = "▴"
 		PlaySound(CLICK_SOUND, 0.3)
 	end
 
-	for _, opt in ipairs(options) do
+	for index, opt in ipairs(options) do
 		local optBtn = Create("TextButton", {
 			Size = UDim2.new(1, 0, 0, 23),
 			BackgroundColor3 = t.Bg,
 			BorderSizePixel = 0,
-			Text = "  " .. opt,
+			Text = "  " .. tostring(opt),
 			TextColor3 = t.Text,
 			Font = Enum.Font.Gotham,
 			TextSize = 12,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			AutoButtonColor = false,
 			ZIndex = 21,
+			LayoutOrder = index,
 			Parent = list
 		})
 
-		optBtn.MouseEnter:Connect(function()
+		self:_Track(optBtn.MouseEnter:Connect(function()
+			if self._closing then return end
 			PlaySound(HOVER_SOUND, 0.18)
 			optBtn.BackgroundColor3 = t.Hover
-		end)
-		optBtn.MouseLeave:Connect(function()
-			optBtn.BackgroundColor3 = t.Bg
-		end)
+		end))
 
-		local function pick()
-			PlaySound(CLICK_SOUND, 0.4)
-			selected = opt
-			selectedLabel.Text = selected
-			closeDropdown()
-			if callback then
-				callback(selected)
+		self:_Track(optBtn.MouseLeave:Connect(function()
+			if optBtn.Parent then
+				optBtn.BackgroundColor3 = t.Bg
 			end
-		end
+		end))
 
-		optBtn.MouseButton1Click:Connect(pick)
-		optBtn.TouchTap:Connect(pick)
+		self:_Track(BindActivated(optBtn, function()
+			if self._closing then
+				return
+			end
+
+			PlaySound(CLICK_SOUND, 0.4)
+
+			selected = opt
+			selectedLabel.Text = tostring(selected)
+
+			closeDropdown()
+
+			if callback then
+				task.spawn(callback, selected)
+			end
+		end))
 	end
 
-	local function toggle()
+	self:_Track(BindActivated(mainBtn, function()
 		if open then
 			closeDropdown()
 		else
 			openDropdown()
 		end
-	end
+	end))
 
-	mainBtn.MouseEnter:Connect(function()
+	self:_Track(mainBtn.MouseEnter:Connect(function()
+		if self._closing then return end
 		PlaySound(HOVER_SOUND, 0.2)
-		Tween(mainBtn, {BackgroundColor3 = t.Hover}, 0.15)
-	end)
-	mainBtn.MouseLeave:Connect(function()
-		Tween(mainBtn, {BackgroundColor3 = t.Bg}, 0.15)
-	end)
-	mainBtn.MouseButton1Click:Connect(function()
-		Tween(mainBtn, {BackgroundColor3 = Color3.fromRGB(190, 180, 160)}, 0.08)
-		task.delay(0.1, function()
-			Tween(mainBtn, {BackgroundColor3 = t.Bg}, 0.15)
-		end)
-		toggle()
-	end)
-	mainBtn.TouchTap:Connect(function()
-		Tween(mainBtn, {BackgroundColor3 = Color3.fromRGB(190, 180, 160)}, 0.08)
-		task.delay(0.1, function()
-			Tween(mainBtn, {BackgroundColor3 = t.Bg}, 0.15)
-		end)
-		toggle()
-	end)
 
-	-- close when clicking/tapping elsewhere
-	UserInputService.InputBegan:Connect(function(input)
-		if not open then return end
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			local pos = input.Position
-			local absPos = list.AbsolutePosition
-			local absSize = list.AbsoluteSize
-			if pos.X < absPos.X or pos.X > absPos.X + absSize.X or
-			   pos.Y < absPos.Y - 26 or pos.Y > absPos.Y + absSize.Y then
-				closeDropdown()
-			end
+		Tween(mainBtn, {
+			BackgroundColor3 = t.Hover
+		}, 0.15)
+	end))
+
+	self:_Track(mainBtn.MouseLeave:Connect(function()
+		if self._closing then return end
+
+		Tween(mainBtn, {
+			BackgroundColor3 = t.Bg
+		}, 0.15)
+	end))
+
+	self:_Track(UserInputService.InputBegan:Connect(function(input)
+		if not open or self._closing then
+			return
 		end
-	end)
+
+		if input.UserInputType ~= Enum.UserInputType.MouseButton1
+			and input.UserInputType ~= Enum.UserInputType.Touch then
+			return
+		end
+
+		local pos = input.Position
+
+		local mainPos = mainBtn.AbsolutePosition
+		local mainSize = mainBtn.AbsoluteSize
+		local listPos = list.AbsolutePosition
+		local listSize = list.AbsoluteSize
+
+		local insideMain =
+			pos.X >= mainPos.X
+			and pos.X <= mainPos.X + mainSize.X
+			and pos.Y >= mainPos.Y
+			and pos.Y <= mainPos.Y + mainSize.Y
+
+		local insideList =
+			pos.X >= listPos.X
+			and pos.X <= listPos.X + listSize.X
+			and pos.Y >= listPos.Y
+			and pos.Y <= listPos.Y + listSize.Y
+
+		if not insideMain and not insideList then
+			closeDropdown()
+		end
+	end))
+
+	self:_Track(frame.AncestryChanged:Connect(function(_, parent)
+		if not parent then
+			destroyed = true
+			open = false
+		end
+	end))
 
 	return frame
 end
 
--- ===================== KEYBIND =====================
 function CoffeeIFY:CreateKeybind(tab, text, default, callback)
-	local page = typeof(tab) == "table" and tab.Page or self.tabs[tab].Page
+	local page = self:_GetPage(tab)
+
 	local key = default or Enum.KeyCode.E
 	local listening = false
 
@@ -1054,73 +1429,126 @@ function CoffeeIFY:CreateKeybind(tab, text, default, callback)
 		Size = UDim2.new(1, 0, 1, 0),
 		BackgroundTransparency = 1,
 		Text = "",
+		AutoButtonColor = false,
 		Parent = frame
 	})
 
+	local function displayKey()
+		return typeof(key) == "EnumItem" and key.Name or tostring(key)
+	end
+
+	local function cancelListen()
+		listening = false
+		keyLabel.Text = displayKey()
+
+		Tween(keyLabel, {
+			BackgroundColor3 = Color3.fromRGB(50, 45, 40),
+			TextColor3 = Color3.fromRGB(230, 220, 200)
+		}, 0.2)
+
+		Tween(frame, {
+			BackgroundColor3 = Color3.fromRGB(218, 208, 188)
+		}, 0.2)
+	end
+
 	local function setKey(newKey)
 		key = newKey
-		keyLabel.Text = typeof(key) == "EnumItem" and key.Name or tostring(key)
+		keyLabel.Text = displayKey()
 		listening = false
-		Tween(keyLabel, {BackgroundColor3 = Color3.fromRGB(50, 45, 40), TextColor3 = Color3.fromRGB(230, 220, 200)}, 0.2)
-		Tween(frame, {BackgroundColor3 = Color3.fromRGB(218, 208, 188)}, 0.2)
+
+		Tween(keyLabel, {
+			BackgroundColor3 = Color3.fromRGB(50, 45, 40),
+			TextColor3 = Color3.fromRGB(230, 220, 200)
+		}, 0.2)
+
+		Tween(frame, {
+			BackgroundColor3 = Color3.fromRGB(218, 208, 188)
+		}, 0.2)
+
 		PlaySound(CLICK_SOUND, 0.35)
 	end
 
 	local function startListen()
-		if listening then return end
-		PlaySound(HOVER_SOUND, 0.25)
-		listening = true
-		keyLabel.Text = "..."
-		Tween(keyLabel, {BackgroundColor3 = Color3.fromRGB(80, 70, 55), TextColor3 = Color3.fromRGB(255, 240, 200)}, 0.18)
-		Tween(frame, {BackgroundColor3 = Color3.fromRGB(230, 220, 200)}, 0.15)
-	end
-
-	btn.MouseEnter:Connect(function()
-		PlaySound(HOVER_SOUND, 0.2)
-		Tween(frame, {BackgroundColor3 = Color3.fromRGB(230, 220, 200)}, 0.15)
-		Tween(keyLabel, {Size = UDim2.new(0.35, -8, 0, 19)}, 0.12)
-	end)
-	btn.MouseLeave:Connect(function()
-		if not listening then
-			Tween(frame, {BackgroundColor3 = Color3.fromRGB(218, 208, 188)}, 0.15)
-			Tween(keyLabel, {Size = UDim2.new(0.35, -10, 0, 18)}, 0.12)
-		end
-	end)
-	btn.MouseButton1Click:Connect(startListen)
-	btn.TouchTap:Connect(startListen)
-
-	UserInputService.InputBegan:Connect(function(input, gp)
-		-- fire callback when bound key is pressed
-		if not listening then
-			if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == key then
-				if callback then
-					callback(key)
-				end
-			end
+		if listening or self._closing then
 			return
 		end
 
-		-- listening mode
-		if input.UserInputType == Enum.UserInputType.Keyboard then
-			if input.KeyCode == Enum.KeyCode.Escape then
-				listening = false
-				keyLabel.Text = typeof(key) == "EnumItem" and key.Name or tostring(key)
-				keyLabel.BackgroundColor3 = Color3.fromRGB(50, 45, 40)
-				keyLabel.TextColor3 = Color3.fromRGB(230, 220, 200)
-			else
-				setKey(input.KeyCode)
-			end
-		elseif input.UserInputType == Enum.UserInputType.Touch then
-			-- touch support: cancel listening on touch (mobile friendly)
-			listening = false
-			keyLabel.Text = typeof(key) == "EnumItem" and key.Name or tostring(key)
-			keyLabel.BackgroundColor3 = Color3.fromRGB(50, 45, 40)
-			keyLabel.TextColor3 = Color3.fromRGB(230, 220, 200)
-			PlaySound(CLICK_SOUND, 0.3)
-		end
-	end)
+		PlaySound(HOVER_SOUND, 0.25)
 
-	return frame, function() return key end
+		listening = true
+		keyLabel.Text = "..."
+
+		Tween(keyLabel, {
+			BackgroundColor3 = Color3.fromRGB(80, 70, 55),
+			TextColor3 = Color3.fromRGB(255, 240, 200)
+		}, 0.18)
+
+		Tween(frame, {
+			BackgroundColor3 = Color3.fromRGB(230, 220, 200)
+		}, 0.15)
+	end
+
+	self:_Track(btn.MouseEnter:Connect(function()
+		if self._closing then return end
+
+		PlaySound(HOVER_SOUND, 0.2)
+
+		Tween(frame, {
+			BackgroundColor3 = Color3.fromRGB(230, 220, 200)
+		}, 0.15)
+
+		Tween(keyLabel, {
+			Size = UDim2.new(0.35, -8, 0, 19)
+		}, 0.12)
+	end))
+
+	self:_Track(btn.MouseLeave:Connect(function()
+		if not listening then
+			Tween(frame, {
+				BackgroundColor3 = Color3.fromRGB(218, 208, 188)
+			}, 0.15)
+
+			Tween(keyLabel, {
+				Size = UDim2.new(0.35, -10, 0, 18)
+			}, 0.12)
+		end
+	end))
+
+	self:_Track(BindActivated(btn, startListen))
+
+	self:_Track(UserInputService.InputBegan:Connect(function(input, gameProcessed)
+		if self._closing then
+			return
+		end
+
+		if listening then
+			if input.UserInputType == Enum.UserInputType.Keyboard then
+				if input.KeyCode == Enum.KeyCode.Escape then
+					cancelListen()
+				elseif input.KeyCode ~= Enum.KeyCode.Unknown then
+					setKey(input.KeyCode)
+				end
+			end
+
+			return
+		end
+
+		if gameProcessed then
+			return
+		end
+
+		if input.UserInputType == Enum.UserInputType.Keyboard
+			and input.KeyCode == key then
+
+			if callback then
+				task.spawn(callback, key)
+			end
+		end
+	end))
+
+	return frame, function()
+		return key
+	end
 end
 
 return CoffeeIFY
