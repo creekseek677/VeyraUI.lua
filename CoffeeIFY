@@ -1,0 +1,460 @@
+-- used ai for some of da code, ui very new
+
+-- hai
+local CoffeeIFY = {}
+CoffeeIFY.__index = CoffeeIFY
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+
+-- destroy old
+if player.PlayerGui:FindFirstChild("CoffeeIFY") then
+	player.PlayerGui.CoffeeIFY:Destroy()
+end
+
+local function Create(class, props)
+	local inst = Instance.new(class)
+	for k, v in pairs(props or {}) do
+		inst[k] = v
+	end
+	return inst
+end
+
+function CoffeeIFY.new()
+	local self = setmetatable({}, CoffeeIFY)
+
+	self.gui = Create("ScreenGui", {
+		Name = "CoffeeIFY",
+		ResetOnSpawn = false,
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		Parent = player.PlayerGui
+	})
+
+	-- MAIN WINDOW (360x360, no corners)
+	self.main = Create("Frame", {
+		Name = "Main",
+		Size = UDim2.new(0, 360, 0, 360),
+		Position = UDim2.new(0.5, -180, 0.5, -180),
+		BackgroundColor3 = Color3.fromRGB(232, 224, 205),
+		BorderSizePixel = 0,
+		Parent = self.gui
+	})
+
+	-- outer border
+	Create("UIStroke", {
+		Color = Color3.fromRGB(170, 160, 140),
+		Thickness = 1.5,
+		Parent = self.main
+	})
+
+	-- TOP BAR
+	self.topBar = Create("Frame", {
+		Name = "TopBar",
+		Size = UDim2.new(1, 0, 0, 26),
+		BackgroundColor3 = Color3.fromRGB(42, 38, 34),
+		BorderSizePixel = 0,
+		Parent = self.main
+	})
+
+	self.title = Create("TextLabel", {
+		Text = "◆  Label",
+		Size = UDim2.new(1, -16, 1, 0),
+		Position = UDim2.new(0, 10, 0, 0),
+		BackgroundTransparency = 1,
+		TextColor3 = Color3.fromRGB(225, 215, 195),
+		Font = Enum.Font.GothamMedium,
+		TextSize = 12,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = self.topBar
+	})
+
+	-- SIDEBAR
+	self.sidebar = Create("Frame", {
+		Name = "Sidebar",
+		Size = UDim2.new(0, 98, 1, -26),
+		Position = UDim2.new(0, 0, 0, 26),
+		BackgroundColor3 = Color3.fromRGB(205, 195, 175),
+		BorderSizePixel = 0,
+		Parent = self.main
+	})
+
+	Create("UIStroke", {
+		Color = Color3.fromRGB(170, 160, 140),
+		Thickness = 1,
+		Parent = self.sidebar
+	})
+
+	-- CONTENT
+	self.content = Create("Frame", {
+		Name = "Content",
+		Size = UDim2.new(1, -98, 1, -26),
+		Position = UDim2.new(0, 98, 0, 26),
+		BackgroundColor3 = Color3.fromRGB(232, 224, 205),
+		BorderSizePixel = 0,
+		Parent = self.main
+	})
+
+	self.contentTitle = Create("TextLabel", {
+		Name = "Title",
+		Text = "TAB 1",
+		Size = UDim2.new(1, -16, 0, 28),
+		Position = UDim2.new(0, 12, 0, 6),
+		BackgroundTransparency = 1,
+		TextColor3 = Color3.fromRGB(35, 30, 25),
+		Font = Enum.Font.GothamBold,
+		TextSize = 15,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = self.content
+	})
+
+	self.pages = Create("Folder", {
+		Name = "Pages",
+		Parent = self.content
+	})
+
+	self.tabs = {}
+	self.tabButtons = {}
+	self.currentTab = nil
+	self.tabCount = 0
+
+	-- dragging
+	local dragging, dragStart, startPos
+	self.topBar.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+			dragStart = input.Position
+			startPos = self.main.Position
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = false
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+			local delta = input.Position - dragStart
+			self.main.Position = UDim2.new(
+				startPos.X.Scale, startPos.X.Offset + delta.X,
+				startPos.Y.Scale, startPos.Y.Offset + delta.Y
+			)
+		end
+	end)
+
+	return self
+end
+
+-- ===================== CREATE TAB =====================
+function CoffeeIFY:CreateTab(name)
+	self.tabCount += 1
+	local index = self.tabCount
+
+	local btn = Create("TextButton", {
+		Name = name,
+		Size = UDim2.new(1, -10, 0, 26),
+		Position = UDim2.new(0, 5, 0, 6 + (index-1)*30),
+		BackgroundColor3 = Color3.fromRGB(185, 175, 155),
+		BorderSizePixel = 0,
+		Text = "",
+		AutoButtonColor = false,
+		Parent = self.sidebar
+	})
+
+	local icon = Create("Frame", {
+		Size = UDim2.new(0, 7, 0, 7),
+		Position = UDim2.new(0, 7, 0.5, -3.5),
+		BackgroundColor3 = Color3.fromRGB(70, 60, 50),
+		BorderSizePixel = 0,
+		Parent = btn
+	})
+
+	local label = Create("TextLabel", {
+		Text = name,
+		Size = UDim2.new(1, -22, 1, 0),
+		Position = UDim2.new(0, 18, 0, 0),
+		BackgroundTransparency = 1,
+		TextColor3 = Color3.fromRGB(45, 40, 35),
+		Font = Enum.Font.GothamMedium,
+		TextSize = 11,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = btn
+	})
+
+	-- page
+	local page = Create("ScrollingFrame", {
+		Name = name,
+		Size = UDim2.new(1, -16, 1, -42),
+		Position = UDim2.new(0, 8, 0, 36),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 3,
+		ScrollBarImageColor3 = Color3.fromRGB(140, 130, 110),
+		CanvasSize = UDim2.new(0, 0, 0, 0),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		Visible = false,
+		Parent = self.pages
+	})
+
+	local layout = Create("UIListLayout", {
+		Padding = UDim.new(0, 6),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+		Parent = page
+	})
+
+	Create("UIPadding", {
+		PaddingTop = UDim.new(0, 2),
+		PaddingBottom = UDim.new(0, 6),
+		Parent = page
+	})
+
+	local tabData = {
+		Button = btn,
+		Icon = icon,
+		Label = label,
+		Page = page,
+		Name = name
+	}
+
+	self.tabs[name] = tabData
+	self.tabButtons[index] = tabData
+
+	local function select()
+		for _, t in pairs(self.tabs) do
+			t.Button.BackgroundColor3 = Color3.fromRGB(185, 175, 155)
+			t.Label.TextColor3 = Color3.fromRGB(45, 40, 35)
+			t.Icon.BackgroundColor3 = Color3.fromRGB(70, 60, 50)
+			t.Page.Visible = false
+		end
+		btn.BackgroundColor3 = Color3.fromRGB(48, 43, 38)
+		label.TextColor3 = Color3.fromRGB(230, 220, 200)
+		icon.BackgroundColor3 = Color3.fromRGB(230, 220, 200)
+		page.Visible = true
+		self.contentTitle.Text = name
+		self.currentTab = tabData
+	end
+
+	btn.MouseButton1Click:Connect(select)
+
+	-- auto select first tab
+	if index == 1 then
+		select()
+	end
+
+	return tabData
+end
+
+-- ===================== ELEMENTS =====================
+
+function CoffeeIFY:CreateButton(tab, text, callback)
+	local page = typeof(tab) == "table" and tab.Page or self.tabs[tab].Page
+
+	local frame = Create("Frame", {
+		Size = UDim2.new(1, 0, 0, 26),
+		BackgroundColor3 = Color3.fromRGB(218, 208, 188),
+		BorderSizePixel = 0,
+		Parent = page
+	})
+
+	local box = Create("Frame", {
+		Size = UDim2.new(0, 12, 0, 12),
+		Position = UDim2.new(0, 8, 0.5, -6),
+		BackgroundColor3 = Color3.fromRGB(40, 35, 30),
+		BorderSizePixel = 0,
+		Parent = frame
+	})
+
+	Create("TextLabel", {
+		Text = text or "Button",
+		Size = UDim2.new(1, -30, 1, 0),
+		Position = UDim2.new(0, 26, 0, 0),
+		BackgroundTransparency = 1,
+		TextColor3 = Color3.fromRGB(40, 35, 30),
+		Font = Enum.Font.Gotham,
+		TextSize = 12,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = frame
+	})
+
+	local btn = Create("TextButton", {
+		Size = UDim2.new(1, 0, 1, 0),
+		BackgroundTransparency = 1,
+		Text = "",
+		Parent = frame
+	})
+
+	btn.MouseButton1Click:Connect(function()
+		if callback then
+			callback()
+		end
+	end)
+
+	return frame
+end
+
+function CoffeeIFY:CreateToggle(tab, text, default, callback)
+	local page = typeof(tab) == "table" and tab.Page or self.tabs[tab].Page
+	local state = default or false
+
+	local frame = Create("Frame", {
+		Size = UDim2.new(1, 0, 0, 26),
+		BackgroundColor3 = Color3.fromRGB(218, 208, 188),
+		BorderSizePixel = 0,
+		Parent = page
+	})
+
+	local box = Create("Frame", {
+		Size = UDim2.new(0, 12, 0, 12),
+		Position = UDim2.new(0, 8, 0.5, -6),
+		BackgroundColor3 = Color3.fromRGB(40, 35, 30),
+		BorderSizePixel = 0,
+		Parent = frame
+	})
+
+	Create("TextLabel", {
+		Text = text or "Toggle",
+		Size = UDim2.new(1, -70, 1, 0),
+		Position = UDim2.new(0, 26, 0, 0),
+		BackgroundTransparency = 1,
+		TextColor3 = Color3.fromRGB(40, 35, 30),
+		Font = Enum.Font.Gotham,
+		TextSize = 12,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = frame
+	})
+
+	local stateLabel = Create("TextLabel", {
+		Text = state and "ON" or "OFF",
+		Size = UDim2.new(0, 36, 1, 0),
+		Position = UDim2.new(1, -42, 0, 0),
+		BackgroundTransparency = 1,
+		TextColor3 = state and Color3.fromRGB(55, 110, 55) or Color3.fromRGB(110, 100, 85),
+		Font = Enum.Font.GothamMedium,
+		TextSize = 11,
+		Parent = frame
+	})
+
+	local btn = Create("TextButton", {
+		Size = UDim2.new(1, 0, 1, 0),
+		BackgroundTransparency = 1,
+		Text = "",
+		Parent = frame
+	})
+
+	btn.MouseButton1Click:Connect(function()
+		state = not state
+		stateLabel.Text = state and "ON" or "OFF"
+		stateLabel.TextColor3 = state and Color3.fromRGB(55, 110, 55) or Color3.fromRGB(110, 100, 85)
+		if callback then
+			callback(state)
+		end
+	end)
+
+	return frame
+end
+
+function CoffeeIFY:CreateSlider(tab, text, min, max, default, callback)
+	local page = typeof(tab) == "table" and tab.Page or self.tabs[tab].Page
+	min = min or 0
+	max = max or 100
+	local value = default or min
+
+	local frame = Create("Frame", {
+		Size = UDim2.new(1, 0, 0, 26),
+		BackgroundColor3 = Color3.fromRGB(218, 208, 188),
+		BorderSizePixel = 0,
+		Parent = page
+	})
+
+	Create("TextLabel", {
+		Text = "≡",
+		Size = UDim2.new(0, 16, 1, 0),
+		Position = UDim2.new(0, 6, 0, 0),
+		BackgroundTransparency = 1,
+		TextColor3 = Color3.fromRGB(40, 35, 30),
+		Font = Enum.Font.GothamBold,
+		TextSize = 13,
+		Parent = frame
+	})
+
+	Create("TextLabel", {
+		Text = text or "Slider",
+		Size = UDim2.new(0, 50, 1, 0),
+		Position = UDim2.new(0, 22, 0, 0),
+		BackgroundTransparency = 1,
+		TextColor3 = Color3.fromRGB(40, 35, 30),
+		Font = Enum.Font.Gotham,
+		TextSize = 12,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = frame
+	})
+
+	local bar = Create("Frame", {
+		Size = UDim2.new(0, 120, 0, 3),
+		Position = UDim2.new(1, -132, 0.5, -1.5),
+		BackgroundColor3 = Color3.fromRGB(155, 145, 125),
+		BorderSizePixel = 0,
+		Parent = frame
+	})
+
+	local fill = Create("Frame", {
+		Size = UDim2.new((value - min) / (max - min), 0, 1, 0),
+		BackgroundColor3 = Color3.fromRGB(70, 60, 50),
+		BorderSizePixel = 0,
+		Parent = bar
+	})
+
+	local knob = Create("Frame", {
+		Size = UDim2.new(0, 10, 0, 10),
+		Position = UDim2.new((value - min) / (max - min), -5, 0.5, -5),
+		BackgroundColor3 = Color3.fromRGB(45, 40, 35),
+		BorderSizePixel = 0,
+		Parent = bar
+	})
+
+	local dragging = false
+	knob.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = false
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+			local rel = math.clamp((input.Position.X - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
+			fill.Size = UDim2.new(rel, 0, 1, 0)
+			knob.Position = UDim2.new(rel, -5, 0.5, -5)
+			value = math.floor(min + (max - min) * rel)
+			if callback then
+				callback(value)
+			end
+		end
+	end)
+
+	return frame
+end
+
+function CoffeeIFY:CreateLabel(tab, text)
+	local page = typeof(tab) == "table" and tab.Page or self.tabs[tab].Page
+
+	local label = Create("TextLabel", {
+		Size = UDim2.new(1, 0, 0, 20),
+		BackgroundTransparency = 1,
+		Text = text or "Label",
+		TextColor3 = Color3.fromRGB(90, 80, 70),
+		Font = Enum.Font.Gotham,
+		TextSize = 11,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = page
+	})
+
+	return label
+end
+
+return CoffeeIFY
