@@ -1209,6 +1209,99 @@ function TweenEngine.CancelOnObject(object)
 	end
 end
 
+-- Shared UI interaction feedback.
+-- The same lightweight click sound is used for hover + activation as requested.
+local UI_INTERACTION_SOUND_ID = "rbxassetid://12221967"
+local UI_HOVER_SCALE = 1.035
+local UI_HOVER_TWEEN = 0.12
+
+local UISoundFolder = SoundService:FindFirstChild("VeyraUISounds")
+if not UISoundFolder then
+	UISoundFolder = Instance.new("Folder")
+	UISoundFolder.Name = "VeyraUISounds"
+	UISoundFolder.Parent = SoundService
+end
+
+local function PlayUIInteractionSound()
+	local ok = pcall(function()
+		local sound = Instance.new("Sound")
+		sound.Name = "UIInteraction"
+		sound.SoundId = UI_INTERACTION_SOUND_ID
+		sound.Volume = 0.42
+		sound.RollOffMode = Enum.RollOffMode.InverseTapered
+		sound.Parent = UISoundFolder
+		sound:Play()
+		task.delay(1.25, function()
+			if sound and sound.Parent then sound:Destroy() end
+		end)
+	end)
+	return ok
+end
+
+local function AddInteractiveFeedback(guiObject, cleanup, options)
+	if not guiObject or not guiObject:IsA("GuiObject") then return nil end
+	options = options or {}
+	local hoverScale = tonumber(options.HoverScale) or UI_HOVER_SCALE
+	local doHover = options.Hover ~= false
+	local playHoverSound = options.HoverSound ~= false
+	local playActivateSound = options.ActivateSound ~= false
+	local scaleObj = nil
+
+	if doHover then
+		scaleObj = guiObject:FindFirstChild("VeyraHoverScale")
+		if not scaleObj then
+			scaleObj = Instance.new("UIScale")
+			scaleObj.Name = "VeyraHoverScale"
+			scaleObj.Scale = 1
+			scaleObj.Parent = guiObject
+		end
+	end
+
+	local hovered = false
+	local function tweenScale(target)
+		if not scaleObj then return end
+		TweenEngine.CancelOnObject(scaleObj)
+		TweenEngine.Play(scaleObj, { Scale = target }, {
+			Duration = tonumber(options.Duration) or UI_HOVER_TWEEN,
+			Easing = "QuadOut",
+		})
+	end
+
+	local connections = {}
+	if doHover then
+		table.insert(connections, guiObject.MouseEnter:Connect(function()
+			hovered = true
+			if options.Disabled and options.Disabled() then return end
+			if playHoverSound then PlayUIInteractionSound() end
+			tweenScale(hoverScale)
+		end))
+		table.insert(connections, guiObject.MouseLeave:Connect(function()
+			hovered = false
+			if options.Disabled and options.Disabled() then return end
+			tweenScale(1)
+		end))
+	end
+
+	if playActivateSound and guiObject:IsA("GuiButton") then
+		table.insert(connections, guiObject.Activated:Connect(function()
+			if options.Disabled and options.Disabled() then return end
+			PlayUIInteractionSound()
+			if options.OnActivated then task.spawn(options.OnActivated) end
+		end))
+	end
+
+	if cleanup then
+		for _, c in ipairs(connections) do cleanup:AddConnection(c) end
+		if scaleObj then cleanup:AddInstance(scaleObj) end
+	end
+
+	return {
+		Scale = scaleObj,
+		IsHovered = function() return hovered end,
+		Reset = function() tweenScale(1) end,
+	}
+end
+
 local function MakeDraggable(handle, target, options)
 	options = options or {}
 	target = target or handle
@@ -2011,6 +2104,8 @@ local function CreateButton(tab, config)
 	end
 	applyImageStyle()
 
+	AddInteractiveFeedback(frame, cleanup, { Disabled = function() return not enabled end })
+
 	cleanup:AddConnection(frame.MouseEnter:Connect(function()
 		if not enabled then return end
 		if IsImageThemeActive() then
@@ -2046,7 +2141,7 @@ local function CreateButton(tab, config)
 		end
 	end))
 
-	cleanup:AddConnection(frame.MouseButton1Click:Connect(function()
+	cleanup:AddConnection(frame.Activated:Connect(function()
 		if not enabled then return end
 
 
@@ -2227,7 +2322,10 @@ local function CreateToggle(tab, config)
 
 	local changed = CreateSignal()
 
-	cleanup:AddConnection(hit.MouseButton1Click:Connect(function()
+	AddInteractiveFeedback(frame, cleanup, { Disabled = function() return not enabled end })
+	AddInteractiveFeedback(hit, cleanup, { Hover = false, ActivateSound = true, Disabled = function() return not enabled end })
+
+	cleanup:AddConnection(hit.Activated:Connect(function()
 		if not enabled then return end
 		value = not value
 		updateVisual(true)
@@ -2808,6 +2906,8 @@ local function CreateDropdown(tab, config)
 		pad.PaddingLeft = UDim.new(0, 12)
 		pad.Parent = btn
 
+		AddInteractiveFeedback(btn, cleanup)
+
 		btn.MouseEnter:Connect(function()
 			if destroyed then return end
 			TweenEngine.Play(btn, { BackgroundColor3 = Theme.Hover }, { Duration = 0.1 })
@@ -2816,7 +2916,7 @@ local function CreateDropdown(tab, config)
 			if destroyed then return end
 			TweenEngine.Play(btn, { BackgroundColor3 = Theme.Secondary }, { Duration = 0.1 })
 		end)
-		btn.MouseButton1Click:Connect(function()
+		cleanup:AddConnection(btn.Activated:Connect(function()
 			if destroyed or transitioning then return end
 			value = opt
 			title.Text = (config.Name or "Dropdown") .. ": " .. tostring(opt)
@@ -2826,6 +2926,8 @@ local function CreateDropdown(tab, config)
 		end)
 	end
 
+	AddInteractiveFeedback(frame, cleanup)
+
 	local hit = Instance.new("TextButton")
 	hit.BackgroundTransparency = 1
 	hit.Size = UDim2.new(1, 0, 1, 0)
@@ -2833,7 +2935,9 @@ local function CreateDropdown(tab, config)
 	hit.ZIndex = 5
 	hit.Parent = header
 
-	cleanup:AddConnection(hit.MouseButton1Click:Connect(function()
+	AddInteractiveFeedback(hit, cleanup, { Hover = false, ActivateSound = true })
+
+	cleanup:AddConnection(hit.Activated:Connect(function()
 		if destroyed or transitioning then return end
 		if open then
 			forceClose(false)
@@ -2912,6 +3016,7 @@ local function CreateDropdown(tab, config)
 			local pad = Instance.new("UIPadding")
 			pad.PaddingLeft = UDim.new(0, 12)
 			pad.Parent = btn
+			AddInteractiveFeedback(btn, cleanup)
 			btn.MouseEnter:Connect(function()
 				if destroyed then return end
 				TweenEngine.Play(btn, { BackgroundColor3 = Theme.Hover }, { Duration = 0.1 })
@@ -2920,14 +3025,14 @@ local function CreateDropdown(tab, config)
 				if destroyed then return end
 				TweenEngine.Play(btn, { BackgroundColor3 = Theme.Secondary }, { Duration = 0.1 })
 			end)
-			btn.MouseButton1Click:Connect(function()
+			cleanup:AddConnection(btn.Activated:Connect(function()
 				if destroyed or transitioning then return end
 				value = opt
 				title.Text = (config.Name or "Dropdown") .. ": " .. tostring(opt)
 				changed:Fire(opt)
 				if config.Callback then task.spawn(config.Callback, opt) end
 				forceClose(false)
-			end)
+			end))
 		end
 		if not keepValue or not table.find(options, value) then
 			value = options[1] or ""
@@ -3111,7 +3216,10 @@ local function CreateKeybind(tab, config)
 		TweenEngine.Play(stroke, { Color = Theme.Border }, { Duration = 0.15 })
 	end
 
-	cleanup:AddConnection(hit.MouseButton1Click:Connect(function()
+	AddInteractiveFeedback(frame, cleanup)
+	AddInteractiveFeedback(hit, cleanup, { Hover = false, ActivateSound = true, Disabled = function() return destroyed end })
+
+	cleanup:AddConnection(hit.Activated:Connect(function()
 		if destroyed then return end
 		if listening then
 			stopListening()
@@ -3578,7 +3686,10 @@ local function CreateColorPicker(tab, config)
 	hit.ZIndex = 3
 	hit.Parent = frame
 
-	cleanup:AddConnection(hit.MouseButton1Click:Connect(function()
+	AddInteractiveFeedback(frame, cleanup)
+	AddInteractiveFeedback(hit, cleanup, { Hover = false, ActivateSound = true })
+
+	cleanup:AddConnection(hit.Activated:Connect(function()
 		setOpen(not open)
 	end))
 
@@ -3703,7 +3814,7 @@ local function CreateTab(window, config)
 	tabBtn.TextTruncate = Enum.TextTruncate.AtEnd
 	tabBtn.AutoButtonColor = false
 	tabBtn.Active = true
-	tabBtn.ClipsDescendants = true
+	tabBtn.ClipsDescendants = false
 	tabBtn.ZIndex = 2
 	tabBtn.Parent = window.TabBar
 
@@ -3742,6 +3853,8 @@ local function CreateTab(window, config)
 		Cleanup = cleanup,
 		Window = window,
 	}
+
+	AddInteractiveFeedback(tabBtn, cleanup)
 
 	cleanup:AddConnection(tabBtn.Activated:Connect(function()
 		if cleanup:IsDestroyed() then return end
@@ -3957,6 +4070,9 @@ local function SetupSettingsTab(window)
 
 
 	local baseThemeNames = { "Dark", "Light", "Neon", "Cyan", "Glass", "Crimson" }
+	if not table.find(baseThemeNames, "Crimson") then
+		table.insert(baseThemeNames, "Crimson")
+	end
 	if type(Settings.CustomImageThemes) ~= "table" then
 		Settings.CustomImageThemes = {}
 	end
@@ -4540,6 +4656,8 @@ local function CreateWindow(library, config)
 		Aspect = aspect,
 		Cleanup = cleanup,
 		Actions = {},
+		_RestoredWidth = width,
+		_RestoredHeight = height,
 	}
 
 
@@ -4576,10 +4694,13 @@ local function CreateWindow(library, config)
 	local drag = MakeDraggable(titleBar, root)
 	cleanup:AddCallback(function() drag:Destroy() end)
 
-	cleanup:AddConnection(closeBtn.MouseButton1Click:Connect(function()
+	AddInteractiveFeedback(closeBtn, cleanup)
+	AddInteractiveFeedback(minBtn, cleanup)
+
+	cleanup:AddConnection(closeBtn.Activated:Connect(function()
 		window:Close()
 	end))
-	cleanup:AddConnection(minBtn.MouseButton1Click:Connect(function()
+	cleanup:AddConnection(minBtn.Activated:Connect(function()
 		window:ToggleMinimize()
 	end))
 
@@ -4594,6 +4715,7 @@ local function CreateWindow(library, config)
 		btn.ZIndex = 25
 		btn.AutoButtonColor = false
 		btn.Parent = main
+		AddInteractiveFeedback(btn, cleanup, { ActivateSound = false })
 		cleanup:AddConnection(btn.InputBegan:Connect(function(input)
 			if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
 				return
@@ -4616,9 +4738,13 @@ local function CreateWindow(library, config)
 				if mode == "bottom" or mode == "corner" then
 					newH = math.clamp(startSize.Y + dy, 220, 560)
 				end
+				newW = math.floor(newW + 0.5)
+				newH = math.floor(newH + 0.5)
 				root.Size = UDim2.fromOffset(newW, newH)
 				window.Width = newW
 				window.Height = newH
+				window._RestoredWidth = newW
+				window._RestoredHeight = newH
 			end)
 			endC = UserInputService.InputEnded:Connect(function(inp)
 				if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
@@ -4647,6 +4773,8 @@ local function CreateWindow(library, config)
 	grip2.Parent = main
 
 
+	window._RestoredWidth = width
+	window._RestoredHeight = height
 	root.Size = UDim2.fromOffset(0, 0)
 	main.BackgroundTransparency = 1
 	local openTransparency = 0.02
@@ -4682,9 +4810,11 @@ local function CreateWindow(library, config)
 		local fitY = (vp.Y - margin) / math.max(height, 1)
 		local scale = math.min(1, fitX, fitY)
 		uiScale.Scale = math.clamp(scale, 0.5, 1)
-		root.Size = UDim2.fromOffset(width, height)
-		local aw = width * uiScale.Scale
-		local ah = height * uiScale.Scale
+		local fitW = math.clamp(math.floor(tonumber(window.Width) or width), 360, 900)
+		local fitH = math.clamp(math.floor(tonumber(window.Height) or height), 220, 560)
+		root.Size = UDim2.fromOffset(fitW, fitH)
+		local aw = fitW * uiScale.Scale
+		local ah = fitH * uiScale.Scale
 		root.Position = UDim2.new(0.5, -aw / 2, 0.5, -ah / 2)
 	end
 
@@ -4875,7 +5005,8 @@ local function CreateWindow(library, config)
 		btn.MouseLeave:Connect(function()
 			TweenEngine.Play(btn, { BackgroundTransparency = 0.3 }, { Duration = 0.1 })
 		end)
-		btn.MouseButton1Click:Connect(function()
+		AddInteractiveFeedback(btn, cleanup)
+		btn.Activated:Connect(function()
 			if callback then task.spawn(callback) end
 		end)
 		task.defer(function()
@@ -4947,45 +5078,53 @@ local function CreateWindow(library, config)
 	end
 
 	function window:ToggleMinimize()
-		minimized = not minimized
+		-- Never derive restore size from root.Size while an animation is running.
+		-- root.Size may be the temporary title-bar height, which caused spam-minimize
+		-- to progressively corrupt the saved window height.
 		local grip = main:FindFirstChild("ResizeGrip")
 		local gripR = main:FindFirstChild("ResizeRight")
 		local gripB = main:FindFirstChild("ResizeBottom")
-		if minimized then
 
-			local w = root.Size.X.Offset
-			if w < 100 then
-				w = window.Width or 360
-			end
-			local h = root.Size.Y.Offset
-			if h < 40 then
-				h = window.Height or 360
-			end
-			window.Width = w
-			window.Height = h
+		if not minimized then
+			window._RestoredWidth = math.clamp(math.floor(tonumber(window.Width) or width), 360, 900)
+			window._RestoredHeight = math.clamp(math.floor(tonumber(window.Height) or height), 220, 560)
+			window.Width = window._RestoredWidth
+			window.Height = window._RestoredHeight
+		end
+
+		minimized = not minimized
+		TweenEngine.CancelOnObject(root)
+		TweenEngine.CancelOnObject(main)
+
+		if minimized then
 			body.Visible = false
 			sidebar.Visible = false
 			contentContainer.Visible = false
 			if grip then grip.Visible = false end
 			if gripR then gripR.Visible = false end
 			if gripB then gripB.Visible = false end
-			TweenEngine.CancelOnObject(root)
-			TweenEngine.CancelOnObject(main)
+
+			-- Keep the window centered during minimize. No positional tween means no
+			-- harsh downward "sinking" as the height collapses.
+			TweenEngine.Play(root, {
+				Size = UDim2.fromOffset(window._RestoredWidth, TITLE_H),
+			}, {
+				Duration = 0.24,
+				Easing = "QuadInOut",
+			})
+		else
+			local restoreW = math.clamp(math.floor(tonumber(window._RestoredWidth) or width), 360, 900)
+			local restoreH = math.clamp(math.floor(tonumber(window._RestoredHeight) or height), 220, 560)
+			window.Width = restoreW
+			window.Height = restoreH
 
 			TweenEngine.Play(root, {
-				Size = UDim2.new(0, w, 0, TITLE_H),
-			}, { Duration = 0.3, Easing = "QuadOut" })
-		else
-			local w = window.Width
-			local h = window.Height
-			TweenEngine.CancelOnObject(root)
-			TweenEngine.CancelOnObject(main)
-			TweenEngine.Play(root, {
-				Size = UDim2.new(0, w, 0, h),
+				Size = UDim2.fromOffset(restoreW, restoreH),
 			}, {
-				Duration = 0.35,
-				Easing = "BackOut",
+				Duration = 0.26,
+				Easing = "QuadOut",
 				OnComplete = function()
+					if minimized or cleanup:IsDestroyed() then return end
 					body.Visible = true
 					sidebar.Visible = true
 					contentContainer.Visible = true
