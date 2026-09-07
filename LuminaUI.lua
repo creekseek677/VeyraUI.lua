@@ -1,3 +1,5 @@
+-- hi I like to put filler using "====="
+
 local LuminaUI = {}
 LuminaUI.__index = LuminaUI
 
@@ -11,6 +13,10 @@ local HttpService = game:GetService("HttpService")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui") or (LocalPlayer and LocalPlayer:WaitForChild("PlayerGui", 5))
+
+-- ============================================================
+-- RELOAD: erase old instance if library is executed again
+-- ============================================================
 
 pcall(function()
     if getgenv then
@@ -59,6 +65,10 @@ pcall(function()
     end
 end)
 
+-- ============================================================
+-- HUB / EXECUTOR HELPERS
+-- ============================================================
+
 local function protectGui(gui)
     if not gui then return end
     pcall(function()
@@ -106,6 +116,7 @@ local function parentGui(gui)
     end
 end
 
+-- Lucide icons (optional — falls back to text if load fails)
 local LucideIcons = nil
 pcall(function()
     LucideIcons = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/Icons/main/Main-v2.lua"))()
@@ -120,7 +131,7 @@ local function getLucideImage(name)
         return LucideIcons.GetIcon(name)
     end)
     if not ok or not result then return nil end
-
+    -- GetIcon can return string rbxassetid or {image, data}
     if type(result) == "string" then
         return result, nil, nil
     end
@@ -156,6 +167,10 @@ local function applyIcon(imageLabel, iconName, fallbackText, textButton)
     end
     return false
 end
+
+-- ============================================================
+-- CUSTOM TWEEN SYSTEM
+-- ============================================================
 
 local Tween = {}
 Tween.__index = Tween
@@ -282,6 +297,10 @@ local function tween(instance, duration, props, style, callback)
     return Tween.new(instance, duration, props, style, callback)
 end
 
+-- ============================================================
+-- UTILITY
+-- ============================================================
+
 local function create(className, props)
     local obj = Instance.new(className)
     for k, v in pairs(props or {}) do
@@ -327,8 +346,12 @@ local function disconnectAll(connections)
     table.clear(connections)
 end
 
-local DefaultThemes = {
+-- ============================================================
+-- THEME
+-- ============================================================
 
+local DefaultThemes = {
+    -- Primary look: mint-on-dark (inspired by the clean spy UI style)
     Lumina = {
         Background = Color3.fromRGB(18, 20, 22),
         Secondary = Color3.fromRGB(24, 26, 28),
@@ -401,6 +424,10 @@ local DefaultThemes = {
 
 local CurrentTheme = table.clone(DefaultThemes.Lumina)
 
+-- ============================================================
+-- ANIMATION PRESETS
+-- ============================================================
+
 local Anim = {
     Fast = 0.12,
     Normal = 0.2,
@@ -408,6 +435,7 @@ local Anim = {
     Entrance = 0.4,
 }
 
+-- Intro / KeySystem state (fresh every execute, no persistence)
 local IntroState = {
     Enabled = false,
     Title = "Lumina UI",
@@ -426,6 +454,7 @@ local KeyState = {
     OnFail = nil,
 }
 
+-- Themed object registry for live SetTheme updates
 local ThemedObjects = {}
 
 local function registerTheme(obj, prop, key)
@@ -447,6 +476,10 @@ local function applyThemeToRegistry()
     end
 end
 
+-- ============================================================
+-- LIBRARY STATE
+-- ============================================================
+
 local LibraryState = {
     Initialized = false,
     Windows = {},
@@ -460,6 +493,10 @@ local LibraryState = {
     KeyUnlocked = false,
     IntroDone = false,
 }
+
+-- ============================================================
+-- ANIMATION HELPERS
+-- ============================================================
 
 local function fadeIn(obj, duration)
     if not obj or not obj.Parent then return end
@@ -475,6 +512,10 @@ local function scaleIn(obj, duration)
     tween(obj, duration or 0.3, { Size = target }, "BackOut")
 end
 
+-- ============================================================
+-- NOTIFICATION SYSTEM
+-- ============================================================
+
 local function ensureNotificationContainer()
     if LibraryState.NotificationContainer and LibraryState.NotificationContainer.Parent then
         return LibraryState.NotificationContainer
@@ -487,7 +528,7 @@ local function ensureNotificationContainer()
         IgnoreGuiInset = true
     })
     parentGui(screen)
-
+    -- Compact bottom-right stack (phone friendly)
     local container = create("Frame", {
         Name = "Container",
         BackgroundTransparency = 1,
@@ -528,18 +569,10 @@ function LuminaUI:Notify(title, message, duration)
         Parent = notif
     })
 
-    local accentBar = create("Frame", {
-        BackgroundColor3 = CurrentTheme.Accent,
-        Size = UDim2.new(0, 3, 1, 0),
-        BorderSizePixel = 0,
-        Parent = notif
-    })
-    create("UICorner", { CornerRadius = UDim.new(0, 3), Parent = accentBar })
-
     local titleLabel = create("TextLabel", {
         BackgroundTransparency = 1,
-        Size = UDim2.new(1, -36, 0, 16),
-        Position = UDim2.new(0, 12, 0, 6),
+        Size = UDim2.new(1, -20, 0, 16),
+        Position = UDim2.new(0, 10, 0, 6),
         Font = Enum.Font.GothamBold,
         Text = title,
         TextColor3 = CurrentTheme.Text,
@@ -552,7 +585,7 @@ function LuminaUI:Notify(title, message, duration)
     local msgLabel = create("TextLabel", {
         BackgroundTransparency = 1,
         Size = UDim2.new(1, -20, 0, 0),
-        Position = UDim2.new(0, 12, 0, 24),
+        Position = UDim2.new(0, 10, 0, 24),
         Font = Enum.Font.Gotham,
         Text = message,
         TextColor3 = CurrentTheme.MutedText,
@@ -571,12 +604,10 @@ function LuminaUI:Notify(title, message, duration)
     notif.BackgroundTransparency = 1
     titleLabel.TextTransparency = 1
     msgLabel.TextTransparency = 1
-    accentBar.BackgroundTransparency = 1
 
     tween(notif, 0.28, { BackgroundTransparency = 0 }, "ExpoOut")
     tween(titleLabel, 0.22, { TextTransparency = 0 }, "QuadOut")
     tween(msgLabel, 0.25, { TextTransparency = 0 }, "QuadOut")
-    tween(accentBar, 0.22, { BackgroundTransparency = 0 }, "QuadOut")
 
     table.insert(LibraryState.Notifications, notif)
 
@@ -595,91 +626,20 @@ function LuminaUI:Notify(title, message, duration)
         end)
         tween(titleLabel, 0.18, { TextTransparency = 1 }, "QuadIn")
         tween(msgLabel, 0.18, { TextTransparency = 1 }, "QuadIn")
-        tween(accentBar, 0.18, { BackgroundTransparency = 1 }, "QuadIn")
     end)
 end
 
-local activeTooltip = nil
+-- ============================================================
+-- TOOLTIP
+-- ============================================================
 
-local function showTooltip(text, anchor)
-    if activeTooltip then
-        activeTooltip:Destroy()
-        activeTooltip = nil
-    end
-    if not text or text == "" then return end
+-- Tooltips disabled (were showing unwanted top-left info text)
+local function showTooltip() end
+local function hideTooltip() end
 
-    local parent = getGuiParent()
-    local screen = parent and parent:FindFirstChild("LuminaTooltip")
-    if not screen then
-        screen = create("ScreenGui", {
-            Name = "LuminaTooltip",
-            ResetOnSpawn = false,
-            ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-            DisplayOrder = 50
-        })
-        parentGui(screen)
-    end
-
-    local tip = create("Frame", {
-        BackgroundColor3 = CurrentTheme.Tertiary,
-        Size = UDim2.new(0, 0, 0, 0),
-        AutomaticSize = Enum.AutomaticSize.XY,
-        Parent = screen
-    })
-    create("UICorner", { CornerRadius = UDim.new(0, 6), Parent = tip })
-    create("UIPadding", {
-        PaddingLeft = UDim.new(0, 10),
-        PaddingRight = UDim.new(0, 10),
-        PaddingTop = UDim.new(0, 6),
-        PaddingBottom = UDim.new(0, 6),
-        Parent = tip
-    })
-    create("UIStroke", {
-        Color = CurrentTheme.Border,
-        Thickness = 1,
-        Transparency = 0.3,
-        Parent = tip
-    })
-
-    local label = create("TextLabel", {
-        BackgroundTransparency = 1,
-        AutomaticSize = Enum.AutomaticSize.XY,
-        Font = Enum.Font.Gotham,
-        Text = text,
-        TextColor3 = CurrentTheme.Text,
-        TextSize = 12,
-        TextWrapped = true,
-        Parent = tip
-    })
-
-    local absPos = anchor.AbsolutePosition
-    local absSize = anchor.AbsoluteSize
-    local tipSize = tip.AbsoluteSize
-    local x = absPos.X + absSize.X / 2 - tipSize.X / 2
-    local y = absPos.Y - tipSize.Y - 8
-    if y < 10 then
-        y = absPos.Y + absSize.Y + 8
-    end
-    x = clamp(x, 10, workspace.ViewportSize.X - tipSize.X - 10)
-
-    tip.Position = UDim2.fromOffset(x, y)
-    tip.BackgroundTransparency = 1
-    label.TextTransparency = 1
-    tween(tip, 0.15, { BackgroundTransparency = 0 }, "QuadOut")
-    tween(label, 0.15, { TextTransparency = 0 }, "QuadOut")
-
-    activeTooltip = tip
-end
-
-local function hideTooltip()
-    if activeTooltip then
-        local tip = activeTooltip
-        activeTooltip = nil
-        tween(tip, 0.12, { BackgroundTransparency = 1 }, "QuadIn", function()
-            if tip and tip.Parent then tip:Destroy() end
-        end)
-    end
-end
+-- ============================================================
+-- COMPONENT BASE
+-- ============================================================
 
 local Component = {}
 Component.__index = Component
@@ -711,6 +671,10 @@ function Component:SetVisible(vis)
         self.Frame.Visible = vis
     end
 end
+
+-- ============================================================
+-- BUTTON
+-- ============================================================
 
 local Button = setmetatable({}, { __index = Component })
 Button.__index = Button
@@ -787,6 +751,10 @@ function Button.new(section, text, description, callback)
 
     return self
 end
+
+-- ============================================================
+-- TOGGLE
+-- ============================================================
 
 local Toggle = setmetatable({}, { __index = Component })
 Toggle.__index = Toggle
@@ -898,6 +866,10 @@ function Toggle.new(section, text, description, default, callback)
 
     return self
 end
+
+-- ============================================================
+-- SLIDER
+-- ============================================================
 
 local Slider = setmetatable({}, { __index = Component })
 Slider.__index = Slider
@@ -1065,6 +1037,10 @@ function Slider.new(section, text, max, min, callback, step)
     updateVisual(self.Value, false)
     return self
 end
+
+-- ============================================================
+-- DROPDOWN
+-- ============================================================
 
 local Dropdown = setmetatable({}, { __index = Component })
 Dropdown.__index = Dropdown
@@ -1273,6 +1249,10 @@ function Dropdown.new(section, text, options, callback)
     rebuildOptions()
     return self
 end
+
+-- ============================================================
+-- MULTI DROPDOWN
+-- ============================================================
 
 local MultiDropdown = setmetatable({}, { __index = Component })
 MultiDropdown.__index = MultiDropdown
@@ -1497,6 +1477,10 @@ function MultiDropdown.new(section, text, options, callback)
     return self
 end
 
+-- ============================================================
+-- COLOR PICKER
+-- ============================================================
+
 local ColorPicker = setmetatable({}, { __index = Component })
 ColorPicker.__index = ColorPicker
 
@@ -1613,6 +1597,7 @@ function ColorPicker.new(section, text, defaultColor, callback)
         Parent = pickerFrame
     })
 
+    -- SV Square
     local svFrame = create("Frame", {
         BackgroundColor3 = Color3.fromHSV(self.H, 1, 1),
         Size = UDim2.new(0, 160, 0, 120),
@@ -1664,6 +1649,7 @@ function ColorPicker.new(section, text, defaultColor, callback)
         Parent = svCursor
     })
 
+    -- Hue bar
     local hueFrame = create("Frame", {
         BackgroundColor3 = Color3.new(1, 1, 1),
         Size = UDim2.new(0, 20, 0, 120),
@@ -1698,6 +1684,7 @@ function ColorPicker.new(section, text, defaultColor, callback)
         Parent = hueCursor
     })
 
+    -- Preview large
     local bigPreview = create("Frame", {
         BackgroundColor3 = self.Color,
         Size = UDim2.new(0, 50, 0, 30),
@@ -1829,6 +1816,10 @@ function ColorPicker.new(section, text, defaultColor, callback)
     return self
 end
 
+-- ============================================================
+-- TEXTBOX
+-- ============================================================
+
 local TextBoxComp = setmetatable({}, { __index = Component })
 TextBoxComp.__index = TextBoxComp
 
@@ -1912,6 +1903,10 @@ function TextBoxComp.new(section, text, placeholder, callback)
     return self
 end
 
+-- ============================================================
+-- KEYBIND
+-- ============================================================
+
 local Keybind = setmetatable({}, { __index = Component })
 Keybind.__index = Keybind
 
@@ -1965,8 +1960,19 @@ function Keybind.new(section, text, defaultKey, callback)
     self.Frame = frame
     self.KeyBtn = keyBtn
 
+    local function stopListening(restore)
+        self.Listening = false
+        keyBtn.Text = self.Key and self.Key.Name or "None"
+        tween(keyBtn, 0.15, { BackgroundColor3 = CurrentTheme.Secondary }, "QuadOut")
+    end
+
     table.insert(self.Connections, keyBtn.Activated:Connect(function()
         if self.Destroyed then return end
+        if self.Listening then
+            -- second click with no key → cancel and revert
+            stopListening(true)
+            return
+        end
         self.Listening = true
         keyBtn.Text = "..."
         tween(keyBtn, 0.1, { BackgroundColor3 = CurrentTheme.Accent }, "QuadOut")
@@ -1976,10 +1982,16 @@ function Keybind.new(section, text, defaultKey, callback)
         if self.Destroyed then return end
         if self.Listening then
             if input.UserInputType == Enum.UserInputType.Keyboard then
+                if input.KeyCode == Enum.KeyCode.Escape then
+                    stopListening(true)
+                    return
+                end
                 self.Key = input.KeyCode
                 keyBtn.Text = self.Key.Name
                 self.Listening = false
                 tween(keyBtn, 0.15, { BackgroundColor3 = CurrentTheme.Secondary }, "QuadOut")
+            elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
+                -- click elsewhere while listening: ignore (button handles cancel)
             end
             return
         end
@@ -2004,6 +2016,10 @@ function Keybind.new(section, text, defaultKey, callback)
 
     return self
 end
+
+-- ============================================================
+-- LABEL
+-- ============================================================
 
 local Label = setmetatable({}, { __index = Component })
 Label.__index = Label
@@ -2035,6 +2051,10 @@ function Label.new(section, text)
     self.Label = label
     return self
 end
+
+-- ============================================================
+-- PARAGRAPH
+-- ============================================================
 
 local Paragraph = setmetatable({}, { __index = Component })
 Paragraph.__index = Paragraph
@@ -2094,6 +2114,10 @@ function Paragraph.new(section, title, content)
     return self
 end
 
+-- ============================================================
+-- DIVIDER
+-- ============================================================
+
 local Divider = setmetatable({}, { __index = Component })
 Divider.__index = Divider
 
@@ -2119,6 +2143,10 @@ function Divider.new(section)
     self.Frame = frame
     return self
 end
+
+-- ============================================================
+-- SECTION
+-- ============================================================
 
 local Section = {}
 Section.__index = Section
@@ -2267,6 +2295,10 @@ function Section:Destroy()
     end
 end
 
+-- ============================================================
+-- TAB
+-- ============================================================
+
 local Tab = {}
 Tab.__index = Tab
 
@@ -2375,7 +2407,8 @@ function Tab:Select()
     tween(self.Button, 0.18, {
         BackgroundTransparency = 0.35,
         BackgroundColor3 = CurrentTheme.Tertiary,
-        TextColor3 = CurrentTheme.Accent
+        TextColor3 = CurrentTheme.Accent,
+        TextSize = 15
     }, "QuadOut")
 end
 
@@ -2385,7 +2418,8 @@ function Tab:Deselect()
     self.Indicator.Visible = false
     tween(self.Button, 0.15, {
         BackgroundTransparency = 1,
-        TextColor3 = CurrentTheme.MutedText
+        TextColor3 = CurrentTheme.MutedText,
+        TextSize = 13
     }, "QuadOut")
 end
 
@@ -2399,6 +2433,10 @@ function Tab:Destroy()
     if self.Button and self.Button.Parent then self.Button:Destroy() end
     if self.Content and self.Content.Parent then self.Content:Destroy() end
 end
+
+-- ============================================================
+-- WINDOW
+-- ============================================================
 
 local Window = {}
 Window.__index = Window
@@ -2430,6 +2468,7 @@ function Window.new(library, title, themeName)
     })
     parentGui(screenGui)
 
+    -- Frosted glass: stronger world blur + translucent panels
     local worldBlur = Instance.new("BlurEffect")
     worldBlur.Name = "LuminaBlur"
     worldBlur.Size = 0
@@ -2440,18 +2479,20 @@ function Window.new(library, title, themeName)
         Name = "Main",
         BackgroundColor3 = CurrentTheme.Background,
         BackgroundTransparency = 0.35,
-        Size = UDim2.new(0, 520, 0, 380),
-        Position = UDim2.new(0.5, -260, 0.5, -190),
+        Size = UDim2.new(0, 460, 0, 300),
+        Position = UDim2.new(0.5, -230, 0.5, -150),
+        ClipsDescendants = true,
+        BorderSizePixel = 0,
         Parent = screenGui
     })
-    create("UICorner", { CornerRadius = UDim.new(0, 12), Parent = main })
+    create("UICorner", { CornerRadius = UDim.new(0, 10), Parent = main })
     local mainStroke = create("UIStroke", {
         Color = CurrentTheme.Border,
         Thickness = 1.5,
         Transparency = 0.25,
         Parent = main
     })
-
+    -- Frost overlay (soft white veil)
     local frost = create("Frame", {
         Name = "Frost",
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
@@ -2462,14 +2503,16 @@ function Window.new(library, title, themeName)
     })
     create("UICorner", { CornerRadius = UDim.new(0, 12), Parent = frost })
 
+    -- Title bar
     local titleBar = create("Frame", {
         Name = "TitleBar",
         BackgroundColor3 = CurrentTheme.Secondary,
         BackgroundTransparency = 0.28,
+        BorderSizePixel = 0,
         Size = UDim2.new(1, 0, 0, 42),
         Parent = main
     })
-    create("UICorner", { CornerRadius = UDim.new(0, 14), Parent = titleBar })
+    create("UICorner", { CornerRadius = UDim.new(0, 10), Parent = titleBar })
 
     local titleCover = create("Frame", {
         BackgroundColor3 = CurrentTheme.Secondary,
@@ -2542,14 +2585,17 @@ function Window.new(library, title, themeName)
     })
     applyIcon(closeIcon, "x", "×", closeBtn)
 
+    -- Sidebar (leaves room for title bar + footer)
     local sidebar = create("Frame", {
         Name = "Sidebar",
         BackgroundColor3 = CurrentTheme.Secondary,
         BackgroundTransparency = 0.3,
-        Size = UDim2.new(0, 128, 1, -66),
+        BorderSizePixel = 0,
+        Size = UDim2.new(0, 110, 1, -66),
         Position = UDim2.new(0, 0, 0, 42),
         Parent = main
     })
+    -- no UIStroke on sidebar (avoids blue/green edge artifacts)
     registerTheme(sidebar, "BackgroundColor3", "Secondary")
 
     local sidebarList = create("ScrollingFrame", {
@@ -2574,6 +2620,7 @@ function Window.new(library, title, themeName)
         Parent = sidebarList
     })
 
+    -- Search
     local searchBox = create("TextBox", {
         BackgroundColor3 = CurrentTheme.Tertiary,
         Size = UDim2.new(1, -16, 0, 32),
@@ -2594,15 +2641,18 @@ function Window.new(library, title, themeName)
         Parent = searchBox
     })
 
+    -- Content area
     local contentArea = create("Frame", {
         Name = "ContentArea",
         BackgroundTransparency = 1,
-        Size = UDim2.new(1, -128, 1, -66),
-        Position = UDim2.new(0, 128, 0, 42),
+        Size = UDim2.new(1, -110, 1, -66),
+        Position = UDim2.new(0, 110, 0, 42),
         ClipsDescendants = true,
+        BorderSizePixel = 0,
         Parent = main
     })
 
+    -- Footer credit
     local footer = create("Frame", {
         Name = "Footer",
         BackgroundColor3 = CurrentTheme.Secondary,
@@ -2639,11 +2689,13 @@ function Window.new(library, title, themeName)
     self.WorldBlur = worldBlur
     self.ContentArea = contentArea
     self.SearchBox = searchBox
+    self.Footer = footer
     self.MinimizeBtn = minimizeBtn
     self.CloseBtn = closeBtn
     self.MinimizeIcon = minimizeIcon
     self.CloseIcon = closeIcon
 
+    -- Dragging
     table.insert(self.Connections, titleBar.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             self.Dragging = true
@@ -2670,6 +2722,7 @@ function Window.new(library, title, themeName)
         end
     end))
 
+    -- Minimize
     table.insert(self.Connections, minimizeBtn.Activated:Connect(function()
         if self.Destroyed then return end
         self:ToggleMinimize()
@@ -2687,6 +2740,7 @@ function Window.new(library, title, themeName)
         end
     end))
 
+    -- Close
     table.insert(self.Connections, closeBtn.Activated:Connect(function()
         if self.Destroyed then return end
         self:Close()
@@ -2704,20 +2758,23 @@ function Window.new(library, title, themeName)
         end
     end))
 
+    -- Search
     table.insert(self.Connections, searchBox:GetPropertyChangedSignal("Text"):Connect(function()
         if self.Destroyed then return end
         self:FilterSearch(searchBox.Text)
     end))
 
-    main.Size = UDim2.new(0, 520 * 0.92, 0, 380 * 0.92)
+    -- Entrance animation
+    main.Size = UDim2.new(0, 460 * 0.92, 0, 300 * 0.92)
     main.BackgroundTransparency = 1
     tween(main, 0.4, {
-        Size = UDim2.new(0, 520, 0, 380),
+        Size = UDim2.new(0, 460, 0, 300),
         BackgroundTransparency = 0.35
     }, "BackOut")
 
     table.insert(LibraryState.Windows, self)
 
+    -- Auto Welcome tab (always first)
     task.defer(function()
         if self.Destroyed then return end
         self:NewWelcomeTab()
@@ -2777,9 +2834,13 @@ function Window:ToggleMinimize()
     if self.Destroyed then return end
     self.Minimized = not self.Minimized
     if self.Minimized then
-        tween(self.Main, 0.3, { Size = UDim2.new(0, 520, 0, 42) }, "QuadOut")
+        tween(self.Main, 0.3, { Size = UDim2.new(0, 460, 0, 42) }, "QuadOut")
         self.Sidebar.Visible = false
         self.ContentArea.Visible = false
+        if self.Footer then self.Footer.Visible = false end
+        if self.WorldBlur then
+            tween(self.WorldBlur, 0.25, { Size = 0 }, "QuadOut")
+        end
         if self.MinimizeIcon and self.MinimizeIcon.Visible then
             applyIcon(self.MinimizeIcon, "maximize-2", "+", self.MinimizeBtn)
         else
@@ -2788,7 +2849,11 @@ function Window:ToggleMinimize()
     else
         self.Sidebar.Visible = true
         self.ContentArea.Visible = true
-        tween(self.Main, 0.3, { Size = UDim2.new(0, 520, 0, 380) }, "QuadOut")
+        if self.Footer then self.Footer.Visible = true end
+        if self.WorldBlur then
+            tween(self.WorldBlur, 0.3, { Size = 24 }, "QuadOut")
+        end
+        tween(self.Main, 0.3, { Size = UDim2.new(0, 460, 0, 300) }, "QuadOut")
         if self.MinimizeIcon and self.MinimizeIcon.Visible then
             applyIcon(self.MinimizeIcon, "minus", "−", self.MinimizeBtn)
         else
@@ -2837,7 +2902,7 @@ function Window:Close()
     end
 
     tween(self.Main, 0.25, {
-        Size = UDim2.new(0, 520 * 0.88, 0, 380 * 0.88),
+        Size = UDim2.new(0, 460 * 0.88, 0, 300 * 0.88),
         BackgroundTransparency = 1
     }, "QuadIn", function()
         for _, tab in ipairs(self.Tabs) do
@@ -2860,6 +2925,10 @@ end
 function Window:Destroy()
     self:Close()
 end
+
+-- ============================================================
+-- INTRO + KEY SYSTEM
+-- ============================================================
 
 local function hideAllWindows()
     for _, w in ipairs(LibraryState.Windows) do
@@ -3137,6 +3206,10 @@ local function runKeySystem(onDone)
     end)
 end
 
+-- ============================================================
+-- LIBRARY PUBLIC API
+-- ============================================================
+
 LuminaUI.Version = "1.2.0"
 LuminaUI.Animations = Anim
 
@@ -3151,6 +3224,7 @@ function LuminaUI.CreateLib(title, themeName)
     local theme = themeName or "Lumina"
     local window = Window.new(LuminaUI, title, theme)
 
+    -- Hide until intro + key system finish
     if window.ScreenGui then
         window.ScreenGui.Enabled = false
     end
@@ -3161,6 +3235,8 @@ end
 LuminaUI.New = LuminaUI.CreateLib
 LuminaUI.new = LuminaUI.CreateLib
 
+-- Optional intro — off by default
+-- Lumina:Intro() or Lumina:Intro(true, "Title", "Subtitle")
 function LuminaUI:Intro(enabled, title, subtitle)
     if enabled == nil then enabled = true end
     IntroState.Enabled = enabled and true or false
@@ -3169,6 +3245,9 @@ function LuminaUI:Intro(enabled, title, subtitle)
     return self
 end
 
+-- Optional key system — off by default
+-- Lumina:KeySystem({"key1", "key2"}, function() end)
+-- Lumina:KeySystem({"key1"}, { Note = "...", OnSuccess = fn, OnFail = fn })
 function LuminaUI:KeySystem(keys, opts)
     KeyState.Enabled = true
     if type(keys) == "table" then
@@ -3227,6 +3306,7 @@ function LuminaUI:Init()
         end
     end))
 
+    -- Sequence: Intro -> Key System -> Show Windows
     runIntro(function()
         runKeySystem(function()
             showAllWindows()
