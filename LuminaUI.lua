@@ -10,9 +10,25 @@ local RunService = game:GetService("RunService")
 local GuiService = game:GetService("GuiService")
 local CoreGui = game:GetService("CoreGui")
 local HttpService = game:GetService("HttpService")
+local SoundService = game:GetService("SoundService")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui") or (LocalPlayer and LocalPlayer:WaitForChild("PlayerGui", 5))
+
+-- ============================================================
+-- SOUND HELPER
+-- ============================================================
+
+local function playClickSound()
+    local sound = Instance.new("Sound")
+    sound.SoundId = "rbxassetid://9120385125"  -- clean UI click
+    sound.Volume = 0.3
+    sound.Parent = SoundService
+    sound:Play()
+    task.delay(sound.TimeLength or 0.1, function()
+        sound:Destroy()
+    end)
+end
 
 -- ============================================================
 -- RELOAD: erase old instance if library is executed again
@@ -131,7 +147,6 @@ local function getLucideImage(name)
         return LucideIcons.GetIcon(name)
     end)
     if not ok or not result then return nil end
-    -- GetIcon can return string rbxassetid or {image, data}
     if type(result) == "string" then
         return result, nil, nil
     end
@@ -351,7 +366,6 @@ end
 -- ============================================================
 
 local DefaultThemes = {
-    -- Primary look: mint-on-dark (inspired by the clean spy UI style)
     Lumina = {
         Background = Color3.fromRGB(18, 20, 22),
         Secondary = Color3.fromRGB(24, 26, 28),
@@ -528,7 +542,6 @@ local function ensureNotificationContainer()
         IgnoreGuiInset = true
     })
     parentGui(screen)
-    -- Compact bottom-right stack (phone friendly)
     local container = create("Frame", {
         Name = "Container",
         BackgroundTransparency = 1,
@@ -633,7 +646,6 @@ end
 -- TOOLTIP
 -- ============================================================
 
--- Tooltips disabled (were showing unwanted top-left info text)
 local function showTooltip() end
 local function hideTooltip() end
 
@@ -740,6 +752,7 @@ function Button.new(section, text, description, callback)
     end))
     table.insert(self.Connections, btn.MouseButton1Down:Connect(function()
         tween(frame, 0.08, { BackgroundColor3 = CurrentTheme.AccentHover }, "QuadOut")
+        playClickSound()
     end))
     table.insert(self.Connections, btn.MouseButton1Up:Connect(function()
         tween(frame, 0.1, { BackgroundColor3 = CurrentTheme.Accent }, "QuadOut")
@@ -837,6 +850,7 @@ function Toggle.new(section, text, description, default, callback)
         if self.Destroyed then return end
         self.Value = not self.Value
         updateVisual(true)
+        playClickSound()
         if not self.SuppressCallback then
             safeCallback(self.Callback, self.Value)
         end
@@ -887,6 +901,7 @@ function Slider.new(section, text, max, min, callback, step)
     self.Value = self.Min
     self.SuppressCallback = false
     self.Dragging = false
+    self.LastValue = self.Value
 
     local frame = create("Frame", {
         Name = "Slider_" .. text,
@@ -992,6 +1007,8 @@ function Slider.new(section, text, max, min, callback, step)
             if not self.SuppressCallback then
                 safeCallback(self.Callback, self.Value)
             end
+            -- play sound on value change
+            playClickSound()
         end
     end
 
@@ -1014,6 +1031,14 @@ function Slider.new(section, text, max, min, callback, step)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             self.Dragging = false
         end
+    end))
+
+    -- hover effect on knob
+    table.insert(self.Connections, knob.MouseEnter:Connect(function()
+        tween(knob, 0.1, { Size = UDim2.new(0, 20, 0, 20) }, "QuadOut")
+    end))
+    table.insert(self.Connections, knob.MouseLeave:Connect(function()
+        tween(knob, 0.1, { Size = UDim2.new(0, 16, 0, 16) }, "QuadOut")
     end))
 
     function self:Set(val)
@@ -1039,7 +1064,7 @@ function Slider.new(section, text, max, min, callback, step)
 end
 
 -- ============================================================
--- DROPDOWN
+-- DROPDOWN (FIXED)
 -- ============================================================
 
 local Dropdown = setmetatable({}, { __index = Component })
@@ -1049,11 +1074,12 @@ function Dropdown.new(section, text, options, callback)
     local self = Component.new(section, text)
     setmetatable(self, Dropdown)
     self.Callback = callback
-    self.Options = options or {}
+    self.Options = type(options) == "table" and options or {}
     self.Value = self.Options[1] or ""
     self.Open = false
     self.SuppressCallback = false
     self.OptionButtons = {}
+    self.CurrentTween = nil
 
     local frame = create("Frame", {
         Name = "Dropdown_" .. text,
@@ -1071,10 +1097,12 @@ function Dropdown.new(section, text, options, callback)
     })
 
     local header = create("TextButton", {
-        BackgroundTransparency = 1,
+        BackgroundColor3 = CurrentTheme.Tertiary,
+        BackgroundTransparency = 0.001,  -- clickable
         Size = UDim2.new(1, 0, 0, 42),
         Text = "",
         AutoButtonColor = false,
+        Active = true,
         Parent = frame
     })
 
@@ -1182,6 +1210,7 @@ function Dropdown.new(section, text, options, callback)
                 self.Value = opt
                 valueLabel.Text = tostring(opt)
                 self:Close()
+                playClickSound()
                 if not self.SuppressCallback then
                     safeCallback(self.Callback, self.Value)
                 end
@@ -1196,19 +1225,27 @@ function Dropdown.new(section, text, options, callback)
 
     function self:Open()
         if self.Open or self.Destroyed then return end
+        if self.CurrentTween then
+            self.CurrentTween:Cancel()
+            self.CurrentTween = nil
+        end
         self.Open = true
         listFrame.Visible = true
         arrow.Text = "▴"
         local h = self.ListHeight or 120
-        tween(frame, 0.25, { Size = UDim2.new(1, 0, 0, 42 + h + 4) }, "QuadOut")
+        self.CurrentTween = tween(frame, 0.25, { Size = UDim2.new(1, 0, 0, 42 + h + 4) }, "QuadOut")
         tween(listFrame, 0.25, { Size = UDim2.new(1, -8, 0, h) }, "QuadOut")
     end
 
     function self:Close()
         if not self.Open or self.Destroyed then return end
+        if self.CurrentTween then
+            self.CurrentTween:Cancel()
+            self.CurrentTween = nil
+        end
         self.Open = false
         arrow.Text = "▾"
-        tween(frame, 0.2, { Size = UDim2.new(1, 0, 0, 42) }, "QuadOut", function()
+        self.CurrentTween = tween(frame, 0.2, { Size = UDim2.new(1, 0, 0, 42) }, "QuadOut", function()
             if not self.Open then
                 listFrame.Visible = false
             end
@@ -1251,7 +1288,7 @@ function Dropdown.new(section, text, options, callback)
 end
 
 -- ============================================================
--- MULTI DROPDOWN
+-- MULTI DROPDOWN (FIXED)
 -- ============================================================
 
 local MultiDropdown = setmetatable({}, { __index = Component })
@@ -1261,11 +1298,12 @@ function MultiDropdown.new(section, text, options, callback)
     local self = Component.new(section, text)
     setmetatable(self, MultiDropdown)
     self.Callback = callback
-    self.Options = options or {}
+    self.Options = type(options) == "table" and options or {}
     self.Selected = {}
     self.Open = false
     self.SuppressCallback = false
     self.OptionButtons = {}
+    self.CurrentTween = nil
 
     local frame = create("Frame", {
         Name = "MultiDropdown_" .. text,
@@ -1283,10 +1321,12 @@ function MultiDropdown.new(section, text, options, callback)
     })
 
     local header = create("TextButton", {
-        BackgroundTransparency = 1,
+        BackgroundColor3 = CurrentTheme.Tertiary,
+        BackgroundTransparency = 0.001,
         Size = UDim2.new(1, 0, 0, 42),
         Text = "",
         AutoButtonColor = false,
+        Active = true,
         Parent = frame
     })
 
@@ -1407,6 +1447,7 @@ function MultiDropdown.new(section, text, options, callback)
                     tween(optBtn, 0.12, { BackgroundColor3 = CurrentTheme.Accent }, "QuadOut")
                 end
                 updateValueText()
+                playClickSound()
                 if not self.SuppressCallback then
                     local vals = {}
                     for k in pairs(self.Selected) do table.insert(vals, k) end
@@ -1423,19 +1464,27 @@ function MultiDropdown.new(section, text, options, callback)
 
     function self:Open()
         if self.Open or self.Destroyed then return end
+        if self.CurrentTween then
+            self.CurrentTween:Cancel()
+            self.CurrentTween = nil
+        end
         self.Open = true
         listFrame.Visible = true
         arrow.Text = "▴"
         local h = self.ListHeight or 120
-        tween(frame, 0.25, { Size = UDim2.new(1, 0, 0, 42 + h + 4) }, "QuadOut")
+        self.CurrentTween = tween(frame, 0.25, { Size = UDim2.new(1, 0, 0, 42 + h + 4) }, "QuadOut")
         tween(listFrame, 0.25, { Size = UDim2.new(1, -8, 0, h) }, "QuadOut")
     end
 
     function self:Close()
         if not self.Open or self.Destroyed then return end
+        if self.CurrentTween then
+            self.CurrentTween:Cancel()
+            self.CurrentTween = nil
+        end
         self.Open = false
         arrow.Text = "▾"
-        tween(frame, 0.2, { Size = UDim2.new(1, 0, 0, 42) }, "QuadOut", function()
+        self.CurrentTween = tween(frame, 0.2, { Size = UDim2.new(1, 0, 0, 42) }, "QuadOut", function()
             if not self.Open then listFrame.Visible = false end
         end)
         tween(listFrame, 0.2, { Size = UDim2.new(1, -8, 0, 0) }, "QuadOut")
@@ -1725,6 +1774,7 @@ function ColorPicker.new(section, text, defaultColor, callback)
         hexLabel.Text = string.format("#%02X%02X%02X", r, g, b)
         if fromInput and not self.SuppressCallback then
             safeCallback(self.Callback, self.Color)
+            playClickSound()
         end
     end
 
@@ -1969,7 +2019,6 @@ function Keybind.new(section, text, defaultKey, callback)
     table.insert(self.Connections, keyBtn.Activated:Connect(function()
         if self.Destroyed then return end
         if self.Listening then
-            -- second click with no key → cancel and revert
             stopListening(true)
             return
         end
@@ -1990,8 +2039,9 @@ function Keybind.new(section, text, defaultKey, callback)
                 keyBtn.Text = self.Key.Name
                 self.Listening = false
                 tween(keyBtn, 0.15, { BackgroundColor3 = CurrentTheme.Secondary }, "QuadOut")
+                playClickSound()
             elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
-                -- click elsewhere while listening: ignore (button handles cancel)
+                -- ignore
             end
             return
         end
@@ -2371,6 +2421,7 @@ function Tab.new(window, name, icon)
     table.insert(window.Connections, tabBtn.Activated:Connect(function()
         if self.Destroyed then return end
         window:SelectTab(self)
+        playClickSound()
     end))
 
     table.insert(window.Connections, tabBtn.MouseEnter:Connect(function()
@@ -2435,7 +2486,7 @@ function Tab:Destroy()
 end
 
 -- ============================================================
--- WINDOW
+-- WINDOW (FIXED MINIMIZE, FOOTER, HOVER, SOUND)
 -- ============================================================
 
 local Window = {}
@@ -2468,13 +2519,14 @@ function Window.new(library, title, themeName)
     })
     parentGui(screenGui)
 
-    -- Frosted glass: stronger world blur + translucent panels
+    -- World blur
     local worldBlur = Instance.new("BlurEffect")
     worldBlur.Name = "LuminaBlur"
     worldBlur.Size = 0
     worldBlur.Parent = game:GetService("Lighting")
     tween(worldBlur, 0.4, { Size = 24 }, "QuadOut")
 
+    -- Main frame
     local main = create("Frame", {
         Name = "Main",
         BackgroundColor3 = CurrentTheme.Background,
@@ -2492,7 +2544,8 @@ function Window.new(library, title, themeName)
         Transparency = 0.25,
         Parent = main
     })
-    -- Frost overlay (soft white veil)
+
+    -- Frost overlay
     local frost = create("Frame", {
         Name = "Frost",
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
@@ -2541,6 +2594,7 @@ function Window.new(library, title, themeName)
     registerTheme(titleCover, "BackgroundColor3", "Secondary")
     registerTheme(titleLabel, "TextColor3", "Text")
 
+    -- Minimize button
     local minimizeBtn = create("TextButton", {
         BackgroundTransparency = 1,
         Size = UDim2.new(0, 32, 0, 32),
@@ -2563,6 +2617,7 @@ function Window.new(library, title, themeName)
     })
     applyIcon(minimizeIcon, "minus", "−", minimizeBtn)
 
+    -- Close button
     local closeBtn = create("TextButton", {
         BackgroundTransparency = 1,
         Size = UDim2.new(0, 32, 0, 32),
@@ -2585,7 +2640,7 @@ function Window.new(library, title, themeName)
     })
     applyIcon(closeIcon, "x", "×", closeBtn)
 
-    -- Sidebar (leaves room for title bar + footer)
+    -- Sidebar
     local sidebar = create("Frame", {
         Name = "Sidebar",
         BackgroundColor3 = CurrentTheme.Secondary,
@@ -2595,7 +2650,6 @@ function Window.new(library, title, themeName)
         Position = UDim2.new(0, 0, 0, 42),
         Parent = main
     })
-    -- no UIStroke on sidebar (avoids blue/green edge artifacts)
     registerTheme(sidebar, "BackgroundColor3", "Secondary")
 
     local sidebarList = create("ScrollingFrame", {
@@ -2620,7 +2674,7 @@ function Window.new(library, title, themeName)
         Parent = sidebarList
     })
 
-    -- Search
+    -- Search box
     local searchBox = create("TextBox", {
         BackgroundColor3 = CurrentTheme.Tertiary,
         Size = UDim2.new(1, -16, 0, 32),
@@ -2652,7 +2706,7 @@ function Window.new(library, title, themeName)
         Parent = main
     })
 
-    -- Footer credit
+    -- Footer
     local footer = create("Frame", {
         Name = "Footer",
         BackgroundColor3 = CurrentTheme.Secondary,
@@ -2663,41 +2717,36 @@ function Window.new(library, title, themeName)
         Parent = main
     })
     local footerLabel = create("TextLabel", {
-    BackgroundTransparency = 1,
-    Size = UDim2.new(1, -16, 1, 0),
-    Position = UDim2.new(0, 8, 0, 0),
-    Font = Enum.Font.Gotham,
-    Text = "This UI Library is Lumina if u were wondering.",
-    TextColor3 = CurrentTheme.MutedText,
-    TextSize = 11,
-    TextXAlignment = Enum.TextXAlignment.Left,
-    TextTruncate = Enum.TextTruncate.AtEnd,
-    Parent = footer
-})
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, -16, 1, 0),
+        Position = UDim2.new(0, 8, 0, 0),
+        Font = Enum.Font.Gotham,
+        Text = "This UI Library is Lumina if u were wondering.",
+        TextColor3 = CurrentTheme.MutedText,
+        TextSize = 11,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        Parent = footer
+    })
+    local footerCorner = create("UICorner", {
+        CornerRadius = UDim.new(0, 8),
+        Parent = footer
+    })
+    local footerStroke = create("UIStroke", {
+        Thickness = 1.5,
+        Transparency = 0.5,
+        Color = CurrentTheme.MutedText,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        Parent = footer
+    })
+    registerTheme(footer, "BackgroundColor3", "Secondary")
+    registerTheme(footerLabel, "TextColor3", "MutedText")
+    registerTheme(footerStroke, "Color", "MutedText")
 
--- Rounded corners for the footer
-local footerCorner = create("UICorner", {
-    CornerRadius = UDim.new(0, 8),
-    Parent = footer
-})
-
--- Border around the footer
-local footerStroke = create("UIStroke", {
-    Thickness = 1.5,
-    Transparency = 0.5,
-    Color = CurrentTheme.MutedText,
-    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-    Parent = footer
-})
-
-registerTheme(footer, "BackgroundColor3", "Secondary")
-registerTheme(footerLabel, "TextColor3", "MutedText")
-registerTheme(footerStroke, "Color", "MutedText")
-
-registerTheme(minimizeBtn, "TextColor3", "MutedText")
-registerTheme(closeBtn, "TextColor3", "MutedText")
-registerTheme(minimizeIcon, "ImageColor3", "MutedText")
-registerTheme(closeIcon, "ImageColor3", "MutedText")
+    registerTheme(minimizeBtn, "TextColor3", "MutedText")
+    registerTheme(closeBtn, "TextColor3", "MutedText")
+    registerTheme(minimizeIcon, "ImageColor3", "MutedText")
+    registerTheme(closeIcon, "ImageColor3", "MutedText")
 
     self.ScreenGui = screenGui
     self.Main = main
@@ -2744,6 +2793,7 @@ registerTheme(closeIcon, "ImageColor3", "MutedText")
     table.insert(self.Connections, minimizeBtn.Activated:Connect(function()
         if self.Destroyed then return end
         self:ToggleMinimize()
+        playClickSound()
     end))
     table.insert(self.Connections, minimizeBtn.MouseEnter:Connect(function()
         tween(minimizeBtn, 0.1, { TextColor3 = CurrentTheme.Text }, "QuadOut")
@@ -2762,6 +2812,7 @@ registerTheme(closeIcon, "ImageColor3", "MutedText")
     table.insert(self.Connections, closeBtn.Activated:Connect(function()
         if self.Destroyed then return end
         self:Close()
+        playClickSound()
     end))
     table.insert(self.Connections, closeBtn.MouseEnter:Connect(function()
         tween(closeBtn, 0.1, { TextColor3 = CurrentTheme.Danger }, "QuadOut")
@@ -2776,7 +2827,18 @@ registerTheme(closeIcon, "ImageColor3", "MutedText")
         end
     end))
 
-    -- Search
+    -- Search hover
+    table.insert(self.Connections, searchBox.MouseEnter:Connect(function()
+        tween(searchBox, 0.1, { BackgroundColor3 = CurrentTheme.Accent }, "QuadOut")
+    end))
+    table.insert(self.Connections, searchBox.MouseLeave:Connect(function()
+        tween(searchBox, 0.1, { BackgroundColor3 = CurrentTheme.Tertiary }, "QuadOut")
+    end))
+    table.insert(self.Connections, searchBox.Focused:Connect(function()
+        playClickSound()
+    end))
+
+    -- Search filtering
     table.insert(self.Connections, searchBox:GetPropertyChangedSignal("Text"):Connect(function()
         if self.Destroyed then return end
         self:FilterSearch(searchBox.Text)
@@ -2792,7 +2854,7 @@ registerTheme(closeIcon, "ImageColor3", "MutedText")
 
     table.insert(LibraryState.Windows, self)
 
-    -- Auto Welcome tab (always first)
+    -- Auto Welcome tab (only this one)
     task.defer(function()
         if self.Destroyed then return end
         self:NewWelcomeTab()
@@ -2852,26 +2914,32 @@ function Window:ToggleMinimize()
     if self.Destroyed then return end
     self.Minimized = not self.Minimized
     if self.Minimized then
-        tween(self.Main, 0.3, { Size = UDim2.new(0, 460, 0, 42) }, "QuadOut")
+        -- Hide everything except title bar
         self.Sidebar.Visible = false
         self.ContentArea.Visible = false
-        if self.Footer then self.Footer.Visible = false end
+        self.Footer.Visible = false
         if self.WorldBlur then
             tween(self.WorldBlur, 0.25, { Size = 0 }, "QuadOut")
         end
+        tween(self.Main, 0.3, { Size = UDim2.new(0, 460, 0, 42) }, "QuadOut")
+        -- change icon to +
         if self.MinimizeIcon and self.MinimizeIcon.Visible then
             applyIcon(self.MinimizeIcon, "maximize-2", "+", self.MinimizeBtn)
         else
             self.MinimizeBtn.Text = "+"
         end
     else
+        -- Restore
         self.Sidebar.Visible = true
         self.ContentArea.Visible = true
-        if self.Footer then self.Footer.Visible = true end
+        self.Footer.Visible = true
         if self.WorldBlur then
             tween(self.WorldBlur, 0.3, { Size = 24 }, "QuadOut")
         end
-        tween(self.Main, 0.3, { Size = UDim2.new(0, 460, 0, 300) }, "QuadOut")
+        tween(self.Main, 0.3, { Size = UDim2.new(0, 460, 0, 300) }, "QuadOut", function()
+            -- ensure footer stays at bottom (already positioned)
+        end)
+        -- change icon to minus
         if self.MinimizeIcon and self.MinimizeIcon.Visible then
             applyIcon(self.MinimizeIcon, "minus", "−", self.MinimizeBtn)
         else
@@ -3242,7 +3310,6 @@ function LuminaUI.CreateLib(title, themeName)
     local theme = themeName or "Lumina"
     local window = Window.new(LuminaUI, title, theme)
 
-    -- Hide until intro + key system finish
     if window.ScreenGui then
         window.ScreenGui.Enabled = false
     end
@@ -3253,8 +3320,6 @@ end
 LuminaUI.New = LuminaUI.CreateLib
 LuminaUI.new = LuminaUI.CreateLib
 
--- Optional intro — off by default
--- Lumina:Intro() or Lumina:Intro(true, "Title", "Subtitle")
 function LuminaUI:Intro(enabled, title, subtitle)
     if enabled == nil then enabled = true end
     IntroState.Enabled = enabled and true or false
@@ -3263,9 +3328,6 @@ function LuminaUI:Intro(enabled, title, subtitle)
     return self
 end
 
--- Optional key system — off by default
--- Lumina:KeySystem({"key1", "key2"}, function() end)
--- Lumina:KeySystem({"key1"}, { Note = "...", OnSuccess = fn, OnFail = fn })
 function LuminaUI:KeySystem(keys, opts)
     KeyState.Enabled = true
     if type(keys) == "table" then
@@ -3324,7 +3386,6 @@ function LuminaUI:Init()
         end
     end))
 
-    -- Sequence: Intro -> Key System -> Show Windows
     runIntro(function()
         runKeySystem(function()
             showAllWindows()
