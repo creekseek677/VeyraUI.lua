@@ -1,5 +1,3 @@
--- hi dis lumina ai is 2@m rn
-
 local LuminaUI = {}
 LuminaUI.__index = LuminaUI
 
@@ -52,6 +50,14 @@ end)
 pcall(function()
     if PlayerGui then wipeOldGuis(PlayerGui) end
 end)
+pcall(function()
+    local lighting = game:GetService("Lighting")
+    for _, child in ipairs(lighting:GetChildren()) do
+        if child:IsA("BlurEffect") and child.Name == "LuminaBlur" then
+            child:Destroy()
+        end
+    end
+end)
 
 local function protectGui(gui)
     if not gui then return end
@@ -100,7 +106,56 @@ local function parentGui(gui)
     end
 end
 
--- uhh
+local LucideIcons = nil
+pcall(function()
+    LucideIcons = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/Icons/main/Main-v2.lua"))()
+    if LucideIcons and LucideIcons.SetIconsType then
+        LucideIcons.SetIconsType("lucide")
+    end
+end)
+
+local function getLucideImage(name)
+    if not LucideIcons then return nil end
+    local ok, result = pcall(function()
+        return LucideIcons.GetIcon(name)
+    end)
+    if not ok or not result then return nil end
+
+    if type(result) == "string" then
+        return result, nil, nil
+    end
+    if type(result) == "table" then
+        local img = result[1] or result.Image
+        local data = result[2] or result
+        local rectSize = data and (data.ImageRectSize or data.ImageRectSize)
+        local rectOffset = data and (data.ImageRectPosition or data.ImageRectOffset)
+        return img, rectSize, rectOffset
+    end
+    return nil
+end
+
+local function applyIcon(imageLabel, iconName, fallbackText, textButton)
+    local img, rectSize, rectOffset = getLucideImage(iconName)
+    if img then
+        imageLabel.Image = img
+        if rectSize and typeof(rectSize) == "Vector2" and rectSize.X > 0 then
+            imageLabel.ImageRectSize = rectSize
+        end
+        if rectOffset and typeof(rectOffset) == "Vector2" then
+            imageLabel.ImageRectOffset = rectOffset
+        end
+        imageLabel.Visible = true
+        if textButton then
+            textButton.Text = ""
+        end
+        return true
+    end
+    imageLabel.Visible = false
+    if textButton then
+        textButton.Text = fallbackText
+    end
+    return false
+end
 
 local Tween = {}
 Tween.__index = Tween
@@ -227,8 +282,6 @@ local function tween(instance, duration, props, style, callback)
     return Tween.new(instance, duration, props, style, callback)
 end
 
--- ut
-
 local function create(className, props)
     local obj = Instance.new(className)
     for k, v in pairs(props or {}) do
@@ -274,10 +327,8 @@ local function disconnectAll(connections)
     table.clear(connections)
 end
 
--- theme
-
 local DefaultThemes = {
-    -- Primary look: mint-on-dark (inspired by the clean spy UI style)
+
     Lumina = {
         Background = Color3.fromRGB(18, 20, 22),
         Secondary = Color3.fromRGB(24, 26, 28),
@@ -350,8 +401,6 @@ local DefaultThemes = {
 
 local CurrentTheme = table.clone(DefaultThemes.Lumina)
 
--- anim
-
 local Anim = {
     Fast = 0.12,
     Normal = 0.2,
@@ -359,7 +408,6 @@ local Anim = {
     Entrance = 0.4,
 }
 
--- Intro / KeySystem state (fresh every execute, no persistence)
 local IntroState = {
     Enabled = false,
     Title = "Lumina UI",
@@ -378,7 +426,6 @@ local KeyState = {
     OnFail = nil,
 }
 
--- Themed object registry for live SetTheme updates
 local ThemedObjects = {}
 
 local function registerTheme(obj, prop, key)
@@ -400,7 +447,6 @@ local function applyThemeToRegistry()
     end
 end
 
--- state
 local LibraryState = {
     Initialized = false,
     Windows = {},
@@ -414,8 +460,6 @@ local LibraryState = {
     KeyUnlocked = false,
     IntroDone = false,
 }
-
--- anim help
 
 local function fadeIn(obj, duration)
     if not obj or not obj.Parent then return end
@@ -431,8 +475,6 @@ local function scaleIn(obj, duration)
     tween(obj, duration or 0.3, { Size = target }, "BackOut")
 end
 
--- notify da homies
-
 local function ensureNotificationContainer()
     if LibraryState.NotificationContainer and LibraryState.NotificationContainer.Parent then
         return LibraryState.NotificationContainer
@@ -441,21 +483,23 @@ local function ensureNotificationContainer()
         Name = "LuminaNotifications",
         ResetOnSpawn = false,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-        DisplayOrder = 100
+        DisplayOrder = 100,
+        IgnoreGuiInset = true
     })
     parentGui(screen)
+
     local container = create("Frame", {
         Name = "Container",
         BackgroundTransparency = 1,
-        Size = UDim2.new(0, 320, 1, 0),
-        Position = UDim2.new(1, -340, 0, 20),
+        Size = UDim2.new(0, 220, 0, 280),
+        Position = UDim2.new(1, -232, 1, -300),
         Parent = screen
     })
     create("UIListLayout", {
-        Padding = UDim.new(0, 10),
+        Padding = UDim.new(0, 6),
         SortOrder = Enum.SortOrder.LayoutOrder,
         HorizontalAlignment = Enum.HorizontalAlignment.Right,
-        VerticalAlignment = Enum.VerticalAlignment.Top,
+        VerticalAlignment = Enum.VerticalAlignment.Bottom,
         Parent = container
     })
     LibraryState.NotificationContainer = container
@@ -476,42 +520,43 @@ function LuminaUI:Notify(title, message, duration)
         ClipsDescendants = true,
         Parent = container
     })
-    create("UICorner", { CornerRadius = UDim.new(0, 10), Parent = notif })
+    create("UICorner", { CornerRadius = UDim.new(0, 8), Parent = notif })
     create("UIStroke", {
         Color = CurrentTheme.Border,
         Thickness = 1,
-        Transparency = 0.4,
+        Transparency = 0.35,
         Parent = notif
     })
 
     local accentBar = create("Frame", {
         BackgroundColor3 = CurrentTheme.Accent,
-        Size = UDim2.new(0, 4, 1, 0),
+        Size = UDim2.new(0, 3, 1, 0),
         BorderSizePixel = 0,
         Parent = notif
     })
-    create("UICorner", { CornerRadius = UDim.new(0, 4), Parent = accentBar })
+    create("UICorner", { CornerRadius = UDim.new(0, 3), Parent = accentBar })
 
     local titleLabel = create("TextLabel", {
         BackgroundTransparency = 1,
-        Size = UDim2.new(1, -50, 0, 22),
-        Position = UDim2.new(0, 16, 0, 10),
+        Size = UDim2.new(1, -36, 0, 16),
+        Position = UDim2.new(0, 12, 0, 6),
         Font = Enum.Font.GothamBold,
         Text = title,
         TextColor3 = CurrentTheme.Text,
-        TextSize = 14,
+        TextSize = 12,
         TextXAlignment = Enum.TextXAlignment.Left,
+        TextTruncate = Enum.TextTruncate.AtEnd,
         Parent = notif
     })
 
     local msgLabel = create("TextLabel", {
         BackgroundTransparency = 1,
-        Size = UDim2.new(1, -24, 0, 0),
-        Position = UDim2.new(0, 16, 0, 32),
+        Size = UDim2.new(1, -20, 0, 0),
+        Position = UDim2.new(0, 12, 0, 24),
         Font = Enum.Font.Gotham,
         Text = message,
         TextColor3 = CurrentTheme.MutedText,
-        TextSize = 13,
+        TextSize = 11,
         TextWrapped = true,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextYAlignment = Enum.TextYAlignment.Top,
@@ -519,32 +564,25 @@ function LuminaUI:Notify(title, message, duration)
     })
 
     local textBounds = msgLabel.TextBounds
-    local height = math.max(60, 42 + textBounds.Y)
-    msgLabel.Size = UDim2.new(1, -24, 0, textBounds.Y + 4)
+    local height = math.clamp(28 + textBounds.Y, 40, 72)
+    msgLabel.Size = UDim2.new(1, -20, 0, math.min(textBounds.Y + 2, 40))
     notif.Size = UDim2.new(1, 0, 0, height)
 
-    notif.Position = UDim2.new(1, 40, 0, 0)
     notif.BackgroundTransparency = 1
     titleLabel.TextTransparency = 1
     msgLabel.TextTransparency = 1
     accentBar.BackgroundTransparency = 1
 
-    tween(notif, 0.35, {
-        Position = UDim2.new(0, 0, 0, 0),
-        BackgroundTransparency = 0
-    }, "ExpoOut")
-    tween(titleLabel, 0.3, { TextTransparency = 0 }, "QuadOut")
-    tween(msgLabel, 0.35, { TextTransparency = 0 }, "QuadOut")
-    tween(accentBar, 0.3, { BackgroundTransparency = 0 }, "QuadOut")
+    tween(notif, 0.28, { BackgroundTransparency = 0 }, "ExpoOut")
+    tween(titleLabel, 0.22, { TextTransparency = 0 }, "QuadOut")
+    tween(msgLabel, 0.25, { TextTransparency = 0 }, "QuadOut")
+    tween(accentBar, 0.22, { BackgroundTransparency = 0 }, "QuadOut")
 
     table.insert(LibraryState.Notifications, notif)
 
     task.delay(duration, function()
         if not notif or not notif.Parent then return end
-        tween(notif, 0.3, {
-            Position = UDim2.new(1, 40, 0, 0),
-            BackgroundTransparency = 1
-        }, "QuadIn", function()
+        tween(notif, 0.22, { BackgroundTransparency = 1 }, "QuadIn", function()
             if notif and notif.Parent then
                 notif:Destroy()
             end
@@ -555,13 +593,11 @@ function LuminaUI:Notify(title, message, duration)
                 end
             end
         end)
-        tween(titleLabel, 0.25, { TextTransparency = 1 }, "QuadIn")
-        tween(msgLabel, 0.25, { TextTransparency = 1 }, "QuadIn")
-        tween(accentBar, 0.25, { BackgroundTransparency = 1 }, "QuadIn")
+        tween(titleLabel, 0.18, { TextTransparency = 1 }, "QuadIn")
+        tween(msgLabel, 0.18, { TextTransparency = 1 }, "QuadIn")
+        tween(accentBar, 0.18, { BackgroundTransparency = 1 }, "QuadIn")
     end)
 end
-
--- tooltip
 
 local activeTooltip = nil
 
@@ -645,8 +681,6 @@ local function hideTooltip()
     end
 end
 
--- ponent
-
 local Component = {}
 Component.__index = Component
 
@@ -678,8 +712,6 @@ function Component:SetVisible(vis)
     end
 end
 
--- bunnot
-
 local Button = setmetatable({}, { __index = Component })
 Button.__index = Button
 
@@ -692,11 +724,12 @@ function Button.new(section, text, description, callback)
     local frame = create("Frame", {
         Name = "Button_" .. text,
         BackgroundColor3 = CurrentTheme.Tertiary,
+        BackgroundTransparency = 0.15,
         Size = UDim2.new(1, 0, 0, 40),
         Parent = section.Content
     })
     create("UICorner", { CornerRadius = UDim.new(0, 8), Parent = frame })
-    create("UIStroke", {
+    local btnStroke = create("UIStroke", {
         Color = CurrentTheme.Border,
         Thickness = 1,
         Transparency = 0.5,
@@ -713,6 +746,10 @@ function Button.new(section, text, description, callback)
         AutoButtonColor = false,
         Parent = frame
     })
+
+    registerTheme(frame, "BackgroundColor3", "Tertiary")
+    registerTheme(btnStroke, "Color", "Border")
+    registerTheme(btn, "TextColor3", "Text")
 
     self.Frame = frame
     self.Button = btn
@@ -750,8 +787,6 @@ function Button.new(section, text, description, callback)
 
     return self
 end
-
--- toggl
 
 local Toggle = setmetatable({}, { __index = Component })
 Toggle.__index = Toggle
@@ -863,8 +898,6 @@ function Toggle.new(section, text, description, default, callback)
 
     return self
 end
-
--- slide
 
 local Slider = setmetatable({}, { __index = Component })
 Slider.__index = Slider
@@ -1032,8 +1065,6 @@ function Slider.new(section, text, max, min, callback, step)
     updateVisual(self.Value, false)
     return self
 end
-
--- e
 
 local Dropdown = setmetatable({}, { __index = Component })
 Dropdown.__index = Dropdown
@@ -1242,8 +1273,6 @@ function Dropdown.new(section, text, options, callback)
     rebuildOptions()
     return self
 end
-
--- e
 
 local MultiDropdown = setmetatable({}, { __index = Component })
 MultiDropdown.__index = MultiDropdown
@@ -1468,8 +1497,6 @@ function MultiDropdown.new(section, text, options, callback)
     return self
 end
 
--- no idea 
-
 local ColorPicker = setmetatable({}, { __index = Component })
 ColorPicker.__index = ColorPicker
 
@@ -1586,7 +1613,6 @@ function ColorPicker.new(section, text, defaultColor, callback)
         Parent = pickerFrame
     })
 
-    -- SV Square
     local svFrame = create("Frame", {
         BackgroundColor3 = Color3.fromHSV(self.H, 1, 1),
         Size = UDim2.new(0, 160, 0, 120),
@@ -1638,7 +1664,6 @@ function ColorPicker.new(section, text, defaultColor, callback)
         Parent = svCursor
     })
 
-    -- Hue bar
     local hueFrame = create("Frame", {
         BackgroundColor3 = Color3.new(1, 1, 1),
         Size = UDim2.new(0, 20, 0, 120),
@@ -1673,7 +1698,6 @@ function ColorPicker.new(section, text, defaultColor, callback)
         Parent = hueCursor
     })
 
-    -- Preview large
     local bigPreview = create("Frame", {
         BackgroundColor3 = self.Color,
         Size = UDim2.new(0, 50, 0, 30),
@@ -1805,8 +1829,6 @@ function ColorPicker.new(section, text, defaultColor, callback)
     return self
 end
 
--- feet
-
 local TextBoxComp = setmetatable({}, { __index = Component })
 TextBoxComp.__index = TextBoxComp
 
@@ -1889,8 +1911,6 @@ function TextBoxComp.new(section, text, placeholder, callback)
 
     return self
 end
-
--- qat
 
 local Keybind = setmetatable({}, { __index = Component })
 Keybind.__index = Keybind
@@ -1985,8 +2005,6 @@ function Keybind.new(section, text, defaultKey, callback)
     return self
 end
 
--- bel
-
 local Label = setmetatable({}, { __index = Component })
 Label.__index = Label
 
@@ -2017,8 +2035,6 @@ function Label.new(section, text)
     self.Label = label
     return self
 end
-
--- Spartagraph 
 
 local Paragraph = setmetatable({}, { __index = Component })
 Paragraph.__index = Paragraph
@@ -2078,8 +2094,6 @@ function Paragraph.new(section, title, content)
     return self
 end
 
--- dividea
-
 local Divider = setmetatable({}, { __index = Component })
 Divider.__index = Divider
 
@@ -2106,8 +2120,6 @@ function Divider.new(section)
     return self
 end
 
--- sev
-
 local Section = {}
 Section.__index = Section
 
@@ -2121,15 +2133,16 @@ function Section.new(tab, name)
     local frame = create("Frame", {
         Name = "Section_" .. name,
         BackgroundColor3 = CurrentTheme.Secondary,
+        BackgroundTransparency = 0.25,
         Size = UDim2.new(1, -12, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
         Parent = tab.Content
     })
     create("UICorner", { CornerRadius = UDim.new(0, 12), Parent = frame })
-    create("UIStroke", {
+    local secStroke = create("UIStroke", {
         Color = CurrentTheme.Border,
         Thickness = 1.2,
-        Transparency = 0.35,
+        Transparency = 0.4,
         Parent = frame
     })
     create("UIPadding", {
@@ -2156,6 +2169,10 @@ function Section.new(tab, name)
         LayoutOrder = 0,
         Parent = frame
     })
+
+    registerTheme(frame, "BackgroundColor3", "Secondary")
+    registerTheme(secStroke, "Color", "Border")
+    registerTheme(header, "TextColor3", "Accent")
 
     self.Frame = frame
     self.Content = frame
@@ -2249,8 +2266,6 @@ function Section:Destroy()
         self.Frame:Destroy()
     end
 end
-
--- aaaa
 
 local Tab = {}
 Tab.__index = Tab
@@ -2385,8 +2400,6 @@ function Tab:Destroy()
     if self.Content and self.Content.Parent then self.Content:Destroy() end
 end
 
--- ioooooiooooo
-
 local Window = {}
 Window.__index = Window
 
@@ -2417,25 +2430,42 @@ function Window.new(library, title, themeName)
     })
     parentGui(screenGui)
 
+    local worldBlur = Instance.new("BlurEffect")
+    worldBlur.Name = "LuminaBlur"
+    worldBlur.Size = 0
+    worldBlur.Parent = game:GetService("Lighting")
+    tween(worldBlur, 0.4, { Size = 24 }, "QuadOut")
+
     local main = create("Frame", {
         Name = "Main",
         BackgroundColor3 = CurrentTheme.Background,
-        Size = UDim2.new(0, 600, 0, 440),
-        Position = UDim2.new(0.5, -300, 0.5, -220),
+        BackgroundTransparency = 0.35,
+        Size = UDim2.new(0, 520, 0, 380),
+        Position = UDim2.new(0.5, -260, 0.5, -190),
         Parent = screenGui
     })
-    create("UICorner", { CornerRadius = UDim.new(0, 14), Parent = main })
-    create("UIStroke", {
+    create("UICorner", { CornerRadius = UDim.new(0, 12), Parent = main })
+    local mainStroke = create("UIStroke", {
         Color = CurrentTheme.Border,
         Thickness = 1.5,
-        Transparency = 0.15,
+        Transparency = 0.25,
         Parent = main
     })
 
-    -- Title bar
+    local frost = create("Frame", {
+        Name = "Frost",
+        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+        BackgroundTransparency = 0.92,
+        Size = UDim2.new(1, 0, 1, 0),
+        ZIndex = 0,
+        Parent = main
+    })
+    create("UICorner", { CornerRadius = UDim.new(0, 12), Parent = frost })
+
     local titleBar = create("Frame", {
         Name = "TitleBar",
         BackgroundColor3 = CurrentTheme.Secondary,
+        BackgroundTransparency = 0.28,
         Size = UDim2.new(1, 0, 0, 42),
         Parent = main
     })
@@ -2443,6 +2473,7 @@ function Window.new(library, title, themeName)
 
     local titleCover = create("Frame", {
         BackgroundColor3 = CurrentTheme.Secondary,
+        BackgroundTransparency = 0.28,
         Size = UDim2.new(1, 0, 0, 14),
         Position = UDim2.new(0, 0, 1, -14),
         BorderSizePixel = 0,
@@ -2461,38 +2492,65 @@ function Window.new(library, title, themeName)
         Parent = titleBar
     })
 
+    registerTheme(main, "BackgroundColor3", "Background")
+    registerTheme(mainStroke, "Color", "Border")
+    registerTheme(titleBar, "BackgroundColor3", "Secondary")
+    registerTheme(titleCover, "BackgroundColor3", "Secondary")
+    registerTheme(titleLabel, "TextColor3", "Text")
+
     local minimizeBtn = create("TextButton", {
         BackgroundTransparency = 1,
         Size = UDim2.new(0, 32, 0, 32),
         Position = UDim2.new(1, -72, 0.5, -16),
         Font = Enum.Font.GothamBold,
-        Text = "─",
+        Text = "−",
         TextColor3 = CurrentTheme.MutedText,
-        TextSize = 16,
+        TextSize = 20,
         AutoButtonColor = false,
         Parent = titleBar
     })
+    local minimizeIcon = create("ImageLabel", {
+        BackgroundTransparency = 1,
+        Size = UDim2.new(0, 16, 0, 16),
+        Position = UDim2.new(0.5, -8, 0.5, -8),
+        ImageColor3 = CurrentTheme.MutedText,
+        ScaleType = Enum.ScaleType.Fit,
+        Visible = false,
+        Parent = minimizeBtn
+    })
+    applyIcon(minimizeIcon, "minus", "−", minimizeBtn)
 
     local closeBtn = create("TextButton", {
         BackgroundTransparency = 1,
         Size = UDim2.new(0, 32, 0, 32),
         Position = UDim2.new(1, -40, 0.5, -16),
         Font = Enum.Font.GothamBold,
-        Text = "✕",
+        Text = "×",
         TextColor3 = CurrentTheme.MutedText,
-        TextSize = 14,
+        TextSize = 22,
         AutoButtonColor = false,
         Parent = titleBar
     })
+    local closeIcon = create("ImageLabel", {
+        BackgroundTransparency = 1,
+        Size = UDim2.new(0, 16, 0, 16),
+        Position = UDim2.new(0.5, -8, 0.5, -8),
+        ImageColor3 = CurrentTheme.MutedText,
+        ScaleType = Enum.ScaleType.Fit,
+        Visible = false,
+        Parent = closeBtn
+    })
+    applyIcon(closeIcon, "x", "×", closeBtn)
 
-    -- Sidebar (leaves room for title bar + footer)
     local sidebar = create("Frame", {
         Name = "Sidebar",
         BackgroundColor3 = CurrentTheme.Secondary,
-        Size = UDim2.new(0, 150, 1, -66),
+        BackgroundTransparency = 0.3,
+        Size = UDim2.new(0, 128, 1, -66),
         Position = UDim2.new(0, 0, 0, 42),
         Parent = main
     })
+    registerTheme(sidebar, "BackgroundColor3", "Secondary")
 
     local sidebarList = create("ScrollingFrame", {
         BackgroundTransparency = 1,
@@ -2516,7 +2574,6 @@ function Window.new(library, title, themeName)
         Parent = sidebarList
     })
 
-    -- Search
     local searchBox = create("TextBox", {
         BackgroundColor3 = CurrentTheme.Tertiary,
         Size = UDim2.new(1, -16, 0, 32),
@@ -2537,26 +2594,25 @@ function Window.new(library, title, themeName)
         Parent = searchBox
     })
 
-    -- Content area
     local contentArea = create("Frame", {
         Name = "ContentArea",
         BackgroundTransparency = 1,
-        Size = UDim2.new(1, -150, 1, -66),
-        Position = UDim2.new(0, 150, 0, 42),
+        Size = UDim2.new(1, -128, 1, -66),
+        Position = UDim2.new(0, 128, 0, 42),
         ClipsDescendants = true,
         Parent = main
     })
 
-    -- Footer credit
     local footer = create("Frame", {
         Name = "Footer",
         BackgroundColor3 = CurrentTheme.Secondary,
+        BackgroundTransparency = 0.3,
         Size = UDim2.new(1, 0, 0, 24),
         Position = UDim2.new(0, 0, 1, -24),
         BorderSizePixel = 0,
         Parent = main
     })
-    create("TextLabel", {
+    local footerLabel = create("TextLabel", {
         BackgroundTransparency = 1,
         Size = UDim2.new(1, -16, 1, 0),
         Position = UDim2.new(0, 8, 0, 0),
@@ -2568,18 +2624,26 @@ function Window.new(library, title, themeName)
         TextTruncate = Enum.TextTruncate.AtEnd,
         Parent = footer
     })
+    registerTheme(footer, "BackgroundColor3", "Secondary")
+    registerTheme(footerLabel, "TextColor3", "MutedText")
+    registerTheme(minimizeBtn, "TextColor3", "MutedText")
+    registerTheme(closeBtn, "TextColor3", "MutedText")
+    registerTheme(minimizeIcon, "ImageColor3", "MutedText")
+    registerTheme(closeIcon, "ImageColor3", "MutedText")
 
     self.ScreenGui = screenGui
     self.Main = main
     self.TitleBar = titleBar
     self.Sidebar = sidebar
     self.SidebarList = sidebarList
+    self.WorldBlur = worldBlur
     self.ContentArea = contentArea
     self.SearchBox = searchBox
     self.MinimizeBtn = minimizeBtn
     self.CloseBtn = closeBtn
+    self.MinimizeIcon = minimizeIcon
+    self.CloseIcon = closeIcon
 
-    -- Dragging
     table.insert(self.Connections, titleBar.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             self.Dragging = true
@@ -2606,47 +2670,54 @@ function Window.new(library, title, themeName)
         end
     end))
 
-    -- Minimize
     table.insert(self.Connections, minimizeBtn.Activated:Connect(function()
         if self.Destroyed then return end
         self:ToggleMinimize()
     end))
     table.insert(self.Connections, minimizeBtn.MouseEnter:Connect(function()
         tween(minimizeBtn, 0.1, { TextColor3 = CurrentTheme.Text }, "QuadOut")
+        if minimizeIcon.Visible then
+            tween(minimizeIcon, 0.1, { ImageColor3 = CurrentTheme.Text }, "QuadOut")
+        end
     end))
     table.insert(self.Connections, minimizeBtn.MouseLeave:Connect(function()
         tween(minimizeBtn, 0.1, { TextColor3 = CurrentTheme.MutedText }, "QuadOut")
+        if minimizeIcon.Visible then
+            tween(minimizeIcon, 0.1, { ImageColor3 = CurrentTheme.MutedText }, "QuadOut")
+        end
     end))
 
-    -- Close
     table.insert(self.Connections, closeBtn.Activated:Connect(function()
         if self.Destroyed then return end
         self:Close()
     end))
     table.insert(self.Connections, closeBtn.MouseEnter:Connect(function()
         tween(closeBtn, 0.1, { TextColor3 = CurrentTheme.Danger }, "QuadOut")
+        if closeIcon.Visible then
+            tween(closeIcon, 0.1, { ImageColor3 = CurrentTheme.Danger }, "QuadOut")
+        end
     end))
     table.insert(self.Connections, closeBtn.MouseLeave:Connect(function()
         tween(closeBtn, 0.1, { TextColor3 = CurrentTheme.MutedText }, "QuadOut")
+        if closeIcon.Visible then
+            tween(closeIcon, 0.1, { ImageColor3 = CurrentTheme.MutedText }, "QuadOut")
+        end
     end))
 
-    -- Search
     table.insert(self.Connections, searchBox:GetPropertyChangedSignal("Text"):Connect(function()
         if self.Destroyed then return end
         self:FilterSearch(searchBox.Text)
     end))
 
-    -- Entrance animation
-    main.Size = UDim2.new(0, 600 * 0.9, 0, 440 * 0.9)
+    main.Size = UDim2.new(0, 520 * 0.92, 0, 380 * 0.92)
     main.BackgroundTransparency = 1
     tween(main, 0.4, {
-        Size = UDim2.new(0, 600, 0, 440),
-        BackgroundTransparency = 0
+        Size = UDim2.new(0, 520, 0, 380),
+        BackgroundTransparency = 0.35
     }, "BackOut")
 
     table.insert(LibraryState.Windows, self)
 
-    -- Auto Welcome tab (always first)
     task.defer(function()
         if self.Destroyed then return end
         self:NewWelcomeTab()
@@ -2706,15 +2777,23 @@ function Window:ToggleMinimize()
     if self.Destroyed then return end
     self.Minimized = not self.Minimized
     if self.Minimized then
-        tween(self.Main, 0.3, { Size = UDim2.new(0, 600, 0, 42) }, "QuadOut")
+        tween(self.Main, 0.3, { Size = UDim2.new(0, 520, 0, 42) }, "QuadOut")
         self.Sidebar.Visible = false
         self.ContentArea.Visible = false
-        self.MinimizeBtn.Text = "□"
+        if self.MinimizeIcon and self.MinimizeIcon.Visible then
+            applyIcon(self.MinimizeIcon, "maximize-2", "+", self.MinimizeBtn)
+        else
+            self.MinimizeBtn.Text = "+"
+        end
     else
         self.Sidebar.Visible = true
         self.ContentArea.Visible = true
-        tween(self.Main, 0.3, { Size = UDim2.new(0, 600, 0, 440) }, "QuadOut")
-        self.MinimizeBtn.Text = "─"
+        tween(self.Main, 0.3, { Size = UDim2.new(0, 520, 0, 380) }, "QuadOut")
+        if self.MinimizeIcon and self.MinimizeIcon.Visible then
+            applyIcon(self.MinimizeIcon, "minus", "−", self.MinimizeBtn)
+        else
+            self.MinimizeBtn.Text = "−"
+        end
     end
 end
 
@@ -2748,8 +2827,17 @@ function Window:Close()
     if self.Destroyed then return end
     self.Destroyed = true
 
+    if self.WorldBlur then
+        tween(self.WorldBlur, 0.25, { Size = 0 }, "QuadIn", function()
+            if self.WorldBlur then
+                pcall(function() self.WorldBlur:Destroy() end)
+                self.WorldBlur = nil
+            end
+        end)
+    end
+
     tween(self.Main, 0.25, {
-        Size = UDim2.new(0, 600 * 0.85, 0, 440 * 0.85),
+        Size = UDim2.new(0, 520 * 0.88, 0, 380 * 0.88),
         BackgroundTransparency = 1
     }, "QuadIn", function()
         for _, tab in ipairs(self.Tabs) do
@@ -2772,8 +2860,6 @@ end
 function Window:Destroy()
     self:Close()
 end
-
--- niceeeeeeeee
 
 local function hideAllWindows()
     for _, w in ipairs(LibraryState.Windows) do
@@ -3051,8 +3137,6 @@ local function runKeySystem(onDone)
     end)
 end
 
--- wowwwwwww
-
 LuminaUI.Version = "1.2.0"
 LuminaUI.Animations = Anim
 
@@ -3067,7 +3151,6 @@ function LuminaUI.CreateLib(title, themeName)
     local theme = themeName or "Lumina"
     local window = Window.new(LuminaUI, title, theme)
 
-    -- Hide until intro + key system finish
     if window.ScreenGui then
         window.ScreenGui.Enabled = false
     end
@@ -3078,8 +3161,6 @@ end
 LuminaUI.New = LuminaUI.CreateLib
 LuminaUI.new = LuminaUI.CreateLib
 
--- Optional intro — off by default
--- Lumina:Intro() or Lumina:Intro(true, "Title", "Subtitle")
 function LuminaUI:Intro(enabled, title, subtitle)
     if enabled == nil then enabled = true end
     IntroState.Enabled = enabled and true or false
@@ -3088,9 +3169,6 @@ function LuminaUI:Intro(enabled, title, subtitle)
     return self
 end
 
--- Optional key system — off by default
--- Lumina:KeySystem({"key1", "key2"}, function() end)
--- Lumina:KeySystem({"key1"}, { Note = "...", OnSuccess = fn, OnFail = fn })
 function LuminaUI:KeySystem(keys, opts)
     KeyState.Enabled = true
     if type(keys) == "table" then
@@ -3149,7 +3227,6 @@ function LuminaUI:Init()
         end
     end))
 
-    -- Sequence: Intro -> Key System -> Show Windows
     runIntro(function()
         runKeySystem(function()
             showAllWindows()
@@ -3205,4 +3282,4 @@ pcall(function()
     end
 end)
 
-return LuminaUI -- final
+return LuminaUI
