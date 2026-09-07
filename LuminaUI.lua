@@ -19,14 +19,40 @@ local PlayerGui = LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui") or (Lo
 -- SOUND HELPER
 -- ============================================================
 
-local function playClickSound()
+local UI_CLICK_SOUND = "rbxassetid://9120385125"
+local UI_HOVER_SOUND = UI_CLICK_SOUND
+
+local function playUISound(soundId, volume)
     local sound = Instance.new("Sound")
-    sound.SoundId = "rbxassetid://9120385125"  -- clean UI click
-    sound.Volume = 0.3
+    sound.SoundId = soundId
+    sound.Volume = volume
     sound.Parent = SoundService
     sound:Play()
-    task.delay(sound.TimeLength or 0.1, function()
-        sound:Destroy()
+    task.delay(1, function()
+        if sound and sound.Parent then
+            sound:Destroy()
+        end
+    end)
+end
+
+local function playClickSound()
+    playUISound(UI_CLICK_SOUND, 0.30)
+end
+
+local function playHoverSound()
+    playUISound(UI_HOVER_SOUND, 0.10)
+end
+
+local function bindButtonSounds(button)
+    if not button or not button:IsA("GuiButton") then return end
+    if button:GetAttribute("LuminaSoundBound") then return end
+    button:SetAttribute("LuminaSoundBound", true)
+    button.Active = true
+    button.MouseEnter:Connect(function()
+        if button.Parent then playHoverSound() end
+    end)
+    button.Activated:Connect(function()
+        if button.Parent then playClickSound() end
     end)
 end
 
@@ -325,6 +351,9 @@ local function create(className, props)
     end
     if props and props.Parent then
         obj.Parent = props.Parent
+    end
+    if obj:IsA("GuiButton") then
+        bindButtonSounds(obj)
     end
     return obj
 end
@@ -846,13 +875,28 @@ function Toggle.new(section, text, description, default, callback)
         end
     end
 
-    table.insert(self.Connections, hit.Activated:Connect(function()
+    hit.Active = true
+
+    local lastToggleInput = 0
+    local function activateToggle()
         if self.Destroyed then return end
+        local now = os.clock()
+        if now - lastToggleInput < 0.08 then return end
+        lastToggleInput = now
+
         self.Value = not self.Value
         updateVisual(true)
-        playClickSound()
+
         if not self.SuppressCallback then
             safeCallback(self.Callback, self.Value)
+        end
+    end
+
+    table.insert(self.Connections, hit.MouseButton1Click:Connect(activateToggle))
+    table.insert(self.Connections, hit.InputBegan:Connect(function(input)
+        if self.Destroyed then return end
+        if input.UserInputType == Enum.UserInputType.Touch then
+            activateToggle()
         end
     end))
 
@@ -969,6 +1013,18 @@ function Slider.new(section, text, max, min, callback, step)
         Parent = knob
     })
 
+    local trackHit = create("TextButton", {
+        Name = "TrackHit",
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, 28),
+        Position = UDim2.new(0, 0, 0.5, -14),
+        Text = "",
+        AutoButtonColor = false,
+        Active = true,
+        ZIndex = 10,
+        Parent = track
+    })
+
     self.Frame = frame
     self.Fill = fill
     self.Knob = knob
@@ -1012,7 +1068,7 @@ function Slider.new(section, text, max, min, callback, step)
         end
     end
 
-    table.insert(self.Connections, track.InputBegan:Connect(function(input)
+    table.insert(self.Connections, trackHit.InputBegan:Connect(function(input)
         if self.Destroyed then return end
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             self.Dragging = true
@@ -1205,14 +1261,24 @@ function Dropdown.new(section, text, options, callback)
             table.insert(self.Connections, optBtn.MouseLeave:Connect(function()
                 tween(optBtn, 0.1, { BackgroundColor3 = CurrentTheme.Tertiary }, "QuadOut")
             end))
-            table.insert(self.Connections, optBtn.Activated:Connect(function()
+            local lastOptionInput = 0
+            local function chooseOption()
                 if self.Destroyed then return end
+                local now = os.clock()
+                if now - lastOptionInput < 0.08 then return end
+                lastOptionInput = now
+
                 self.Value = opt
                 valueLabel.Text = tostring(opt)
                 self:Close()
-                playClickSound()
                 if not self.SuppressCallback then
                     safeCallback(self.Callback, self.Value)
+                end
+            end
+            table.insert(self.Connections, optBtn.MouseButton1Click:Connect(chooseOption))
+            table.insert(self.Connections, optBtn.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.Touch then
+                    chooseOption()
                 end
             end))
             table.insert(self.OptionButtons, optBtn)
@@ -1257,9 +1323,20 @@ function Dropdown.new(section, text, options, callback)
         if self.Open then self:Close() else self:Open() end
     end
 
-    table.insert(self.Connections, header.Activated:Connect(function()
+    header.Active = true
+    local lastHeaderInput = 0
+    local function activateHeader()
         if self.Destroyed then return end
+        local now = os.clock()
+        if now - lastHeaderInput < 0.08 then return end
+        lastHeaderInput = now
         self:Toggle()
+    end
+    table.insert(self.Connections, header.MouseButton1Click:Connect(activateHeader))
+    table.insert(self.Connections, header.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then
+            activateHeader()
+        end
     end))
 
     function self:Set(val)
@@ -1437,8 +1514,13 @@ function MultiDropdown.new(section, text, options, callback)
             })
             create("UICorner", { CornerRadius = UDim.new(0, 5), Parent = optBtn })
 
-            table.insert(self.Connections, optBtn.Activated:Connect(function()
+            local lastOptionInput = 0
+            local function chooseOption()
                 if self.Destroyed then return end
+                local now = os.clock()
+                if now - lastOptionInput < 0.08 then return end
+                lastOptionInput = now
+
                 if self.Selected[opt] then
                     self.Selected[opt] = nil
                     tween(optBtn, 0.12, { BackgroundColor3 = CurrentTheme.Tertiary }, "QuadOut")
@@ -1447,11 +1529,16 @@ function MultiDropdown.new(section, text, options, callback)
                     tween(optBtn, 0.12, { BackgroundColor3 = CurrentTheme.Accent }, "QuadOut")
                 end
                 updateValueText()
-                playClickSound()
                 if not self.SuppressCallback then
                     local vals = {}
                     for k in pairs(self.Selected) do table.insert(vals, k) end
                     safeCallback(self.Callback, vals)
+                end
+            end
+            table.insert(self.Connections, optBtn.MouseButton1Click:Connect(chooseOption))
+            table.insert(self.Connections, optBtn.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.Touch then
+                    chooseOption()
                 end
             end))
             table.insert(self.OptionButtons, optBtn)
@@ -1494,9 +1581,20 @@ function MultiDropdown.new(section, text, options, callback)
         if self.Open then self:Close() else self:Open() end
     end
 
-    table.insert(self.Connections, header.Activated:Connect(function()
+    header.Active = true
+    local lastHeaderInput = 0
+    local function activateHeader()
         if self.Destroyed then return end
+        local now = os.clock()
+        if now - lastHeaderInput < 0.08 then return end
+        lastHeaderInput = now
         self:Toggle()
+    end
+    table.insert(self.Connections, header.MouseButton1Click:Connect(activateHeader))
+    table.insert(self.Connections, header.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then
+            activateHeader()
+        end
     end))
 
     function self:Set(values)
@@ -1698,6 +1796,17 @@ function ColorPicker.new(section, text, defaultColor, callback)
         Parent = svCursor
     })
 
+    local svHit = create("TextButton", {
+        Name = "SVHit",
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 1, 0),
+        Text = "",
+        AutoButtonColor = false,
+        Active = true,
+        ZIndex = 20,
+        Parent = svFrame
+    })
+
     -- Hue bar
     local hueFrame = create("Frame", {
         BackgroundColor3 = Color3.new(1, 1, 1),
@@ -1731,6 +1840,17 @@ function ColorPicker.new(section, text, defaultColor, callback)
         Color = Color3.new(0, 0, 0),
         Thickness = 1,
         Parent = hueCursor
+    })
+
+    local hueHit = create("TextButton", {
+        Name = "HueHit",
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 1, 0),
+        Text = "",
+        AutoButtonColor = false,
+        Active = true,
+        ZIndex = 20,
+        Parent = hueFrame
     })
 
     -- Preview large
@@ -1782,22 +1902,22 @@ function ColorPicker.new(section, text, defaultColor, callback)
 
     local draggingSV, draggingHue = false, false
 
-    table.insert(self.Connections, svFrame.InputBegan:Connect(function(input)
+    table.insert(self.Connections, svHit.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             draggingSV = true
             local rel = input.Position - svFrame.AbsolutePosition
-            self.S = clamp(rel.X / svFrame.AbsoluteSize.X, 0, 1)
-            self.V = 1 - clamp(rel.Y / svFrame.AbsoluteSize.Y, 0, 1)
+            self.S = svFrame.AbsoluteSize.X > 0 and clamp(rel.X / svFrame.AbsoluteSize.X, 0, 1) or self.S
+            self.V = svFrame.AbsoluteSize.Y > 0 and (1 - clamp(rel.Y / svFrame.AbsoluteSize.Y, 0, 1)) or self.V
             svCursor.Position = UDim2.new(self.S, -6, 1 - self.V, -6)
             updateColor(true)
         end
     end))
 
-    table.insert(self.Connections, hueFrame.InputBegan:Connect(function(input)
+    table.insert(self.Connections, hueHit.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             draggingHue = true
             local rel = input.Position.Y - hueFrame.AbsolutePosition.Y
-            self.H = clamp(rel / hueFrame.AbsoluteSize.Y, 0, 1)
+            self.H = hueFrame.AbsoluteSize.Y > 0 and clamp(rel / hueFrame.AbsoluteSize.Y, 0, 1) or self.H
             hueCursor.Position = UDim2.new(0, -2, self.H, -3)
             updateColor(true)
         end
@@ -1807,14 +1927,14 @@ function ColorPicker.new(section, text, defaultColor, callback)
         if self.Destroyed then return end
         if draggingSV and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             local rel = input.Position - svFrame.AbsolutePosition
-            self.S = clamp(rel.X / svFrame.AbsoluteSize.X, 0, 1)
-            self.V = 1 - clamp(rel.Y / svFrame.AbsoluteSize.Y, 0, 1)
+            self.S = svFrame.AbsoluteSize.X > 0 and clamp(rel.X / svFrame.AbsoluteSize.X, 0, 1) or self.S
+            self.V = svFrame.AbsoluteSize.Y > 0 and (1 - clamp(rel.Y / svFrame.AbsoluteSize.Y, 0, 1)) or self.V
             svCursor.Position = UDim2.new(self.S, -6, 1 - self.V, -6)
             updateColor(true)
         end
         if draggingHue and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             local rel = input.Position.Y - hueFrame.AbsolutePosition.Y
-            self.H = clamp(rel / hueFrame.AbsoluteSize.Y, 0, 1)
+            self.H = hueFrame.AbsoluteSize.Y > 0 and clamp(rel / hueFrame.AbsoluteSize.Y, 0, 1) or self.H
             hueCursor.Position = UDim2.new(0, -2, self.H, -3)
             updateColor(true)
         end
@@ -1844,9 +1964,20 @@ function ColorPicker.new(section, text, defaultColor, callback)
         tween(pickerFrame, 0.25, { Size = UDim2.new(1, -8, 0, 0) }, "QuadOut")
     end
 
-    table.insert(self.Connections, header.Activated:Connect(function()
+    header.Active = true
+    local lastPickerInput = 0
+    local function activatePickerHeader()
         if self.Destroyed then return end
+        local now = os.clock()
+        if now - lastPickerInput < 0.08 then return end
+        lastPickerInput = now
         if self.Open then self:Close() else self:Open() end
+    end
+    table.insert(self.Connections, header.MouseButton1Click:Connect(activatePickerHeader))
+    table.insert(self.Connections, header.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then
+            activatePickerHeader()
+        end
     end))
 
     function self:Set(col)
@@ -2421,7 +2552,6 @@ function Tab.new(window, name, icon)
     table.insert(window.Connections, tabBtn.Activated:Connect(function()
         if self.Destroyed then return end
         window:SelectTab(self)
-        playClickSound()
     end))
 
     table.insert(window.Connections, tabBtn.MouseEnter:Connect(function()
@@ -2504,6 +2634,8 @@ function Window.new(library, title, themeName)
     self.Dragging = false
     self.DragStart = nil
     self.StartPos = nil
+    self.NormalSize = UDim2.new(0, 460, 0, 300)
+    self.MinimizedSize = UDim2.new(0, 460, 0, 42)
 
     if themeName and DefaultThemes[themeName] then
         CurrentTheme = table.clone(DefaultThemes[themeName])
@@ -2793,7 +2925,6 @@ function Window.new(library, title, themeName)
     table.insert(self.Connections, minimizeBtn.Activated:Connect(function()
         if self.Destroyed then return end
         self:ToggleMinimize()
-        playClickSound()
     end))
     table.insert(self.Connections, minimizeBtn.MouseEnter:Connect(function()
         tween(minimizeBtn, 0.1, { TextColor3 = CurrentTheme.Text }, "QuadOut")
@@ -2812,7 +2943,6 @@ function Window.new(library, title, themeName)
     table.insert(self.Connections, closeBtn.Activated:Connect(function()
         if self.Destroyed then return end
         self:Close()
-        playClickSound()
     end))
     table.insert(self.Connections, closeBtn.MouseEnter:Connect(function()
         tween(closeBtn, 0.1, { TextColor3 = CurrentTheme.Danger }, "QuadOut")
@@ -2921,7 +3051,7 @@ function Window:ToggleMinimize()
         if self.WorldBlur then
             tween(self.WorldBlur, 0.25, { Size = 0 }, "QuadOut")
         end
-        tween(self.Main, 0.3, { Size = UDim2.new(0, 460, 0, 42) }, "QuadOut")
+        tween(self.Main, 0.3, { Size = self.MinimizedSize }, "QuadOut")
         -- change icon to +
         if self.MinimizeIcon and self.MinimizeIcon.Visible then
             applyIcon(self.MinimizeIcon, "maximize-2", "+", self.MinimizeBtn)
@@ -2936,7 +3066,7 @@ function Window:ToggleMinimize()
         if self.WorldBlur then
             tween(self.WorldBlur, 0.3, { Size = 24 }, "QuadOut")
         end
-        tween(self.Main, 0.3, { Size = UDim2.new(0, 460, 0, 300) }, "QuadOut", function()
+        tween(self.Main, 0.3, { Size = self.NormalSize }, "QuadOut", function()
             -- ensure footer stays at bottom (already positioned)
         end)
         -- change icon to minus
@@ -3296,7 +3426,7 @@ end
 -- LIBRARY PUBLIC API
 -- ============================================================
 
-LuminaUI.Version = "1.2.0"
+LuminaUI.Version = "1.3.1"
 LuminaUI.Animations = Anim
 
 function LuminaUI.CreateLib(title, themeName)
