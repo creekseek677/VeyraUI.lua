@@ -1,3 +1,6 @@
+-- DISASSEMBLE TEST
+-- TEMPORARY TEST
+
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -4995,21 +4998,143 @@ local function CreateWindow(library, config)
 	end
 
 	function window:Close()
+		if window._Closing or cleanup:IsDestroyed() then return end
+		window._Closing = true
+
 		TweenEngine.CancelOnObject(root)
 		TweenEngine.CancelOnObject(main)
-		TweenEngine.Play(root, {
-			Size = UDim2.new(0, 0, 0, 0),
-		}, {
-			Duration = 0.3,
-			Easing = "QuadIn",
-			OnComplete = function()
+
+		-- Let the contents disappear first, then break the window chrome apart.
+		root.ClipsDescendants = false
+		main.ClipsDescendants = false
+
+		local function fadeContent(obj)
+			if not obj or not obj.Parent then return end
+			if obj == backgroundImage or obj == bgHolder then return end
+
+			if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
+				TweenEngine.Play(obj, {
+					TextTransparency = 1,
+					BackgroundTransparency = 1,
+				}, { Duration = 0.7, Easing = "QuadIn" })
+			elseif obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
+				TweenEngine.Play(obj, {
+					ImageTransparency = 1,
+					BackgroundTransparency = 1,
+				}, { Duration = 0.7, Easing = "QuadIn" })
+			elseif obj:IsA("GuiObject") then
+				TweenEngine.Play(obj, {
+					BackgroundTransparency = 1,
+				}, { Duration = 0.7, Easing = "QuadIn" })
+			end
+		end
+
+		for _, obj in ipairs(main:GetDescendants()) do
+			fadeContent(obj)
+		end
+
+		-- Keep the background visually present while its pieces are prepared.
+		task.delay(0.75, function()
+			if cleanup:IsDestroyed() then return end
+
+			main.Visible = false
+
+			local shardLayer = Instance.new("Frame")
+			shardLayer.Name = "VeyraDisassembly"
+			shardLayer.BackgroundTransparency = 1
+			shardLayer.BorderSizePixel = 0
+			shardLayer.Size = UDim2.new(1, 0, 1, 0)
+			shardLayer.Position = UDim2.new(0, 0, 0, 0)
+			shardLayer.ZIndex = 100
+			shardLayer.Parent = root
+			cleanup:AddInstance(shardLayer)
+
+			local cols, rows = 4, 4
+			local shards = {}
+			local index = 0
+
+			for y = 1, rows do
+				for x = 1, cols do
+					index += 1
+
+					local shard = Instance.new("Frame")
+					shard.Name = "Shard_" .. x .. "_" .. y
+					shard.BackgroundColor3 = Theme.Background
+					shard.BackgroundTransparency = 0.02
+					shard.BorderSizePixel = 0
+					shard.Size = UDim2.new(1 / cols, 0, 1 / rows, 0)
+					shard.Position = UDim2.new((x - 1) / cols, 0, (y - 1) / rows, 0)
+					shard.ZIndex = 100 + y
+					shard.Parent = shardLayer
+
+					local gradient = main:FindFirstChild("VeyraGradient")
+					if gradient then
+						local g = gradient:Clone()
+						g.Name = "VeyraGradient"
+						g.Parent = shard
+					end
+
+					local stroke = Instance.new("UIStroke")
+					stroke.Color = Theme.OutlineAccent or Theme.Border
+					stroke.Thickness = 1
+					stroke.Transparency = 0.5
+					stroke.Parent = shard
+
+					local dx = x - (cols + 1) / 2
+					local dy = y - (rows + 1) / 2
+					local direction = Vector2.new(dx, dy)
+					if direction.Magnitude < 0.01 then
+						direction = Vector2.new(0.25, -0.25)
+					end
+					direction = direction.Unit
+
+					table.insert(shards, {
+						Object = shard,
+						Direction = direction,
+						Distance = math.random(70, 150),
+						Rotation = math.random(-38, 38),
+						Index = index,
+					})
+				end
+			end
+
+			-- ~5 seconds from the first visible disassembly to the final vanish.
+			for _, data in ipairs(shards) do
+				local shard = data.Object
+				local startPos = shard.Position
+				local targetPos = UDim2.new(
+					startPos.X.Scale,
+					startPos.X.Offset + data.Direction.X * data.Distance,
+					startPos.Y.Scale,
+					startPos.Y.Offset + data.Direction.Y * data.Distance
+				)
+
+				task.delay((data.Index - 1) * 0.035, function()
+					if not shard.Parent or cleanup:IsDestroyed() then return end
+
+					TweenEngine.Play(shard, {
+						Position = targetPos,
+						Rotation = data.Rotation,
+						BackgroundTransparency = 1,
+					}, {
+						Duration = 4.15,
+						Easing = "CubicIn",
+					})
+
+					local stroke = shard:FindFirstChildOfClass("UIStroke")
+					if stroke then
+						TweenEngine.Play(stroke, {
+							Transparency = 1,
+						}, { Duration = 4.15, Easing = "QuadIn" })
+					end
+				end)
+			end
+
+			task.delay(5.05, function()
+				if cleanup:IsDestroyed() then return end
 				window:Destroy()
-			end,
-		})
-		TweenEngine.Play(main, {
-			Size = UDim2.new(0, 0, 0, 0),
-			BackgroundTransparency = 1,
-		}, { Duration = 0.3, Easing = "QuadIn" })
+			end)
+		end)
 	end
 
 	function window:Destroy()
