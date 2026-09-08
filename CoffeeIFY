@@ -40,6 +40,21 @@ end
 
 local HOVER_SOUND = 408524543
 local CLICK_SOUND = 4307186075
+local NOTIFY_SOUND = 408524543
+
+local THEME = {
+	Outer = Color3.fromRGB(207, 198, 178),
+	Panel = Color3.fromRGB(226, 218, 199),
+	Sidebar = Color3.fromRGB(214, 205, 185),
+	Row = Color3.fromRGB(218, 210, 191),
+	RowHover = Color3.fromRGB(69, 64, 58),
+	Dark = Color3.fromRGB(60, 56, 51),
+	DarkLine = Color3.fromRGB(43, 40, 36),
+	Text = Color3.fromRGB(48, 43, 38),
+	TextLight = Color3.fromRGB(236, 228, 210),
+	Muted = Color3.fromRGB(111, 101, 88),
+	Divider = Color3.fromRGB(196, 186, 165)
+}
 
 local function PlaySound(id, volume)
 	local sound = Instance.new("Sound")
@@ -73,6 +88,96 @@ local function MeasureText(text, font, size, width)
 	return math.max(bounds.X, 1), math.max(bounds.Y, 1)
 end
 
+local function AddHoverSweep(frame, hit, visuals, baseColor, darkColor)
+	local sweep = Create("Frame", {
+		Name = "HoverSweep",
+		AnchorPoint = Vector2.new(1, 0),
+		Size = UDim2.new(0, 0, 1, 0),
+		Position = UDim2.new(1, 0, 0, 0),
+		BackgroundColor3 = darkColor,
+		BorderSizePixel = 0,
+		ZIndex = 1,
+		Parent = frame
+	})
+
+	local topLine = Create("Frame", {
+		Name = "HoverTopLine",
+		Size = UDim2.new(0, 0, 0, 1),
+		Position = UDim2.new(0, 0, 0, 0),
+		BackgroundColor3 = THEME.DarkLine,
+		BorderSizePixel = 0,
+		ZIndex = 3,
+		Parent = frame
+	})
+	local bottomLine = Create("Frame", {
+		Name = "HoverBottomLine",
+		AnchorPoint = Vector2.new(0, 1),
+		Size = UDim2.new(0, 0, 0, 1),
+		Position = UDim2.new(0, 0, 1, 0),
+		BackgroundColor3 = THEME.DarkLine,
+		BorderSizePixel = 0,
+		ZIndex = 3,
+		Parent = frame
+	})
+
+	for _, obj in ipairs(visuals or {}) do
+		if obj and obj:IsA("GuiObject") then
+			obj.ZIndex = 3
+		end
+	end
+	if hit and hit:IsA("GuiObject") then
+		hit.ZIndex = 5
+	end
+
+	local hovered = false
+	local locked = false
+
+	local function animate(active)
+		if not frame.Parent then return end
+		hovered = active
+
+		if active or locked then
+			Tween(sweep, {
+				Size = UDim2.new(1, 0, 1, 0),
+				Position = UDim2.new(0, 0, 0, 0)
+			}, 0.16, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+			Tween(topLine, {Size = UDim2.new(1, 0, 0, 1)}, 0.16, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+			Tween(bottomLine, {Size = UDim2.new(1, 0, 0, 1)}, 0.16, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+		else
+			Tween(sweep, {
+				Size = UDim2.new(0, 0, 1, 0),
+				Position = UDim2.new(1, 0, 0, 0)
+			}, 0.14, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+			Tween(topLine, {Size = UDim2.new(0, 0, 0, 1)}, 0.14, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+			Tween(bottomLine, {Size = UDim2.new(0, 0, 0, 1)}, 0.14, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+		end
+	end
+
+	if hit then
+		hit.MouseEnter:Connect(function()
+			if locked then return end
+			animate(true)
+		end)
+		hit.MouseLeave:Connect(function()
+			if locked then return end
+			animate(false)
+		end)
+	end
+
+	return {
+		SetLocked = function(_, value)
+			locked = value == true
+			animate(locked or hovered)
+		end,
+		IsLocked = function()
+			return locked
+		end,
+		TopLine = topLine,
+		BottomLine = bottomLine,
+		Sweep = sweep
+	}
+end
+
 local function GetPageWidth(page, fallback)
 	local width = page and page.AbsoluteSize.X or 0
 	if width > 0 then
@@ -87,7 +192,7 @@ local function GetPageWidth(page, fallback)
 			if rootWidth <= 0 then
 				rootWidth = ancestor.Size.X.Offset
 			end
-			return math.max(rootWidth - 114, 120)
+			return math.max(rootWidth - 158, 120)
 		end
 	end
 
@@ -129,6 +234,83 @@ function CoffeeIFY:_GetPage(tab)
 	return tabData.Page
 end
 
+function CoffeeIFY:Notify(message, duration)
+	if self._closing or not self.notificationHolder or not self.notificationHolder.Parent then
+		return
+	end
+
+	message = tostring(message or "alert")
+	duration = tonumber(duration) or 2.5
+	self._notificationId = (self._notificationId or 0) + 1
+
+	local card = Create("Frame", {
+		Name = "Alert",
+		Size = UDim2.new(1, 0, 0, 46),
+		BackgroundColor3 = THEME.Dark,
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ZIndex = 201,
+		LayoutOrder = self._notificationId,
+		Parent = self.notificationHolder
+	})
+
+	local accent = Create("Frame", {
+		Size = UDim2.new(0, 3, 1, 0),
+		BackgroundColor3 = THEME.TextLight,
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ZIndex = 202,
+		Parent = card
+	})
+
+	local title = Create("TextLabel", {
+		Text = "alert",
+		Size = UDim2.new(1, -22, 0, 18),
+		Position = UDim2.new(0, 14, 0, 5),
+		BackgroundTransparency = 1,
+		TextColor3 = THEME.TextLight,
+		TextTransparency = 1,
+		Font = Enum.Font.GothamBold,
+		TextSize = 13,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 202,
+		Parent = card
+	})
+
+	local body = Create("TextLabel", {
+		Text = message,
+		Size = UDim2.new(1, -22, 0, 18),
+		Position = UDim2.new(0, 14, 0, 22),
+		BackgroundTransparency = 1,
+		TextColor3 = Color3.fromRGB(209, 202, 187),
+		TextTransparency = 1,
+		Font = Enum.Font.Gotham,
+		TextSize = 11,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 202,
+		Parent = card
+	})
+
+	PlaySound(self._notificationSoundId or NOTIFY_SOUND, 0.24)
+	Tween(card, {BackgroundTransparency = 0}, 0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	Tween(accent, {BackgroundTransparency = 0}, 0.16)
+	Tween(title, {TextTransparency = 0}, 0.16)
+	Tween(body, {TextTransparency = 0}, 0.18)
+
+	task.delay(duration, function()
+		if not card.Parent then return end
+		Tween(card, {BackgroundTransparency = 1}, 0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		Tween(accent, {BackgroundTransparency = 1}, 0.16)
+		Tween(title, {TextTransparency = 1}, 0.14)
+		Tween(body, {TextTransparency = 1}, 0.14)
+		task.delay(0.2, function()
+			if card.Parent then card:Destroy() end
+		end)
+	end)
+
+	return card
+end
+
 function CoffeeIFY.new(config)
 	config = config or {}
 
@@ -137,6 +319,7 @@ function CoffeeIFY.new(config)
 	self._connections = {}
 	self._closing = false
 	self._minimized = false
+	self._notificationSoundId = config.NotificationSoundId or NOTIFY_SOUND
 
 	self.gui = Create("ScreenGui", {
 		Name = "CoffeeIFY",
@@ -144,6 +327,26 @@ function CoffeeIFY.new(config)
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 		IgnoreGuiInset = true,
 		Parent = player.PlayerGui
+	})
+
+	self.notificationHolder = Create("Frame", {
+		Name = "Notifications",
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -18, 1, -18),
+		Size = UDim2.new(0, 290, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ZIndex = 200,
+		Parent = self.gui
+	})
+
+	Create("UIListLayout", {
+		HorizontalAlignment = Enum.HorizontalAlignment.Right,
+		VerticalAlignment = Enum.VerticalAlignment.Bottom,
+		Padding = UDim.new(0, 8),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+		Parent = self.notificationHolder
 	})
 
 	local intro = Create("Frame", {
@@ -195,29 +398,25 @@ function CoffeeIFY.new(config)
 
 	local cam = workspace.CurrentCamera
 	local vp = cam.ViewportSize
-	local base = math.clamp(math.min(vp.X, vp.Y) * 0.42, 300, 420)
+	local base = math.clamp(math.min(vp.X, vp.Y) * 0.48, 340, 500)
 
 	self.main = Create("Frame", {
 		Name = "Main",
 		Size = UDim2.new(0, base, 0, base),
 		Position = UDim2.new(0.5, -base / 2, 0.5, -base / 2),
-		BackgroundColor3 = Color3.fromRGB(232, 224, 205),
+		BackgroundColor3 = THEME.Outer,
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		Visible = false,
 		Parent = self.gui
 	})
 
-	Create("UIStroke", {
-		Color = Color3.fromRGB(170, 160, 140),
-		Thickness = 1.5,
-		Parent = self.main
-	})
 
 	self.topBar = Create("Frame", {
 		Name = "TopBar",
-		Size = UDim2.new(1, 0, 0, 28),
-		BackgroundColor3 = Color3.fromRGB(42, 38, 34),
+		Size = UDim2.new(1, -4, 0, 28),
+		Position = UDim2.new(0, 2, 0, 2),
+		BackgroundColor3 = Color3.fromRGB(61, 56, 50),
 		BorderSizePixel = 0,
 		Parent = self.main
 	})
@@ -251,7 +450,7 @@ function CoffeeIFY.new(config)
 		Position = UDim2.new(1, -56, 0, 0),
 		BackgroundTransparency = 1,
 		Text = "–",
-		TextColor3 = Color3.fromRGB(200, 190, 170),
+		TextColor3 = Color3.fromRGB(194, 185, 166),
 		Font = Enum.Font.GothamBold,
 		TextSize = 18,
 		AutoButtonColor = false,
@@ -264,33 +463,30 @@ function CoffeeIFY.new(config)
 		Position = UDim2.new(1, -28, 0, 0),
 		BackgroundTransparency = 1,
 		Text = "×",
-		TextColor3 = Color3.fromRGB(200, 190, 170),
+		TextColor3 = Color3.fromRGB(194, 185, 166),
 		Font = Enum.Font.GothamBold,
 		TextSize = 18,
 		AutoButtonColor = false,
 		Parent = self.topBar
 	})
 
+	local SIDEBAR_W = 136
+
 	self.sidebar = Create("Frame", {
 		Name = "Sidebar",
-		Size = UDim2.new(0, 112, 1, -28), -- a bit wider to the left
-		Position = UDim2.new(0, 0, 0, 28),
-		BackgroundColor3 = Color3.fromRGB(205, 195, 175),
+		Size = UDim2.new(0, SIDEBAR_W, 1, -32),
+		Position = UDim2.new(0, 2, 0, 30),
+		BackgroundColor3 = THEME.Sidebar,
 		BorderSizePixel = 0,
 		Parent = self.main
 	})
 
-	Create("UIStroke", {
-		Color = Color3.fromRGB(170, 160, 140),
-		Thickness = 1,
-		Parent = self.sidebar
-	})
 
 	self.content = Create("Frame", {
 		Name = "Content",
-		Size = UDim2.new(1, -112, 1, -28),
-		Position = UDim2.new(0, 112, 0, 28),
-		BackgroundColor3 = Color3.fromRGB(232, 224, 205),
+		Size = UDim2.new(1, -140, 1, -32),
+		Position = UDim2.new(0, 138, 0, 30),
+		BackgroundColor3 = THEME.Panel,
 		BorderSizePixel = 0,
 		Parent = self.main
 	})
@@ -301,7 +497,7 @@ function CoffeeIFY.new(config)
 		Size = UDim2.new(1, -16, 0, 28),
 		Position = UDim2.new(0, 12, 0, 6),
 		BackgroundTransparency = 1,
-		TextColor3 = Color3.fromRGB(35, 30, 25),
+		TextColor3 = THEME.Text,
 		Font = Enum.Font.GothamBold,
 		TextSize = 15,
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -318,7 +514,7 @@ function CoffeeIFY.new(config)
 	self.currentTab = nil
 	self.tabCount = 0
 
-	local minimizedSize = UDim2.new(0, base, 0, 28)
+	local minimizedSize = UDim2.new(0, base, 0, 30)
 	local normalSize = UDim2.new(0, base, 0, base)
 
 	local function setMinimized(value)
@@ -400,7 +596,7 @@ function CoffeeIFY.new(config)
 
 	self:_Track(minBtn.MouseLeave:Connect(function()
 		if self._closing then return end
-		Tween(minBtn, {TextColor3 = Color3.fromRGB(200, 190, 170)}, 0.15)
+		Tween(minBtn, {TextColor3 = Color3.fromRGB(194, 185, 166)}, 0.15)
 	end))
 
 	self:_Track(closeBtn.MouseEnter:Connect(function()
@@ -411,7 +607,7 @@ function CoffeeIFY.new(config)
 
 	self:_Track(closeBtn.MouseLeave:Connect(function()
 		if self._closing then return end
-		Tween(closeBtn, {TextColor3 = Color3.fromRGB(200, 190, 170)}, 0.15)
+		Tween(closeBtn, {TextColor3 = Color3.fromRGB(194, 185, 166)}, 0.15)
 	end))
 
 	self:_Track(BindActivated(minBtn, function()
@@ -429,80 +625,64 @@ function CoffeeIFY.new(config)
 		spinActive = false
 		PlaySound(CLICK_SOUND, 0.45)
 
-		-- bandage wrap container (covers the whole main window)
-		local wrap = Create("Frame", {
-			Name = "BandageWrap",
-			Size = UDim2.new(1, 4, 1, 4),
-			Position = UDim2.new(0, -2, 0, -2),
+		local layer = Create("Frame", {
+			Name = "GlitchDisassemble",
+			Size = UDim2.new(1, 0, 1, 0),
 			BackgroundTransparency = 1,
-			ClipsDescendants = true,
-			ZIndex = 50,
+			BorderSizePixel = 0,
+			ZIndex = 90,
 			Parent = self.main
 		})
 
-		local bandages = {}
-		local stripCount = 9
-		local stripH = math.ceil((base + 20) / stripCount) + 8
+		local chunks = {}
+		local count = math.clamp(math.floor(base / 24), 14, 22)
+		local bandH = base / count
 
-		-- create diagonal bandage strips that fly in
-		for i = 1, stripCount do
-			local strip = Create("Frame", {
-				Name = "Bandage" .. i,
-				Size = UDim2.new(1.6, 0, 0, stripH),
-				Position = UDim2.new(-1.2, 0, 0, (i - 1) * (stripH - 4) - 10),
-				BackgroundColor3 = Color3.fromRGB(240, 232, 215),
+		for i = 1, count do
+			local y = (i - 1) * bandH
+			local jitter = math.random(-8, 8)
+			local chunk = Create("Frame", {
+				Name = "Chunk" .. i,
+				Size = UDim2.new(0, base + 18, 0, math.ceil(bandH + 2)),
+				Position = UDim2.new(0, -9 + jitter, 0, y),
+				BackgroundColor3 = Color3.fromRGB(47, 44, 40),
+				BackgroundTransparency = 1,
 				BorderSizePixel = 0,
-				Rotation = -28, -- diagonal like the screenshot
-				ZIndex = 51,
-				Parent = wrap
+				ZIndex = 91,
+				Parent = layer
 			})
-
-			-- subtle edge
-			Create("UIStroke", {
-				Color = Color3.fromRGB(200, 190, 170),
-				Thickness = 1,
-				Parent = strip
-			})
-
-			bandages[i] = strip
+			chunks[i] = chunk
 		end
 
-		-- animate strips wrapping in from the left/right alternating
-		for i, strip in ipairs(bandages) do
-			local fromLeft = (i % 2 == 1)
-			local startX = fromLeft and -1.4 or 1.4
-			local endX = fromLeft and -0.15 or -0.15
-
-			strip.Position = UDim2.new(startX, 0, 0, (i - 1) * (stripH - 4) - 10)
-
-			Tween(strip, {
-				Position = UDim2.new(endX, 0, 0, (i - 1) * (stripH - 4) - 10)
-			}, 0.28 + i * 0.035, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		-- Black glitch assembles over the UI first. Tiny stagger keeps it quiet rather than explosive.
+		for i, chunk in ipairs(chunks) do
+			Tween(chunk, {BackgroundTransparency = 0.04}, 0.08 + i * 0.012, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 		end
 
-		task.wait(0.45)
-
-		-- fade all content under the bandages
-		for _, child in ipairs(self.main:GetDescendants()) do
-			if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
-				Tween(child, {TextTransparency = 1}, 0.2)
-			elseif child:IsA("GuiObject") and child ~= self.main and child.Name ~= "BandageWrap" and not child:IsDescendantOf(wrap) then
-				Tween(child, {BackgroundTransparency = 1}, 0.2)
+		-- The actual interface disappears underneath the forming glitch.
+		for _, obj in ipairs(self.main:GetDescendants()) do
+			if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
+				Tween(obj, {TextTransparency = 1}, 0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+			elseif obj:IsA("GuiObject") and obj ~= layer and not obj:IsDescendantOf(layer) then
+				Tween(obj, {BackgroundTransparency = 1}, 0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 			end
 		end
 
-		task.wait(0.15)
+		task.wait(0.26)
 
-		-- fast fade of the whole window + bandages
-		Tween(self.main, {BackgroundTransparency = 1}, 0.22)
-		for _, strip in ipairs(bandages) do
-			Tween(strip, {BackgroundTransparency = 1}, 0.2)
+		-- Pull the glitch pieces apart with small positional bursts.
+		for i, chunk in ipairs(chunks) do
+			local dir = (i % 2 == 0) and 1 or -1
+			local x = dir * math.random(45, 105)
+			local y = math.random(-10, 10)
+			Tween(chunk, {
+				Position = UDim2.new(0, (dir == -1 and -base or base) + x, 0, chunk.Position.Y.Offset + y),
+				BackgroundTransparency = 1
+			}, 0.28 + (i % 5) * 0.025, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
 		end
 
-		task.wait(0.25)
-
+		task.wait(0.42)
 		self:_CleanupConnections()
-
 		if self.gui then
 			self.gui:Destroy()
 		end
@@ -565,11 +745,11 @@ function CoffeeIFY.new(config)
 		end
 
 		local newVp = cam.ViewportSize
-		local newBase = math.clamp(math.min(newVp.X, newVp.Y) * 0.42, 300, 420)
+		local newBase = math.clamp(math.min(newVp.X, newVp.Y) * 0.48, 340, 500)
 
 		base = newBase
 		normalSize = UDim2.new(0, newBase, 0, newBase)
-		minimizedSize = UDim2.new(0, newBase, 0, 28)
+		minimizedSize = UDim2.new(0, newBase, 0, 30)
 
 		if self._minimized then
 			self.main.Size = minimizedSize
@@ -639,87 +819,92 @@ function CoffeeIFY.new(config)
 			return
 		end
 
-		-- ========== SECOND INTRO: two-panel diagonal assemble / disassemble ==========
+		-- ========== GLITCH ASSEMBLE ==========
 		self.main.Visible = true
 		self.main.BackgroundTransparency = 0
 
-		-- Keep the real interface underneath the shutters while they assemble.
-		self.sidebar.Visible = true
-		self.content.Visible = true
-		self.topBar.Visible = true
-
-		local shutterLayer = Create("Frame", {
-			Name = "DiagonalShutters",
+		local layer = Create("Frame", {
+			Name = "GlitchAssemble",
 			Size = UDim2.new(1, 0, 1, 0),
-			Position = UDim2.new(0, 0, 0, 0),
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
-			ZIndex = 80,
+			ZIndex = 90,
 			Parent = self.main
 		})
 
-		local function makeDiagonal(name, rotation, startX, endX, transparency)
-			local panel = Create("Frame", {
-				Name = name,
-				AnchorPoint = Vector2.new(0.5, 0.5),
-				Size = UDim2.new(0, base * 0.78, 0, base * 1.55),
-				Position = UDim2.new(startX, 0, 0.5, 0),
-				Rotation = rotation,
-				BackgroundColor3 = Color3.fromRGB(240, 232, 215),
-				BackgroundTransparency = transparency,
-				BorderSizePixel = 0,
-				ZIndex = 81,
-				Parent = shutterLayer
-			})
-
-			Create("UIStroke", {
-				Color = Color3.fromRGB(205, 196, 179),
-				Thickness = 1,
-				Transparency = 0.35,
-				Parent = panel
-			})
-
-			return panel, endX
+		-- Start with the UI hidden behind a quiet black glitch mask.
+		local fadeTargets = {self.topBar, self.sidebar, self.content}
+		for _, obj in ipairs(fadeTargets) do
+			obj.BackgroundTransparency = 1
 		end
-
-		-- Two oversized diagonal shutters. They overlap to form the clean,
-		-- paper-like assembled cover seen in the reference.
-		local leftPanel, leftTarget = makeDiagonal("LeftDiagonal", -22, -0.95, 0.23, 0.18)
-		local rightPanel, rightTarget = makeDiagonal("RightDiagonal", 22, 1.95, 0.77, 0.18)
-
-		-- Briefly assemble the two diagonals over the whole window.
-		Tween(leftPanel, {
-			Position = UDim2.new(leftTarget, 0, 0.5, 0)
-		}, 0.42, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-
-		Tween(rightPanel, {
-			Position = UDim2.new(rightTarget, 0, 0.5, 0)
-		}, 0.42, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-
-		task.wait(0.46)
-
-		-- Give the interface a tiny settle/fade as the assembled cover breaks apart.
-		for _, obj in ipairs({self.sidebar, self.content, self.topBar}) do
-			if obj and obj.Parent then
+		for _, obj in ipairs(self.content:GetDescendants()) do
+			if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
+				obj.TextTransparency = 1
+			elseif obj:IsA("GuiObject") then
 				obj.BackgroundTransparency = 1
-				Tween(obj, {BackgroundTransparency = 0}, 0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 			end
 		end
 
-		-- Disassemble: the diagonals peel back to opposite sides.
-		Tween(leftPanel, {
-			Position = UDim2.new(-0.95, 0, 0.5, 0)
-		}, 0.52, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+		local chunks = {}
+		local count = math.clamp(math.floor(base / 24), 14, 22)
+		local bandH = base / count
 
-		Tween(rightPanel, {
-			Position = UDim2.new(1.95, 0, 0.5, 0)
-		}, 0.52, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
-
-		task.wait(0.56)
-
-		if shutterLayer.Parent then
-			shutterLayer:Destroy()
+		for i = 1, count do
+			local y = (i - 1) * bandH
+			local jitter = math.random(-14, 14)
+			local chunk = Create("Frame", {
+				Name = "Chunk" .. i,
+				Size = UDim2.new(0, base + 20, 0, math.ceil(bandH + 2)),
+				Position = UDim2.new(0, -10 + jitter, 0, y),
+				BackgroundColor3 = Color3.fromRGB(47, 44, 40),
+				BackgroundTransparency = 0.12,
+				BorderSizePixel = 0,
+				ZIndex = 91,
+				Parent = layer
+			})
+			chunks[i] = chunk
 		end
+
+		-- The chunks subtly snap toward the UI's exact proportions.
+		for i, chunk in ipairs(chunks) do
+			local targetX = -10 + math.random(-2, 2)
+			Tween(chunk, {
+				Position = UDim2.new(0, targetX, 0, (i - 1) * bandH),
+				BackgroundTransparency = 0.02
+			}, 0.18 + i * 0.012, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+		end
+
+		-- At the same time, the UI quietly fades into place.
+		for index, obj in ipairs(fadeTargets) do
+			Tween(obj, {BackgroundTransparency = 0}, 0.24 + index * 0.02, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		end
+		for _, obj in ipairs(self.content:GetDescendants()) do
+			if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
+				Tween(obj, {TextTransparency = 0}, 0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+			end
+		end
+
+		task.wait(0.3)
+
+		-- Small glitch flicker, then the mask disappears.
+		for i, chunk in ipairs(chunks) do
+			local flicker = (i % 2 == 0) and 0.16 or 0.06
+			Tween(chunk, {BackgroundTransparency = flicker}, 0.05)
+		end
+		task.wait(0.06)
+		for _, chunk in ipairs(chunks) do
+			Tween(chunk, {BackgroundTransparency = 1}, 0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		end
+		task.wait(0.14)
+		if layer.Parent then
+			layer:Destroy()
+		end
+
+		task.delay(0.18, function()
+			if not self._closing and self.gui and self.gui.Parent then
+				self:Notify("CoffeeIFY loaded", 2.2)
+			end
+		end)
 
 	end)
 
@@ -739,108 +924,51 @@ function CoffeeIFY:CreateTab(name)
 	self.tabCount += 1
 	local index = self.tabCount
 
-	-- Compact tabs: left aligned, with breathing room on the right.
-	-- No sinking/tilting animation; tabs stay locked to a clean grid.
-	local TAB_H = 24
-	local TAB_GAP = 31
-	local TAB_X = 4
-	local TAB_RIGHT_PADDING = 16
+	local TAB_H = 25
+	local TAB_GAP = 34
+	local TAB_X = 0
 
 	local btn = Create("TextButton", {
 		Name = name,
-		Size = UDim2.new(1, -(TAB_X + TAB_RIGHT_PADDING), 0, TAB_H),
-		Position = UDim2.new(0, TAB_X, 0, 6 + (index - 1) * TAB_GAP),
-		BackgroundColor3 = Color3.fromRGB(185, 175, 155),
+		Size = UDim2.new(1, -16, 0, TAB_H),
+		Position = UDim2.new(0, TAB_X, 0, 10 + (index - 1) * TAB_GAP),
+		BackgroundColor3 = THEME.Row,
 		BorderSizePixel = 0,
 		Text = "",
 		AutoButtonColor = false,
-		Rotation = 0,
-		ZIndex = 1,
 		Parent = self.sidebar
 	})
 
-	-- Hover fill sweeps from left to right. It never moves the tab itself.
-	local hoverFill = Create("Frame", {
-		Name = "HoverFill",
-		Size = UDim2.new(0, 0, 1, 0),
-		Position = UDim2.new(0, 0, 0, 0),
-		BackgroundColor3 = Color3.fromRGB(48, 43, 38),
-		BorderSizePixel = 0,
-		ZIndex = 1,
-		Parent = btn
-	})
-
-	local hoverTopLine = Create("Frame", {
-		Name = "HoverTopLine",
-		Size = UDim2.new(0, 0, 0, 1.5),
-		Position = UDim2.new(0, 0, 0, 0),
-		BackgroundColor3 = Color3.fromRGB(48, 43, 38),
-		BorderSizePixel = 0,
-		ZIndex = 3,
-		Parent = btn
-	})
-
-	local hoverBottomLine = Create("Frame", {
-		Name = "HoverBottomLine",
-		Size = UDim2.new(0, 0, 0, 1.5),
-		Position = UDim2.new(0, 0, 1, -1.5),
-		BackgroundColor3 = Color3.fromRGB(48, 43, 38),
-		BorderSizePixel = 0,
-		ZIndex = 3,
-		Parent = btn
-	})
-
-	-- top + bottom selection lines (hidden by default)
-	local topLine = Create("Frame", {
-		Name = "TopLine",
-		Size = UDim2.new(1, 0, 0, 1.5),
-		Position = UDim2.new(0, 0, 0, 0),
-		BackgroundColor3 = Color3.fromRGB(42, 38, 34),
-		BorderSizePixel = 0,
-		Visible = false,
-		Parent = btn
-	})
-
-	local bottomLine = Create("Frame", {
-		Name = "BottomLine",
-		Size = UDim2.new(1, 0, 0, 1.5),
-		Position = UDim2.new(0, 0, 1, -1.5),
-		BackgroundColor3 = Color3.fromRGB(42, 38, 34),
-		BorderSizePixel = 0,
-		Visible = false,
-		Parent = btn
-	})
-
 	local icon = Create("Frame", {
-		Size = UDim2.new(0, 7, 0, 7),
-		Position = UDim2.new(0, 8, 0.5, -3.5),
-		BackgroundColor3 = Color3.fromRGB(70, 60, 50),
+		Size = UDim2.new(0, 8, 0, 8),
+		Position = UDim2.new(0, 9, 0.5, -4),
+		BackgroundColor3 = Color3.fromRGB(72, 65, 57),
 		BorderSizePixel = 0,
-		ZIndex = 4,
 		Parent = btn
 	})
 
 	local label = Create("TextLabel", {
 		Text = name,
-		Size = UDim2.new(1, -24, 1, 0),
-		Position = UDim2.new(0, 20, 0, 0),
+		Size = UDim2.new(1, -30, 1, 0),
+		Position = UDim2.new(0, 24, 0, 0),
 		BackgroundTransparency = 1,
-		TextColor3 = Color3.fromRGB(45, 40, 35),
+		TextColor3 = THEME.Text,
 		Font = Enum.Font.GothamMedium,
-		TextSize = 11,
+		TextSize = 12,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		ZIndex = 4,
 		Parent = btn
 	})
 
+	local hover = AddHoverSweep(btn, btn, {icon, label}, THEME.Row, THEME.RowHover)
+
 	local page = Create("ScrollingFrame", {
 		Name = name,
-		Size = UDim2.new(1, -16, 1, -42),
-		Position = UDim2.new(0, 8, 0, 36),
+		Size = UDim2.new(1, -20, 1, -44),
+		Position = UDim2.new(0, 10, 0, 36),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		ScrollBarThickness = 3,
-		ScrollBarImageColor3 = Color3.fromRGB(140, 130, 110),
+		ScrollBarImageColor3 = Color3.fromRGB(145, 135, 115),
 		CanvasSize = UDim2.new(0, 0, 0, 0),
 		AutomaticCanvasSize = Enum.AutomaticSize.Y,
 		Visible = false,
@@ -848,14 +976,14 @@ function CoffeeIFY:CreateTab(name)
 	})
 
 	Create("UIListLayout", {
-		Padding = UDim.new(0, 6),
+		Padding = UDim.new(0, 7),
 		SortOrder = Enum.SortOrder.LayoutOrder,
 		Parent = page
 	})
 
 	Create("UIPadding", {
 		PaddingTop = UDim.new(0, 2),
-		PaddingBottom = UDim.new(0, 6),
+		PaddingBottom = UDim.new(0, 8),
 		Parent = page
 	})
 
@@ -865,11 +993,7 @@ function CoffeeIFY:CreateTab(name)
 		Label = label,
 		Page = page,
 		Name = name,
-		TopLine = topLine,
-		BottomLine = bottomLine,
-		HoverFill = hoverFill,
-		HoverTopLine = hoverTopLine,
-		HoverBottomLine = hoverBottomLine
+		Hover = hover
 	}
 
 	self.tabs[name] = tabData
@@ -882,9 +1006,8 @@ function CoffeeIFY:CreateTab(name)
 		local final = targetText
 		local len = #final
 
-		-- fast glitch phase
 		task.spawn(function()
-			for i = 1, 8 do
+			for i = 1, 7 do
 				if not self.contentTitle or not self.contentTitle.Parent then return end
 				local glitched = ""
 				for j = 1, len do
@@ -896,85 +1019,46 @@ function CoffeeIFY:CreateTab(name)
 					end
 				end
 				self.contentTitle.Text = glitched
-				task.wait(0.028)
+				task.wait(0.025)
 			end
 
-			-- typewriter phase
 			self.contentTitle.Text = ""
 			for i = 1, len do
 				if not self.contentTitle or not self.contentTitle.Parent then return end
 				self.contentTitle.Text = final:sub(1, i)
-				task.wait(0.035)
+				task.wait(0.03)
 			end
 			self.contentTitle.Text = final
 		end)
 	end
 
 	local function select()
-		if self._closing then
-			return
-		end
-
+		if self._closing then return end
 		PlaySound(CLICK_SOUND, 0.35)
 
-		-- Reset tabs without any sinking/tilting motion.
 		for i, t in pairs(self.tabButtons) do
-			Tween(t.Button, {
-				BackgroundColor3 = Color3.fromRGB(185, 175, 155)
-			}, 0.12)
-			Tween(t.Label, {TextColor3 = Color3.fromRGB(45, 40, 35)}, 0.12)
-			Tween(t.Icon, {BackgroundColor3 = Color3.fromRGB(70, 60, 50)}, 0.12)
-			if t.TopLine then t.TopLine.Visible = false end
-			if t.BottomLine then t.BottomLine.Visible = false end
-			if t.HoverFill then
-				Tween(t.HoverFill, {Size = UDim2.new(0, 0, 1, 0)}, 0.10, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+			if t ~= tabData then
+				Tween(t.Button, {BackgroundColor3 = THEME.Row}, 0.16)
+				Tween(t.Label, {TextColor3 = THEME.Text}, 0.16)
+				Tween(t.Icon, {BackgroundColor3 = Color3.fromRGB(72, 65, 57)}, 0.16)
+				t.Hover:SetLocked(false)
+				t.Page.Visible = false
 			end
-			if t.HoverTopLine then Tween(t.HoverTopLine, {Size = UDim2.new(0, 0, 0, 1.5)}, 0.10) end
-			if t.HoverBottomLine then Tween(t.HoverBottomLine, {Size = UDim2.new(0, 0, 0, 1.5)}, 0.10) end
-			t.Page.Visible = false
 		end
 
-		-- Selected tab: dark fill with a clean line across the top and bottom.
-		Tween(btn, {
-			BackgroundColor3 = Color3.fromRGB(48, 43, 38)
-		}, 0.12)
-		Tween(label, {TextColor3 = Color3.fromRGB(230, 220, 200)}, 0.12)
-		Tween(icon, {BackgroundColor3 = Color3.fromRGB(230, 220, 200)}, 0.12)
-
-		topLine.Visible = true
-		bottomLine.Visible = true
+		Tween(btn, {BackgroundColor3 = THEME.Dark}, 0.16)
+		Tween(label, {TextColor3 = THEME.TextLight}, 0.16)
+		Tween(icon, {BackgroundColor3 = THEME.TextLight}, 0.16)
+		hover:SetLocked(true)
 
 		page.Visible = true
 		self.currentTab = tabData
-
-		-- glitch + typewriter on the content title
 		glitchTypewriter(name)
 	end
 
 	self:_Track(btn.MouseEnter:Connect(function()
 		if self._closing then return end
-		PlaySound(HOVER_SOUND, 0.18)
-
-		if self.currentTab ~= tabData then
-			-- Dark color overtakes the tab from left to right.
-			Tween(hoverFill, {Size = UDim2.new(1, 0, 1, 0)}, 0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
-			Tween(hoverTopLine, {Size = UDim2.new(1, 0, 0, 1.5)}, 0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
-			Tween(hoverBottomLine, {Size = UDim2.new(1, 0, 0, 1.5)}, 0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
-			Tween(label, {TextColor3 = Color3.fromRGB(230, 220, 200)}, 0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
-			Tween(icon, {BackgroundColor3 = Color3.fromRGB(230, 220, 200)}, 0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
-		end
-	end))
-
-	self:_Track(btn.MouseLeave:Connect(function()
-		if self._closing then return end
-
-		if self.currentTab ~= tabData then
-			Tween(hoverFill, {Size = UDim2.new(0, 0, 1, 0)}, 0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
-			Tween(hoverTopLine, {Size = UDim2.new(0, 0, 0, 1.5)}, 0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
-			Tween(hoverBottomLine, {Size = UDim2.new(0, 0, 0, 1.5)}, 0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
-			Tween(label, {TextColor3 = Color3.fromRGB(45, 40, 35)}, 0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
-			Tween(icon, {BackgroundColor3 = Color3.fromRGB(70, 60, 50)}, 0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
-		end
+		PlaySound(HOVER_SOUND, 0.16)
 	end))
 
 	self:_Track(BindActivated(btn, select))
@@ -994,30 +1078,30 @@ function CoffeeIFY:CreateButton(tab, text, callback)
 	local naturalWidth = MeasureText(text, Enum.Font.Gotham, 12, 10000)
 	local labelWidth = math.max(math.min(math.max(naturalWidth + 6, 80), pageWidth - 36), 70)
 	local _, textHeight = MeasureText(text, Enum.Font.Gotham, 12, labelWidth - 4)
-	local rowHeight = math.max(26, textHeight + 10)
+	local rowHeight = math.max(28, textHeight + 10)
 
 	local frame = Create("Frame", {
-		Size = UDim2.new(1, -12, 0, rowHeight),
-		Position = UDim2.new(0, 6, 0, 0),
-		BackgroundColor3 = Color3.fromRGB(218, 208, 188),
+		Size = UDim2.new(1, -8, 0, rowHeight),
+		BackgroundColor3 = THEME.Row,
 		BorderSizePixel = 0,
+		ClipsDescendants = true,
 		Parent = page
 	})
 
 	local box = Create("Frame", {
 		Size = UDim2.new(0, 12, 0, 12),
-		Position = UDim2.new(0, 14, 0.5, -6),
-		BackgroundColor3 = Color3.fromRGB(40, 35, 30),
+		Position = UDim2.new(0, 12, 0.5, -6),
+		BackgroundColor3 = Color3.fromRGB(40, 36, 32),
 		BorderSizePixel = 0,
 		Parent = frame
 	})
 
 	local label = Create("TextLabel", {
 		Text = text,
-		Size = UDim2.new(1, -72, 0, math.max(18, rowHeight - 4)),
-		Position = UDim2.new(0, 32, 0, 2),
+		Size = UDim2.new(1, -58, 0, math.max(18, rowHeight - 4)),
+		Position = UDim2.new(0, 30, 0, 2),
 		BackgroundTransparency = 1,
-		TextColor3 = Color3.fromRGB(40, 35, 30),
+		TextColor3 = THEME.Text,
 		Font = Enum.Font.Gotham,
 		TextSize = 12,
 		TextWrapped = true,
@@ -1034,64 +1118,28 @@ function CoffeeIFY:CreateButton(tab, text, callback)
 		Parent = frame
 	})
 
-	local hovering = false
-
-	local function resetVisual()
-		Tween(frame, {
-			BackgroundColor3 = Color3.fromRGB(218, 208, 188),
-			Position = UDim2.new(0, 6, 0, 0)
-		}, 0.15)
-		Tween(box, {
-			BackgroundColor3 = Color3.fromRGB(40, 35, 30),
-			Size = UDim2.new(0, 12, 0, 12),
-			Position = UDim2.new(0, 14, 0.5, -6)
-		}, 0.15)
-		Tween(label, {
-			TextXAlignment = Enum.TextXAlignment.Left,
-			Position = UDim2.new(0, 32, 0, 2),
-			Size = UDim2.new(1, -72, 0, math.max(18, rowHeight - 4))
-		}, 0.15)
-	end
+	local hover = AddHoverSweep(frame, btn, {box, label}, THEME.Row, THEME.RowHover)
 
 	self:_Track(btn.MouseEnter:Connect(function()
-		hovering = true
-		PlaySound(HOVER_SOUND, 0.22)
-		Tween(frame, {BackgroundColor3 = Color3.fromRGB(230, 220, 200)}, 0.15)
-		Tween(box, {Size = UDim2.new(0, 13, 0, 13), Position = UDim2.new(0, 13.5, 0.5, -6.5)}, 0.15)
+		if self._closing then return end
+		PlaySound(HOVER_SOUND, 0.18)
+		Tween(box, {Size = UDim2.new(0, 13, 0, 13), Position = UDim2.new(0, 11.5, 0.5, -6.5)}, 0.12)
 	end))
 
 	self:_Track(btn.MouseLeave:Connect(function()
-		hovering = false
-		resetVisual()
+		Tween(box, {Size = UDim2.new(0, 12, 0, 12), Position = UDim2.new(0, 12, 0.5, -6)}, 0.12)
 	end))
 
 	self:_Track(BindActivated(btn, function()
+		if self._closing then return end
 		PlaySound(CLICK_SOUND, 0.4)
-
-		-- quick press feedback
-		Tween(frame, {BackgroundColor3 = Color3.fromRGB(200, 190, 170)}, 0.08)
-		Tween(box, {
-			BackgroundColor3 = Color3.fromRGB(180, 160, 130),
-			Size = UDim2.new(0, 11, 0, 11)
-		}, 0.08)
-
-		task.delay(0.1, function()
-			if not frame.Parent then return end
-			-- always return to normal, then re-apply hover if still over
-			resetVisual()
-			if hovering then
-				task.delay(0.12, function()
-					if hovering and frame.Parent then
-						Tween(frame, {BackgroundColor3 = Color3.fromRGB(230, 220, 200)}, 0.12)
-						Tween(box, {Size = UDim2.new(0, 13, 0, 13), Position = UDim2.new(0, 13.5, 0.5, -6.5)}, 0.12)
-					end
-				end)
+		Tween(frame, {BackgroundColor3 = Color3.fromRGB(194, 185, 166)}, 0.08)
+		task.delay(0.08, function()
+			if frame.Parent then
+				Tween(frame, {BackgroundColor3 = THEME.Row}, 0.12)
 			end
 		end)
-
-		if callback then
-			task.spawn(callback)
-		end
+		if callback then task.spawn(callback) end
 	end))
 
 	return frame
@@ -1106,29 +1154,30 @@ function CoffeeIFY:CreateToggle(tab, text, default, callback)
 	local naturalWidth = MeasureText(text, Enum.Font.Gotham, 12, 10000)
 	local labelWidth = math.max(math.min(math.max(naturalWidth + 6, 80), pageWidth - 36), 70)
 	local _, textHeight = MeasureText(text, Enum.Font.Gotham, 12, labelWidth - 4)
-	local rowHeight = math.max(26, textHeight + 10)
+	local rowHeight = math.max(28, textHeight + 10)
 
 	local frame = Create("Frame", {
-		Size = UDim2.new(1, 0, 0, rowHeight),
-		BackgroundColor3 = Color3.fromRGB(218, 208, 188),
+		Size = UDim2.new(1, -8, 0, rowHeight),
+		BackgroundColor3 = state and THEME.Dark or THEME.Row,
 		BorderSizePixel = 0,
+		ClipsDescendants = true,
 		Parent = page
 	})
 
 	local box = Create("Frame", {
 		Size = UDim2.new(0, 12, 0, 12),
-		Position = UDim2.new(0, 8, 0.5, -6),
-		BackgroundColor3 = state and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(40, 35, 30),
+		Position = UDim2.new(0, 12, 0.5, -6),
+		BackgroundColor3 = state and THEME.TextLight or Color3.fromRGB(40, 36, 32),
 		BorderSizePixel = 0,
 		Parent = frame
 	})
 
-	Create("TextLabel", {
+	local label = Create("TextLabel", {
 		Text = text,
-		Size = UDim2.new(1, -36, 0, math.max(18, rowHeight - 4)),
-		Position = UDim2.new(0, 26, 0, 2),
+		Size = UDim2.new(1, -44, 0, math.max(18, rowHeight - 4)),
+		Position = UDim2.new(0, 30, 0, 2),
 		BackgroundTransparency = 1,
-		TextColor3 = Color3.fromRGB(40, 35, 30),
+		TextColor3 = state and THEME.TextLight or THEME.Text,
 		Font = Enum.Font.Gotham,
 		TextSize = 12,
 		TextWrapped = true,
@@ -1145,49 +1194,38 @@ function CoffeeIFY:CreateToggle(tab, text, default, callback)
 		Parent = frame
 	})
 
-	local hovering = false
+	local hover = AddHoverSweep(frame, btn, {box, label}, THEME.Row, THEME.RowHover)
+	if state then hover:SetLocked(true) end
+
+	local function refresh()
+		if state then
+			Tween(frame, {BackgroundColor3 = THEME.Dark}, 0.15)
+			Tween(label, {TextColor3 = THEME.TextLight}, 0.15)
+			Tween(box, {BackgroundColor3 = THEME.TextLight}, 0.15)
+			hover:SetLocked(true)
+		else
+			Tween(frame, {BackgroundColor3 = THEME.Row}, 0.15)
+			Tween(label, {TextColor3 = THEME.Text}, 0.15)
+			Tween(box, {BackgroundColor3 = Color3.fromRGB(40, 36, 32)}, 0.15)
+			hover:SetLocked(false)
+		end
+	end
 
 	self:_Track(btn.MouseEnter:Connect(function()
-		hovering = true
-		PlaySound(HOVER_SOUND, 0.22)
-		Tween(frame, {BackgroundColor3 = Color3.fromRGB(230, 220, 200)}, 0.15)
-		Tween(box, {Size = UDim2.new(0, 13, 0, 13), Position = UDim2.new(0, 7.5, 0.5, -6.5)}, 0.15)
+		if self._closing then return end
+		PlaySound(HOVER_SOUND, 0.18)
+		Tween(box, {Size = UDim2.new(0, 13, 0, 13), Position = UDim2.new(0, 11.5, 0.5, -6.5)}, 0.12)
 	end))
-
 	self:_Track(btn.MouseLeave:Connect(function()
-		hovering = false
-		Tween(frame, {BackgroundColor3 = Color3.fromRGB(218, 208, 188)}, 0.15)
-		Tween(box, {Size = UDim2.new(0, 12, 0, 12), Position = UDim2.new(0, 8, 0.5, -6)}, 0.15)
+		Tween(box, {Size = UDim2.new(0, 12, 0, 12), Position = UDim2.new(0, 12, 0.5, -6)}, 0.12)
 	end))
 
 	self:_Track(BindActivated(btn, function()
+		if self._closing then return end
 		PlaySound(CLICK_SOUND, 0.4)
 		state = not state
-
-		Tween(frame, {BackgroundColor3 = Color3.fromRGB(200, 190, 170)}, 0.08)
-		Tween(box, {
-			BackgroundColor3 = state and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(40, 35, 30),
-			Size = UDim2.new(0, 11, 0, 11)
-		}, 0.1)
-
-		task.delay(0.1, function()
-			if not frame.Parent then return end
-			Tween(frame, {BackgroundColor3 = Color3.fromRGB(218, 208, 188)}, 0.15)
-			Tween(box, {Size = UDim2.new(0, 12, 0, 12), Position = UDim2.new(0, 8, 0.5, -6)}, 0.15)
-
-			if hovering then
-				task.delay(0.12, function()
-					if hovering and frame.Parent then
-						Tween(frame, {BackgroundColor3 = Color3.fromRGB(230, 220, 200)}, 0.12)
-						Tween(box, {Size = UDim2.new(0, 13, 0, 13), Position = UDim2.new(0, 7.5, 0.5, -6.5)}, 0.12)
-					end
-				end)
-			end
-		end)
-
-		if callback then
-			task.spawn(callback, state)
-		end
+		refresh()
+		if callback then task.spawn(callback, state) end
 	end))
 
 	return frame
@@ -1378,6 +1416,8 @@ function CoffeeIFY:CreateTextBox(tab, placeholder, callback)
 		Parent = box
 	})
 
+	local hover = AddHoverSweep(frame, box, {box}, THEME.Row, THEME.RowHover)
+
 	self:_Track(box.FocusLost:Connect(function(enter)
 		if callback then
 			task.spawn(callback, box.Text, enter)
@@ -1418,7 +1458,7 @@ function CoffeeIFY:CreateDropdown(tab, text, options, default, callback, theme)
 	local t = {
 		Bg = theme.Bg or Color3.fromRGB(218, 208, 188),
 		ListBg = theme.ListBg or Color3.fromRGB(210, 200, 180),
-		Hover = theme.Hover or Color3.fromRGB(200, 190, 170),
+		Hover = theme.Hover or Color3.fromRGB(194, 185, 166),
 		Text = theme.Text or Color3.fromRGB(40, 35, 30),
 		SelectedText = theme.SelectedText or Color3.fromRGB(80, 70, 60),
 		Stroke = theme.Stroke or Color3.fromRGB(170, 160, 140),
@@ -1508,6 +1548,8 @@ function CoffeeIFY:CreateDropdown(tab, text, options, default, callback, theme)
 		Parent = mainBtn
 	})
 
+	local hover = AddHoverSweep(frame, mainBtn, {selectedLabel, arrow}, t.Bg, Color3.fromRGB(69, 64, 58))
+
 	local list = Create("Frame", {
 		Name = "List",
 		Size = UDim2.new(1, 0, 0, 0),
@@ -1520,11 +1562,6 @@ function CoffeeIFY:CreateDropdown(tab, text, options, default, callback, theme)
 		Parent = frame
 	})
 
-	Create("UIStroke", {
-		Color = t.Stroke,
-		Thickness = 1,
-		Parent = list
-	})
 
 	Create("UIListLayout", {
 		SortOrder = Enum.SortOrder.LayoutOrder,
@@ -1539,6 +1576,7 @@ function CoffeeIFY:CreateDropdown(tab, text, options, default, callback, theme)
 
 		open = false
 		arrow.Text = "▾"
+		hover:SetLocked(false)
 
 		Tween(list, {
 			Size = UDim2.new(1, 0, 0, 0)
@@ -1558,6 +1596,7 @@ function CoffeeIFY:CreateDropdown(tab, text, options, default, callback, theme)
 
 		open = true
 		list.Visible = true
+		hover:SetLocked(true)
 
 		local height = #options * 24
 
@@ -1724,7 +1763,7 @@ function CoffeeIFY:CreateKeybind(tab, text, default, callback)
 		Position = UDim2.new(0.65, 0, 0.5, -9),
 		BackgroundColor3 = Color3.fromRGB(50, 45, 40),
 		BorderSizePixel = 0,
-		TextColor3 = Color3.fromRGB(230, 220, 200),
+		TextColor3 = THEME.TextLight,
 		Font = Enum.Font.GothamMedium,
 		TextSize = 11,
 		Parent = frame
@@ -1738,17 +1777,20 @@ function CoffeeIFY:CreateKeybind(tab, text, default, callback)
 		Parent = frame
 	})
 
+	local hover = AddHoverSweep(frame, btn, {keyLabel}, THEME.Row, THEME.RowHover)
+
 	local function displayKey()
 		return typeof(key) == "EnumItem" and key.Name or tostring(key)
 	end
 
 	local function cancelListen()
 		listening = false
+		hover:SetLocked(false)
 		keyLabel.Text = displayKey()
 
 		Tween(keyLabel, {
 			BackgroundColor3 = Color3.fromRGB(50, 45, 40),
-			TextColor3 = Color3.fromRGB(230, 220, 200)
+			TextColor3 = THEME.TextLight
 		}, 0.2)
 
 		Tween(frame, {
@@ -1760,10 +1802,11 @@ function CoffeeIFY:CreateKeybind(tab, text, default, callback)
 		key = newKey
 		keyLabel.Text = displayKey()
 		listening = false
+		hover:SetLocked(false)
 
 		Tween(keyLabel, {
 			BackgroundColor3 = Color3.fromRGB(50, 45, 40),
-			TextColor3 = Color3.fromRGB(230, 220, 200)
+			TextColor3 = THEME.TextLight
 		}, 0.2)
 
 		Tween(frame, {
@@ -1782,6 +1825,7 @@ function CoffeeIFY:CreateKeybind(tab, text, default, callback)
 
 		listening = true
 		keyLabel.Text = "..."
+		hover:SetLocked(true)
 
 		Tween(keyLabel, {
 			BackgroundColor3 = Color3.fromRGB(80, 70, 55),
@@ -1789,7 +1833,7 @@ function CoffeeIFY:CreateKeybind(tab, text, default, callback)
 		}, 0.18)
 
 		Tween(frame, {
-			BackgroundColor3 = Color3.fromRGB(230, 220, 200)
+			BackgroundColor3 = THEME.TextLight
 		}, 0.15)
 	end
 
@@ -1799,7 +1843,7 @@ function CoffeeIFY:CreateKeybind(tab, text, default, callback)
 		PlaySound(HOVER_SOUND, 0.2)
 
 		Tween(frame, {
-			BackgroundColor3 = Color3.fromRGB(230, 220, 200)
+			BackgroundColor3 = THEME.TextLight
 		}, 0.15)
 
 		Tween(keyLabel, {
