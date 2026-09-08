@@ -222,10 +222,21 @@ function CoffeeIFY.new(config)
 		Parent = self.main
 	})
 
+	self.titleIcon = Create("TextLabel", {
+		Text = "◆",
+		Size = UDim2.new(0, 18, 1, 0),
+		Position = UDim2.new(0, 8, 0, 0),
+		BackgroundTransparency = 1,
+		TextColor3 = Color3.fromRGB(225, 215, 195),
+		Font = Enum.Font.GothamBold,
+		TextSize = 12,
+		Parent = self.topBar
+	})
+
 	self.title = Create("TextLabel", {
-		Text = "◆  CoffeeIFY",
+		Text = "CoffeeIFY",
 		Size = UDim2.new(1, -90, 1, 0),
-		Position = UDim2.new(0, 10, 0, 0),
+		Position = UDim2.new(0, 28, 0, 0),
 		BackgroundTransparency = 1,
 		TextColor3 = Color3.fromRGB(225, 215, 195),
 		Font = Enum.Font.GothamMedium,
@@ -373,6 +384,14 @@ function CoffeeIFY.new(config)
 		end
 	end
 
+	local spinActive = true
+	self:_Track(RunService.RenderStepped:Connect(function(dt)
+		if not spinActive or self._closing or not self.titleIcon or not self.titleIcon.Parent then
+			return
+		end
+		self.titleIcon.Rotation = (self.titleIcon.Rotation + dt * 120) % 360
+	end))
+
 	self:_Track(minBtn.MouseEnter:Connect(function()
 		if self._closing then return end
 		PlaySound(HOVER_SOUND, 0.2)
@@ -407,6 +426,7 @@ function CoffeeIFY.new(config)
 		end
 
 		self._closing = true
+		spinActive = false
 		PlaySound(CLICK_SOUND, 0.45)
 
 		for _, child in ipairs(self.main:GetDescendants()) do
@@ -770,7 +790,8 @@ function CoffeeIFY:CreateButton(tab, text, callback)
 	local rowHeight = math.max(26, textHeight + 10)
 
 	local frame = Create("Frame", {
-		Size = UDim2.new(1, 0, 0, rowHeight),
+		Size = UDim2.new(1, -12, 0, rowHeight),
+		Position = UDim2.new(0, 6, 0, 0),
 		BackgroundColor3 = Color3.fromRGB(218, 208, 188),
 		BorderSizePixel = 0,
 		Parent = page
@@ -778,7 +799,7 @@ function CoffeeIFY:CreateButton(tab, text, callback)
 
 	local box = Create("Frame", {
 		Size = UDim2.new(0, 12, 0, 12),
-		Position = UDim2.new(0, 8, 0.5, -6),
+		Position = UDim2.new(0, 14, 0.5, -6),
 		BackgroundColor3 = Color3.fromRGB(40, 35, 30),
 		BorderSizePixel = 0,
 		Parent = frame
@@ -786,8 +807,8 @@ function CoffeeIFY:CreateButton(tab, text, callback)
 
 	local label = Create("TextLabel", {
 		Text = text,
-		Size = UDim2.new(1, -36, 0, math.max(18, rowHeight - 4)),
-		Position = UDim2.new(0, 26, 0, 2),
+		Size = UDim2.new(1, -72, 0, math.max(18, rowHeight - 4)),
+		Position = UDim2.new(0, 32, 0, 2),
 		BackgroundTransparency = 1,
 		TextColor3 = Color3.fromRGB(40, 35, 30),
 		Font = Enum.Font.Gotham,
@@ -809,23 +830,25 @@ function CoffeeIFY:CreateButton(tab, text, callback)
 	self:_Track(btn.MouseEnter:Connect(function()
 		PlaySound(HOVER_SOUND, 0.22)
 		Tween(frame, {BackgroundColor3 = Color3.fromRGB(230, 220, 200)}, 0.15)
-		Tween(box, {Size = UDim2.new(0, 13, 0, 13), Position = UDim2.new(0, 7.5, 0.5, -6.5)}, 0.15)
+		Tween(box, {Size = UDim2.new(0, 13, 0, 13), Position = UDim2.new(0, 13.5, 0.5, -6.5)}, 0.15)
 	end))
 
 	self:_Track(btn.MouseLeave:Connect(function()
 		Tween(frame, {BackgroundColor3 = Color3.fromRGB(218, 208, 188)}, 0.15)
-		Tween(box, {Size = UDim2.new(0, 12, 0, 12), Position = UDim2.new(0, 8, 0.5, -6)}, 0.15)
+		Tween(box, {Size = UDim2.new(0, 12, 0, 12), Position = UDim2.new(0, 14, 0.5, -6)}, 0.15)
 	end))
 
 	self:_Track(BindActivated(btn, function()
 		PlaySound(CLICK_SOUND, 0.4)
-		Tween(frame, {BackgroundColor3 = Color3.fromRGB(200, 190, 170)}, 0.08)
-		Tween(box, {BackgroundColor3 = Color3.fromRGB(180, 160, 130), Size = UDim2.new(0, 11, 0, 11)}, 0.08)
+		Tween(frame, {BackgroundColor3 = Color3.fromRGB(200, 190, 170), Position = UDim2.new(0, 10, 0, 0)}, 0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		Tween(box, {BackgroundColor3 = Color3.fromRGB(180, 160, 130), Size = UDim2.new(0, 11, 0, 11), Position = UDim2.new(0, 18, 0.5, -5.5)}, 0.12)
+		Tween(label, {TextXAlignment = Enum.TextXAlignment.Center, Position = UDim2.new(0, 38, 0, 2), Size = UDim2.new(1, -76, 0, math.max(18, rowHeight - 4))}, 0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
 		task.delay(0.12, function()
 			if not frame.Parent then return end
-			Tween(frame, {BackgroundColor3 = Color3.fromRGB(218, 208, 188)}, 0.18)
-			Tween(box, {BackgroundColor3 = Color3.fromRGB(40, 35, 30), Size = UDim2.new(0, 12, 0, 12), Position = UDim2.new(0, 8, 0.5, -6)}, 0.18)
+			Tween(frame, {BackgroundColor3 = Color3.fromRGB(218, 208, 188), Position = UDim2.new(0, 6, 0, 0)}, 0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+			Tween(box, {BackgroundColor3 = Color3.fromRGB(40, 35, 30), Size = UDim2.new(0, 12, 0, 12), Position = UDim2.new(0, 14, 0.5, -6)}, 0.22)
+			Tween(label, {TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.new(0, 32, 0, 2), Size = UDim2.new(1, -72, 0, math.max(18, rowHeight - 4))}, 0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 		end)
 
 		if callback then
