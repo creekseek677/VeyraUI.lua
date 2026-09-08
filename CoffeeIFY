@@ -429,79 +429,84 @@ function CoffeeIFY.new(config)
 		spinActive = false
 		PlaySound(CLICK_SOUND, 0.45)
 
-		-- Sonic-Mania-style diagonal disassembly.
-		-- IMPORTANT: this version does NOT use rotated Frames at all.  The diagonal
-		-- bands are a UIGradient transparency mask, so Roblox cannot leak them outside
-		-- the square and no rotated ClipsDescendants behavior is involved.
-		local transition = Create("Frame", {
-			Name = "DiagonalDisassemble",
-			Size = UDim2.new(1, 0, 1, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			BackgroundColor3 = Color3.fromRGB(232, 224, 205),
-			BackgroundTransparency = 0,
-			BorderSizePixel = 0,
-			ZIndex = 90,
+		-- bandage wrap container (covers the whole main window)
+		local wrap = Create("Frame", {
+			Name = "BandageWrap",
+			Size = UDim2.new(1, 4, 1, 4),
+			Position = UDim2.new(0, -2, 0, -2),
+			BackgroundTransparency = 1,
+			ClipsDescendants = true,
+			ZIndex = 50,
 			Parent = self.main
 		})
 
-		local gradient = Create("UIGradient", {
-			Rotation = -28,
-			Offset = Vector2.new(-1.15, 0),
-			Color = ColorSequence.new(Color3.fromRGB(232, 224, 205)),
-			Transparency = NumberSequence.new({
-				NumberSequenceKeypoint.new(0.00, 1),
-				NumberSequenceKeypoint.new(0.04, 1),
-				NumberSequenceKeypoint.new(0.08, 0),
-				NumberSequenceKeypoint.new(0.17, 0),
-				NumberSequenceKeypoint.new(0.21, 1),
-				NumberSequenceKeypoint.new(0.25, 1),
-				NumberSequenceKeypoint.new(0.29, 0),
-				NumberSequenceKeypoint.new(0.38, 0),
-				NumberSequenceKeypoint.new(0.42, 1),
-				NumberSequenceKeypoint.new(0.46, 1),
-				NumberSequenceKeypoint.new(0.50, 0),
-				NumberSequenceKeypoint.new(0.59, 0),
-				NumberSequenceKeypoint.new(0.63, 1),
-				NumberSequenceKeypoint.new(0.67, 1),
-				NumberSequenceKeypoint.new(0.71, 0),
-				NumberSequenceKeypoint.new(0.80, 0),
-				NumberSequenceKeypoint.new(0.84, 1),
-				NumberSequenceKeypoint.new(0.88, 1),
-				NumberSequenceKeypoint.new(0.92, 0),
-				NumberSequenceKeypoint.new(1.00, 0),
-			}),
-			Parent = transition
-		})
+		local bandages = {}
+		local stripCount = 9
+		local stripH = math.ceil((base + 20) / stripCount) + 8
 
-		-- Slide the diagonal stripe field across the square.
-		Tween(gradient, {Offset = Vector2.new(0.05, 0)}, 0.42, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-		task.wait(0.46)
+		-- create diagonal bandage strips that fly in
+		for i = 1, stripCount do
+			local strip = Create("Frame", {
+				Name = "Bandage" .. i,
+				Size = UDim2.new(1.6, 0, 0, stripH),
+				Position = UDim2.new(-1.2, 0, 0, (i - 1) * (stripH - 4) - 10),
+				BackgroundColor3 = Color3.fromRGB(240, 232, 215),
+				BorderSizePixel = 0,
+				Rotation = -28, -- diagonal like the screenshot
+				ZIndex = 51,
+				Parent = wrap
+			})
 
-		-- Fade the real interface while the cream bands cover it.
-		local fadeObjects = {}
-		for _, obj in ipairs(self.main:GetDescendants()) do
-			if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
-				fadeObjects[#fadeObjects + 1] = {obj, "TextTransparency", obj.TextTransparency}
-			elseif obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
-				fadeObjects[#fadeObjects + 1] = {obj, "ImageTransparency", obj.ImageTransparency}
-			elseif obj:IsA("GuiObject") and obj ~= transition and not obj:IsDescendantOf(transition) then
-				fadeObjects[#fadeObjects + 1] = {obj, "BackgroundTransparency", obj.BackgroundTransparency}
+			-- subtle edge
+			Create("UIStroke", {
+				Color = Color3.fromRGB(200, 190, 170),
+				Thickness = 1,
+				Parent = strip
+			})
+
+			bandages[i] = strip
+		end
+
+		-- animate strips wrapping in from the left/right alternating
+		for i, strip in ipairs(bandages) do
+			local fromLeft = (i % 2 == 1)
+			local startX = fromLeft and -1.4 or 1.4
+			local endX = fromLeft and -0.15 or -0.15
+
+			strip.Position = UDim2.new(startX, 0, 0, (i - 1) * (stripH - 4) - 10)
+
+			Tween(strip, {
+				Position = UDim2.new(endX, 0, 0, (i - 1) * (stripH - 4) - 10)
+			}, 0.28 + i * 0.035, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		end
+
+		task.wait(0.45)
+
+		-- fade all content under the bandages
+		for _, child in ipairs(self.main:GetDescendants()) do
+			if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+				Tween(child, {TextTransparency = 1}, 0.2)
+			elseif child:IsA("GuiObject") and child ~= self.main and child.Name ~= "BandageWrap" and not child:IsDescendantOf(wrap) then
+				Tween(child, {BackgroundTransparency = 1}, 0.2)
 			end
 		end
 
-		for _, item in ipairs(fadeObjects) do
-			item[1][item[2]] = 1
-		end
-		self.main.BackgroundTransparency = 1
+		task.wait(0.15)
 
-		-- Peel the diagonal field completely off the right side.
-		Tween(gradient, {Offset = Vector2.new(1.2, 0)}, 0.34, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
-		task.wait(0.38)
+		-- fast fade of the whole window + bandages
+		Tween(self.main, {BackgroundTransparency = 1}, 0.22)
+		for _, strip in ipairs(bandages) do
+			Tween(strip, {BackgroundTransparency = 1}, 0.2)
+		end
+
+		task.wait(0.25)
 
 		self:_CleanupConnections()
+
 		if self.gui then
 			self.gui:Destroy()
 		end
+	end
 
 	self:_Track(BindActivated(closeBtn, doClose))
 
@@ -634,90 +639,86 @@ function CoffeeIFY.new(config)
 			return
 		end
 
-		-- ========== SECOND INTRO: diagonal Sonic-Mania-style stripe sweep ==========
+		-- ========== SECOND INTRO: two-panel diagonal assemble / disassemble ==========
 		self.main.Visible = true
-		self.main.BackgroundTransparency = 1
+		self.main.BackgroundTransparency = 0
 
-		-- No rotated GuiObjects: the stripe geometry is produced by transparency
-		-- keypoints in a UIGradient. This is deterministic and cannot overflow the
-		-- square window, even when rotation clipping is unavailable.
-		local transition = Create("Frame", {
-			Name = "DiagonalAssemble",
+		-- Keep the real interface underneath the shutters while they assemble.
+		self.sidebar.Visible = true
+		self.content.Visible = true
+		self.topBar.Visible = true
+
+		local shutterLayer = Create("Frame", {
+			Name = "DiagonalShutters",
 			Size = UDim2.new(1, 0, 1, 0),
 			Position = UDim2.new(0, 0, 0, 0),
-			BackgroundColor3 = Color3.fromRGB(232, 224, 205),
-			BackgroundTransparency = 0,
+			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
 			ZIndex = 80,
 			Parent = self.main
 		})
 
-		local gradient = Create("UIGradient", {
-			Rotation = -28,
-			Offset = Vector2.new(-1.15, 0),
-			Color = ColorSequence.new(Color3.fromRGB(232, 224, 205)),
-			Transparency = NumberSequence.new({
-				NumberSequenceKeypoint.new(0.00, 1),
-				NumberSequenceKeypoint.new(0.04, 1),
-				NumberSequenceKeypoint.new(0.08, 0),
-				NumberSequenceKeypoint.new(0.17, 0),
-				NumberSequenceKeypoint.new(0.21, 1),
-				NumberSequenceKeypoint.new(0.25, 1),
-				NumberSequenceKeypoint.new(0.29, 0),
-				NumberSequenceKeypoint.new(0.38, 0),
-				NumberSequenceKeypoint.new(0.42, 1),
-				NumberSequenceKeypoint.new(0.46, 1),
-				NumberSequenceKeypoint.new(0.50, 0),
-				NumberSequenceKeypoint.new(0.59, 0),
-				NumberSequenceKeypoint.new(0.63, 1),
-				NumberSequenceKeypoint.new(0.67, 1),
-				NumberSequenceKeypoint.new(0.71, 0),
-				NumberSequenceKeypoint.new(0.80, 0),
-				NumberSequenceKeypoint.new(0.84, 1),
-				NumberSequenceKeypoint.new(0.88, 1),
-				NumberSequenceKeypoint.new(0.92, 0),
-				NumberSequenceKeypoint.new(1.00, 0),
-			}),
-			Parent = transition
-		})
+		local function makeDiagonal(name, rotation, startX, endX, transparency)
+			local panel = Create("Frame", {
+				Name = name,
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Size = UDim2.new(0, base * 0.78, 0, base * 1.55),
+				Position = UDim2.new(startX, 0, 0.5, 0),
+				Rotation = rotation,
+				BackgroundColor3 = Color3.fromRGB(240, 232, 215),
+				BackgroundTransparency = transparency,
+				BorderSizePixel = 0,
+				ZIndex = 81,
+				Parent = shutterLayer
+			})
 
-		-- Snapshot the real UI transparency before revealing it.
-		local fadeObjects = {}
-		for _, obj in ipairs(self.main:GetDescendants()) do
-			if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
-				fadeObjects[#fadeObjects + 1] = {obj, "TextTransparency", obj.TextTransparency}
-			elseif obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
-				fadeObjects[#fadeObjects + 1] = {obj, "ImageTransparency", obj.ImageTransparency}
-			elseif obj:IsA("GuiObject") and obj ~= transition and not obj:IsDescendantOf(transition) then
-				fadeObjects[#fadeObjects + 1] = {obj, "BackgroundTransparency", obj.BackgroundTransparency}
-			end
+			Create("UIStroke", {
+				Color = Color3.fromRGB(205, 196, 179),
+				Thickness = 1,
+				Transparency = 0.35,
+				Parent = panel
+			})
+
+			return panel, endX
 		end
 
-		for _, item in ipairs(fadeObjects) do
-			item[1][item[2]] = 1
-		end
+		-- Two oversized diagonal shutters. They overlap to form the clean,
+		-- paper-like assembled cover seen in the reference.
+		local leftPanel, leftTarget = makeDiagonal("LeftDiagonal", -22, -0.95, 0.23, 0.18)
+		local rightPanel, rightTarget = makeDiagonal("RightDiagonal", 22, 1.95, 0.77, 0.18)
 
-		-- The bands sweep into the square as one clean diagonal field.
-		Tween(gradient, {Offset = Vector2.new(0.05, 0)}, 0.42, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+		-- Briefly assemble the two diagonals over the whole window.
+		Tween(leftPanel, {
+			Position = UDim2.new(leftTarget, 0, 0.5, 0)
+		}, 0.42, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+
+		Tween(rightPanel, {
+			Position = UDim2.new(rightTarget, 0, 0.5, 0)
+		}, 0.42, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+
 		task.wait(0.46)
 
-		-- Fast reveal of the actual CoffeeIFY UI.
-		Tween(self.main, {BackgroundTransparency = 0}, 0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-		for _, item in ipairs(fadeObjects) do
-			local obj, prop, target = item[1], item[2], item[3]
+		-- Give the interface a tiny settle/fade as the assembled cover breaks apart.
+		for _, obj in ipairs({self.sidebar, self.content, self.topBar}) do
 			if obj and obj.Parent then
-				Tween(obj, {[prop] = target}, 0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+				obj.BackgroundTransparency = 1
+				Tween(obj, {BackgroundTransparency = 0}, 0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 			end
 		end
 
-		task.wait(0.08)
+		-- Disassemble: the diagonals peel back to opposite sides.
+		Tween(leftPanel, {
+			Position = UDim2.new(-0.95, 0, 0.5, 0)
+		}, 0.52, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
 
-		-- Sweep the bands back out, exposing the finished UI.
-		Tween(gradient, {Offset = Vector2.new(1.2, 0)}, 0.34, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
-		task.wait(0.38)
+		Tween(rightPanel, {
+			Position = UDim2.new(1.95, 0, 0.5, 0)
+		}, 0.52, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
 
-		if transition.Parent then
-			transition:Destroy()
+		task.wait(0.56)
+
+		if shutterLayer.Parent then
+			shutterLayer:Destroy()
 		end
 
 	end)
@@ -738,20 +739,55 @@ function CoffeeIFY:CreateTab(name)
 	self.tabCount += 1
 	local index = self.tabCount
 
-	-- smaller tab height, flush left with sidebar
-	local TAB_H = 22
-	local TAB_GAP = 26
+	-- Compact tabs: left aligned, with breathing room on the right.
+	-- No sinking/tilting animation; tabs stay locked to a clean grid.
+	local TAB_H = 24
+	local TAB_GAP = 31
+	local TAB_X = 4
+	local TAB_RIGHT_PADDING = 16
 
 	local btn = Create("TextButton", {
 		Name = name,
-		Size = UDim2.new(1, -4, 0, TAB_H), -- almost full width of sidebar
-		Position = UDim2.new(0, 2, 0, 6 + (index - 1) * TAB_GAP),
+		Size = UDim2.new(1, -(TAB_X + TAB_RIGHT_PADDING), 0, TAB_H),
+		Position = UDim2.new(0, TAB_X, 0, 6 + (index - 1) * TAB_GAP),
 		BackgroundColor3 = Color3.fromRGB(185, 175, 155),
 		BorderSizePixel = 0,
 		Text = "",
 		AutoButtonColor = false,
 		Rotation = 0,
+		ZIndex = 1,
 		Parent = self.sidebar
+	})
+
+	-- Hover fill sweeps from left to right. It never moves the tab itself.
+	local hoverFill = Create("Frame", {
+		Name = "HoverFill",
+		Size = UDim2.new(0, 0, 1, 0),
+		Position = UDim2.new(0, 0, 0, 0),
+		BackgroundColor3 = Color3.fromRGB(48, 43, 38),
+		BorderSizePixel = 0,
+		ZIndex = 1,
+		Parent = btn
+	})
+
+	local hoverTopLine = Create("Frame", {
+		Name = "HoverTopLine",
+		Size = UDim2.new(0, 0, 0, 1.5),
+		Position = UDim2.new(0, 0, 0, 0),
+		BackgroundColor3 = Color3.fromRGB(48, 43, 38),
+		BorderSizePixel = 0,
+		ZIndex = 3,
+		Parent = btn
+	})
+
+	local hoverBottomLine = Create("Frame", {
+		Name = "HoverBottomLine",
+		Size = UDim2.new(0, 0, 0, 1.5),
+		Position = UDim2.new(0, 0, 1, -1.5),
+		BackgroundColor3 = Color3.fromRGB(48, 43, 38),
+		BorderSizePixel = 0,
+		ZIndex = 3,
+		Parent = btn
 	})
 
 	-- top + bottom selection lines (hidden by default)
@@ -780,6 +816,7 @@ function CoffeeIFY:CreateTab(name)
 		Position = UDim2.new(0, 8, 0.5, -3.5),
 		BackgroundColor3 = Color3.fromRGB(70, 60, 50),
 		BorderSizePixel = 0,
+		ZIndex = 4,
 		Parent = btn
 	})
 
@@ -792,6 +829,7 @@ function CoffeeIFY:CreateTab(name)
 		Font = Enum.Font.GothamMedium,
 		TextSize = 11,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 4,
 		Parent = btn
 	})
 
@@ -828,7 +866,10 @@ function CoffeeIFY:CreateTab(name)
 		Page = page,
 		Name = name,
 		TopLine = topLine,
-		BottomLine = bottomLine
+		BottomLine = bottomLine,
+		HoverFill = hoverFill,
+		HoverTopLine = hoverTopLine,
+		HoverBottomLine = hoverBottomLine
 	}
 
 	self.tabs[name] = tabData
@@ -876,46 +917,32 @@ function CoffeeIFY:CreateTab(name)
 
 		PlaySound(CLICK_SOUND, 0.35)
 
-		-- reset all tabs first
+		-- Reset tabs without any sinking/tilting motion.
 		for i, t in pairs(self.tabButtons) do
 			Tween(t.Button, {
-				BackgroundColor3 = Color3.fromRGB(185, 175, 155),
-				Rotation = 0,
-				Position = UDim2.new(0, 2, 0, 6 + (i - 1) * 26)
-			}, 0.22)
-			Tween(t.Label, {TextColor3 = Color3.fromRGB(45, 40, 35)}, 0.2)
-			Tween(t.Icon, {BackgroundColor3 = Color3.fromRGB(70, 60, 50)}, 0.2)
+				BackgroundColor3 = Color3.fromRGB(185, 175, 155)
+			}, 0.12)
+			Tween(t.Label, {TextColor3 = Color3.fromRGB(45, 40, 35)}, 0.12)
+			Tween(t.Icon, {BackgroundColor3 = Color3.fromRGB(70, 60, 50)}, 0.12)
 			if t.TopLine then t.TopLine.Visible = false end
 			if t.BottomLine then t.BottomLine.Visible = false end
+			if t.HoverFill then
+				Tween(t.HoverFill, {Size = UDim2.new(0, 0, 1, 0)}, 0.10, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+			end
+			if t.HoverTopLine then Tween(t.HoverTopLine, {Size = UDim2.new(0, 0, 0, 1.5)}, 0.10) end
+			if t.HoverBottomLine then Tween(t.HoverBottomLine, {Size = UDim2.new(0, 0, 0, 1.5)}, 0.10) end
 			t.Page.Visible = false
 		end
 
-		-- selected tab
+		-- Selected tab: dark fill with a clean line across the top and bottom.
 		Tween(btn, {
-			BackgroundColor3 = Color3.fromRGB(48, 43, 38),
-			Rotation = 0,
-			Position = UDim2.new(0, 2, 0, 6 + (index - 1) * 26)
-		}, 0.22)
-		Tween(label, {TextColor3 = Color3.fromRGB(230, 220, 200)}, 0.22)
-		Tween(icon, {BackgroundColor3 = Color3.fromRGB(230, 220, 200)}, 0.22)
+			BackgroundColor3 = Color3.fromRGB(48, 43, 38)
+		}, 0.12)
+		Tween(label, {TextColor3 = Color3.fromRGB(230, 220, 200)}, 0.12)
+		Tween(icon, {BackgroundColor3 = Color3.fromRGB(230, 220, 200)}, 0.12)
 
-		-- show top + bottom dark lines on selected tab
 		topLine.Visible = true
 		bottomLine.Visible = true
-
-		-- tilt the tabs BELOW the selected one (weight effect)
-		for i, t in pairs(self.tabButtons) do
-			if i > index then
-				local distance = i - index
-				local tilt = -4.5 - (distance * 1.8)
-				local offsetX = -3 - (distance * 1.5)
-
-				Tween(t.Button, {
-					Rotation = tilt,
-					Position = UDim2.new(0, 2 + offsetX, 0, 6 + (i - 1) * 26)
-				}, 0.28, Enum.EasingStyle.Back)
-			end
-		end
 
 		page.Visible = true
 		self.currentTab = tabData
@@ -929,7 +956,12 @@ function CoffeeIFY:CreateTab(name)
 		PlaySound(HOVER_SOUND, 0.18)
 
 		if self.currentTab ~= tabData then
-			Tween(btn, {BackgroundColor3 = Color3.fromRGB(200, 190, 170)}, 0.15)
+			-- Dark color overtakes the tab from left to right.
+			Tween(hoverFill, {Size = UDim2.new(1, 0, 1, 0)}, 0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+			Tween(hoverTopLine, {Size = UDim2.new(1, 0, 0, 1.5)}, 0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+			Tween(hoverBottomLine, {Size = UDim2.new(1, 0, 0, 1.5)}, 0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+			Tween(label, {TextColor3 = Color3.fromRGB(230, 220, 200)}, 0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+			Tween(icon, {BackgroundColor3 = Color3.fromRGB(230, 220, 200)}, 0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
 		end
 	end))
 
@@ -937,7 +969,11 @@ function CoffeeIFY:CreateTab(name)
 		if self._closing then return end
 
 		if self.currentTab ~= tabData then
-			Tween(btn, {BackgroundColor3 = Color3.fromRGB(185, 175, 155)}, 0.15)
+			Tween(hoverFill, {Size = UDim2.new(0, 0, 1, 0)}, 0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
+			Tween(hoverTopLine, {Size = UDim2.new(0, 0, 0, 1.5)}, 0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
+			Tween(hoverBottomLine, {Size = UDim2.new(0, 0, 0, 1.5)}, 0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
+			Tween(label, {TextColor3 = Color3.fromRGB(45, 40, 35)}, 0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
+			Tween(icon, {BackgroundColor3 = Color3.fromRGB(70, 60, 50)}, 0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
 		end
 	end))
 
