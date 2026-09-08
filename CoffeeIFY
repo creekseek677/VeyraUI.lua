@@ -429,77 +429,93 @@ function CoffeeIFY.new(config)
 		spinActive = false
 		PlaySound(CLICK_SOUND, 0.45)
 
-		-- bandage wrap container (covers the whole main window)
+		-- DIAGONAL DISASSEMBLY: split the window into two large angled panels
+		-- Roblox GUI frames cannot be clipped along an arbitrary rotated edge, so
+		-- the effect is built from two overlapping rotated rectangles and tweened
+		-- apart. This follows the common DevForum approach of composing a shape
+		-- from multiple GUI objects rather than relying on rotated ClipDescendants.
 		local wrap = Create("Frame", {
-			Name = "BandageWrap",
-			Size = UDim2.new(1, 4, 1, 4),
-			Position = UDim2.new(0, -2, 0, -2),
+			Name = "DiagonalDisassemble",
+			Size = UDim2.new(1, 8, 1, 8),
+			Position = UDim2.new(0, -4, 0, -4),
 			BackgroundTransparency = 1,
 			ClipsDescendants = true,
-			ZIndex = 50,
+			ZIndex = 80,
 			Parent = self.main
 		})
 
-		local bandages = {}
-		local stripCount = 9
-		local stripH = math.ceil((base + 20) / stripCount) + 8
-
-		-- create diagonal bandage strips that fly in
-		for i = 1, stripCount do
-			local strip = Create("Frame", {
-				Name = "Bandage" .. i,
-				Size = UDim2.new(1.6, 0, 0, stripH),
-				Position = UDim2.new(-1.2, 0, 0, (i - 1) * (stripH - 4) - 10),
+		local function makePanel(name, startX, startRotation)
+			local panel = Create("Frame", {
+				Name = name,
+				Size = UDim2.new(0.76, 0, 1.45, 0),
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.new(startX, 0, 0.5, 0),
+				Rotation = startRotation,
 				BackgroundColor3 = Color3.fromRGB(240, 232, 215),
+				BackgroundTransparency = 0.05,
 				BorderSizePixel = 0,
-				Rotation = -28, -- diagonal like the screenshot
-				ZIndex = 51,
+				ZIndex = 81,
 				Parent = wrap
 			})
 
-			-- subtle edge
 			Create("UIStroke", {
 				Color = Color3.fromRGB(200, 190, 170),
+				Transparency = 0.15,
 				Thickness = 1,
-				Parent = strip
+				Parent = panel
 			})
 
-			bandages[i] = strip
+			return panel
 		end
 
-		-- animate strips wrapping in from the left/right alternating
-		for i, strip in ipairs(bandages) do
-			local fromLeft = (i % 2 == 1)
-			local startX = fromLeft and -1.4 or 1.4
-			local endX = fromLeft and -0.15 or -0.15
+		local leftPanel = makePanel("LeftDiagonal", -0.18, -28)
+		local rightPanel = makePanel("RightDiagonal", 1.18, -28)
 
-			strip.Position = UDim2.new(startX, 0, 0, (i - 1) * (stripH - 4) - 10)
+		-- Let the diagonal pieces close over the UI first.
+		Tween(leftPanel, {
+			Position = UDim2.new(0.27, 0, 0.5, 0)
+		}, 0.42, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
 
-			Tween(strip, {
-				Position = UDim2.new(endX, 0, 0, (i - 1) * (stripH - 4) - 10)
-			}, 0.28 + i * 0.035, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-		end
+		Tween(rightPanel, {
+			Position = UDim2.new(0.73, 0, 0.5, 0)
+		}, 0.42, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
 
-		task.wait(0.45)
+		task.wait(0.3)
 
-		-- fade all content under the bandages
+		-- Fade the actual controls while the two panels finish closing.
 		for _, child in ipairs(self.main:GetDescendants()) do
 			if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
-				Tween(child, {TextTransparency = 1}, 0.2)
-			elseif child:IsA("GuiObject") and child ~= self.main and child.Name ~= "BandageWrap" and not child:IsDescendantOf(wrap) then
-				Tween(child, {BackgroundTransparency = 1}, 0.2)
+				if child ~= wrap and not child:IsDescendantOf(wrap) then
+					Tween(child, {TextTransparency = 1}, 0.18)
+				end
+			elseif child:IsA("GuiObject")
+				and child ~= self.main
+				and child ~= wrap
+				and not child:IsDescendantOf(wrap) then
+				Tween(child, {BackgroundTransparency = 1}, 0.18)
 			end
 		end
 
-		task.wait(0.15)
+		task.wait(0.22)
 
-		-- fast fade of the whole window + bandages
-		Tween(self.main, {BackgroundTransparency = 1}, 0.22)
-		for _, strip in ipairs(bandages) do
-			Tween(strip, {BackgroundTransparency = 1}, 0.2)
-		end
+		-- Disassemble: the two diagonal pieces shoot away from each other.
+		Tween(leftPanel, {
+			Position = UDim2.new(-0.9, 0, 0.5, 0),
+			Rotation = -36,
+			BackgroundTransparency = 1
+		}, 0.38, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
 
-		task.wait(0.25)
+		Tween(rightPanel, {
+			Position = UDim2.new(1.9, 0, 0.5, 0),
+			Rotation = -20,
+			BackgroundTransparency = 1
+		}, 0.38, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+
+		Tween(self.main, {BackgroundTransparency = 1}, 0.25)
+
+		task.wait(0.32)
+
+		wrap:Destroy()
 
 		self:_CleanupConnections()
 
@@ -639,75 +655,105 @@ function CoffeeIFY.new(config)
 			return
 		end
 
-		-- ========== SECOND INTRO: bandage unwrap ==========
+		-- ========== SECOND INTRO: two-piece diagonal assembly ==========
 		self.main.Visible = true
 		self.main.BackgroundTransparency = 0
 
-		local unwrap = Create("Frame", {
-			Name = "UnwrapLayer",
-			Size = UDim2.new(1, 4, 1, 4),
-			Position = UDim2.new(0, -2, 0, -2),
+		local assemble = Create("Frame", {
+			Name = "DiagonalAssembly",
+			Size = UDim2.new(1, 8, 1, 8),
+			Position = UDim2.new(0, -4, 0, -4),
 			BackgroundTransparency = 1,
 			ClipsDescendants = true,
 			ZIndex = 80,
 			Parent = self.main
 		})
 
-		local strips = {}
-		local stripCount = 9
-		local stripH = math.ceil((base + 20) / stripCount) + 8
-
-		for i = 1, stripCount do
-			local strip = Create("Frame", {
-				Name = "UnwrapBandage" .. i,
-				Size = UDim2.new(1.7, 0, 0, stripH),
-				Position = UDim2.new(-0.15, 0, 0, (i - 1) * (stripH - 4) - 10),
+		local function makeAssemblyPanel(name, startX, rotation)
+			local panel = Create("Frame", {
+				Name = name,
+				Size = UDim2.new(0.76, 0, 1.45, 0),
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.new(startX, 0, 0.5, 0),
+				Rotation = rotation,
 				BackgroundColor3 = Color3.fromRGB(240, 232, 215),
+				BackgroundTransparency = 0.05,
 				BorderSizePixel = 0,
-				Rotation = -28,
 				ZIndex = 81,
-				Parent = unwrap
+				Parent = assemble
 			})
 
 			Create("UIStroke", {
 				Color = Color3.fromRGB(200, 190, 170),
+				Transparency = 0.15,
 				Thickness = 1,
-				Parent = strip
+				Parent = panel
 			})
 
-			strips[i] = strip
+			return panel
 		end
 
-		-- hide real content under the wraps for a moment
+		-- Start as two separated diagonals, then assemble them over the window.
+		local leftPanel = makeAssemblyPanel("LeftDiagonal", -0.9, -28)
+		local rightPanel = makeAssemblyPanel("RightDiagonal", 1.9, -28)
+
+		-- Keep the real content hidden until the diagonals have finished assembling.
 		self.sidebar.Visible = false
 		self.content.Visible = false
 		self.topBar.Visible = true
 
-		task.wait(0.15)
+		task.wait(0.05)
 
-		-- unwrap: strips slide outward alternating left/right
-		for i, strip in ipairs(strips) do
-			local toLeft = (i % 2 == 1)
-			local targetX = toLeft and -1.5 or 1.5
+		local leftTween = Tween(leftPanel, {
+			Position = UDim2.new(0.27, 0, 0.5, 0)
+		}, 0.48, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
 
-			Tween(strip, {
-				Position = UDim2.new(targetX, 0, 0, (i - 1) * (stripH - 4) - 10)
-			}, 0.32 + i * 0.04, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		local rightTween = Tween(rightPanel, {
+			Position = UDim2.new(0.73, 0, 0.5, 0)
+		}, 0.48, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+
+		if leftTween then
+			leftTween.Completed:Wait()
 		end
 
-		task.wait(0.55)
+		-- Brief settled beat makes the two-piece "assemble" feel intentional.
+		task.wait(0.08)
 
-		-- reveal UI
 		self.sidebar.Visible = true
 		self.content.Visible = true
-		Tween(self.sidebar, {BackgroundTransparency = 0}, 0.2)
-		Tween(self.content, {BackgroundTransparency = 0}, 0.2)
+		self.sidebar.BackgroundTransparency = 1
+		self.content.BackgroundTransparency = 1
 
-		task.wait(0.25)
+		Tween(self.sidebar, {BackgroundTransparency = 0}, 0.18)
+		Tween(self.content, {BackgroundTransparency = 0}, 0.18)
 
-		if unwrap.Parent then
-			unwrap:Destroy()
+		for _, child in ipairs(self.content:GetDescendants()) do
+			if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+				if child.TextTransparency < 1 then
+					Tween(child, {TextTransparency = 0}, 0.18)
+				end
+			end
 		end
+
+		-- Split the assembled pieces and send them off-screen to complete the reveal.
+		Tween(leftPanel, {
+			Position = UDim2.new(-0.9, 0, 0.5, 0),
+			Rotation = -36,
+			BackgroundTransparency = 1
+		}, 0.42, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+
+		Tween(rightPanel, {
+			Position = UDim2.new(1.9, 0, 0.5, 0),
+			Rotation = -20,
+			BackgroundTransparency = 1
+		}, 0.42, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+
+		task.wait(0.45)
+
+		if assemble.Parent then
+			assemble:Destroy()
+		end
+
 	end)
 
 	return self
