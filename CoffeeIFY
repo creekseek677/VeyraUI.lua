@@ -430,62 +430,54 @@ function CoffeeIFY.new(config)
 		PlaySound(CLICK_SOUND, 0.45)
 
 		-- Sonic-Mania-style diagonal disassembly.
-		-- The number/size of the bands is calculated from the actual square GUI size,
-		-- so the transition keeps the same proportions on different screens.
-		local transition = Create("CanvasGroup", {
+		-- IMPORTANT: this version does NOT use rotated Frames at all.  The diagonal
+		-- bands are a UIGradient transparency mask, so Roblox cannot leak them outside
+		-- the square and no rotated ClipsDescendants behavior is involved.
+		local transition = Create("Frame", {
 			Name = "DiagonalDisassemble",
 			Size = UDim2.new(1, 0, 1, 0),
 			Position = UDim2.new(0, 0, 0, 0),
-			BackgroundTransparency = 1,
+			BackgroundColor3 = Color3.fromRGB(232, 224, 205),
+			BackgroundTransparency = 0,
 			BorderSizePixel = 0,
-			ClipsDescendants = true,
 			ZIndex = 90,
 			Parent = self.main
 		})
 
-		local bandCount = math.clamp(math.floor(base / 28), 11, 17)
-		local bandGap = base / bandCount
-		local bandHeight = math.max(14, bandGap * 1.05)
-		local bandWidth = base * 1.55
-		local angle = -28
-		local bands = {}
+		local gradient = Create("UIGradient", {
+			Rotation = -28,
+			Offset = Vector2.new(-1.15, 0),
+			Color = ColorSequence.new(Color3.fromRGB(232, 224, 205)),
+			Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0.00, 1),
+				NumberSequenceKeypoint.new(0.04, 1),
+				NumberSequenceKeypoint.new(0.08, 0),
+				NumberSequenceKeypoint.new(0.17, 0),
+				NumberSequenceKeypoint.new(0.21, 1),
+				NumberSequenceKeypoint.new(0.25, 1),
+				NumberSequenceKeypoint.new(0.29, 0),
+				NumberSequenceKeypoint.new(0.38, 0),
+				NumberSequenceKeypoint.new(0.42, 1),
+				NumberSequenceKeypoint.new(0.46, 1),
+				NumberSequenceKeypoint.new(0.50, 0),
+				NumberSequenceKeypoint.new(0.59, 0),
+				NumberSequenceKeypoint.new(0.63, 1),
+				NumberSequenceKeypoint.new(0.67, 1),
+				NumberSequenceKeypoint.new(0.71, 0),
+				NumberSequenceKeypoint.new(0.80, 0),
+				NumberSequenceKeypoint.new(0.84, 1),
+				NumberSequenceKeypoint.new(0.88, 1),
+				NumberSequenceKeypoint.new(0.92, 0),
+				NumberSequenceKeypoint.new(1.00, 0),
+			}),
+			Parent = transition
+		})
 
-		for i = 1, bandCount do
-			local y = (i - 1) * bandGap - base * 0.35
-			local band = Create("Frame", {
-				Name = "Band" .. i,
-				AnchorPoint = Vector2.new(0.5, 0.5),
-				Size = UDim2.new(0, bandWidth, 0, bandHeight),
-				Position = UDim2.new(0, -bandWidth * 0.22, 0, y),
-				Rotation = angle,
-				BackgroundColor3 = Color3.fromRGB(232, 224, 205),
-				BackgroundTransparency = 0.04,
-				BorderSizePixel = 0,
-				ZIndex = 91,
-				Parent = transition
-			})
+		-- Slide the diagonal stripe field across the square.
+		Tween(gradient, {Offset = Vector2.new(0.05, 0)}, 0.42, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+		task.wait(0.46)
 
-			Create("UIStroke", {
-				Color = Color3.fromRGB(195, 187, 170),
-				Thickness = 1,
-				Transparency = 0.35,
-				Parent = band
-			})
-
-			bands[i] = band
-		end
-
-		-- Cover the UI first, then peel the bands away in a diagonal wave.
-		for i, band in ipairs(bands) do
-			local y = (i - 1) * bandGap - base * 0.35
-			Tween(band, {
-				Position = UDim2.new(0, base * 0.5, 0, y)
-			}, 0.22 + i * 0.012, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-		end
-
-		task.wait(0.34)
-
-		-- Fade the actual interface quickly while it is hidden by the assembled bands.
+		-- Fade the real interface while the cream bands cover it.
 		local fadeObjects = {}
 		for _, obj in ipairs(self.main:GetDescendants()) do
 			if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
@@ -502,21 +494,14 @@ function CoffeeIFY.new(config)
 		end
 		self.main.BackgroundTransparency = 1
 
-		-- Reverse the diagonal movement for the close/disassemble.
-		for i, band in ipairs(bands) do
-			local y = (i - 1) * bandGap - base * 0.35
-			Tween(band, {
-				Position = UDim2.new(0, base + bandWidth * 0.22, 0, y)
-			}, 0.28 + i * 0.018, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
-		end
-
+		-- Peel the diagonal field completely off the right side.
+		Tween(gradient, {Offset = Vector2.new(1.2, 0)}, 0.34, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
 		task.wait(0.38)
 
 		self:_CleanupConnections()
 		if self.gui then
 			self.gui:Destroy()
 		end
-	end
 
 	self:_Track(BindActivated(closeBtn, doClose))
 
@@ -649,22 +634,54 @@ function CoffeeIFY.new(config)
 			return
 		end
 
-		-- ========== SECOND INTRO: many-band diagonal Sonic-Mania-style assemble ==========
+		-- ========== SECOND INTRO: diagonal Sonic-Mania-style stripe sweep ==========
 		self.main.Visible = true
 		self.main.BackgroundTransparency = 1
 
-		local transition = Create("CanvasGroup", {
+		-- No rotated GuiObjects: the stripe geometry is produced by transparency
+		-- keypoints in a UIGradient. This is deterministic and cannot overflow the
+		-- square window, even when rotation clipping is unavailable.
+		local transition = Create("Frame", {
 			Name = "DiagonalAssemble",
 			Size = UDim2.new(1, 0, 1, 0),
 			Position = UDim2.new(0, 0, 0, 0),
-			BackgroundTransparency = 1,
+			BackgroundColor3 = Color3.fromRGB(232, 224, 205),
+			BackgroundTransparency = 0,
 			BorderSizePixel = 0,
-			ClipsDescendants = true,
 			ZIndex = 80,
 			Parent = self.main
 		})
 
-		-- Snapshot the real UI transparency so it can appear with a fast fade.
+		local gradient = Create("UIGradient", {
+			Rotation = -28,
+			Offset = Vector2.new(-1.15, 0),
+			Color = ColorSequence.new(Color3.fromRGB(232, 224, 205)),
+			Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0.00, 1),
+				NumberSequenceKeypoint.new(0.04, 1),
+				NumberSequenceKeypoint.new(0.08, 0),
+				NumberSequenceKeypoint.new(0.17, 0),
+				NumberSequenceKeypoint.new(0.21, 1),
+				NumberSequenceKeypoint.new(0.25, 1),
+				NumberSequenceKeypoint.new(0.29, 0),
+				NumberSequenceKeypoint.new(0.38, 0),
+				NumberSequenceKeypoint.new(0.42, 1),
+				NumberSequenceKeypoint.new(0.46, 1),
+				NumberSequenceKeypoint.new(0.50, 0),
+				NumberSequenceKeypoint.new(0.59, 0),
+				NumberSequenceKeypoint.new(0.63, 1),
+				NumberSequenceKeypoint.new(0.67, 1),
+				NumberSequenceKeypoint.new(0.71, 0),
+				NumberSequenceKeypoint.new(0.80, 0),
+				NumberSequenceKeypoint.new(0.84, 1),
+				NumberSequenceKeypoint.new(0.88, 1),
+				NumberSequenceKeypoint.new(0.92, 0),
+				NumberSequenceKeypoint.new(1.00, 0),
+			}),
+			Parent = transition
+		})
+
+		-- Snapshot the real UI transparency before revealing it.
 		local fadeObjects = {}
 		for _, obj in ipairs(self.main:GetDescendants()) do
 			if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
@@ -680,53 +697,12 @@ function CoffeeIFY.new(config)
 			item[1][item[2]] = 1
 		end
 
-		local bandCount = math.clamp(math.floor(base / 28), 11, 17)
-		local bandGap = base / bandCount
-		local bandHeight = math.max(14, bandGap * 1.05)
-		local bandWidth = base * 1.55
-		local angle = -28
-		local bands = {}
+		-- The bands sweep into the square as one clean diagonal field.
+		Tween(gradient, {Offset = Vector2.new(0.05, 0)}, 0.42, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+		task.wait(0.46)
 
-		for i = 1, bandCount do
-			local y = (i - 1) * bandGap - base * 0.35
-			local band = Create("Frame", {
-				Name = "Band" .. i,
-				AnchorPoint = Vector2.new(0.5, 0.5),
-				Size = UDim2.new(0, bandWidth, 0, bandHeight),
-				Position = UDim2.new(0, -bandWidth * 0.22, 0, y),
-				Rotation = angle,
-				BackgroundColor3 = Color3.fromRGB(232, 224, 205),
-				BackgroundTransparency = 0.04,
-				BorderSizePixel = 0,
-				ZIndex = 81,
-				Parent = transition
-			})
-
-			Create("UIStroke", {
-				Color = Color3.fromRGB(195, 187, 170),
-				Thickness = 1,
-				Transparency = 0.35,
-				Parent = band
-			})
-
-			bands[i] = band
-		end
-
-		-- Assemble the diagonal bands across the GUI. The small stagger makes the
-		-- transition read as many individual slices instead of one giant shutter.
-		for i, band in ipairs(bands) do
-			local y = (i - 1) * bandGap - base * 0.35
-			Tween(band, {
-				Position = UDim2.new(0, base * 0.5, 0, y)
-			}, 0.25 + i * 0.012, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-		end
-
-		task.wait(0.42)
-
-		-- Fast UI reveal immediately after the diagonal assembly.
-		self.main.BackgroundTransparency = 1
+		-- Fast reveal of the actual CoffeeIFY UI.
 		Tween(self.main, {BackgroundTransparency = 0}, 0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-
 		for _, item in ipairs(fadeObjects) do
 			local obj, prop, target = item[1], item[2], item[3]
 			if obj and obj.Parent then
@@ -734,18 +710,12 @@ function CoffeeIFY.new(config)
 			end
 		end
 
-		-- Let the interface settle for a moment while the bands remain visible.
 		task.wait(0.08)
 
-		-- Finish by peeling every diagonal slice away in the opposite direction.
-		for i, band in ipairs(bands) do
-			local y = (i - 1) * bandGap - base * 0.35
-			Tween(band, {
-				Position = UDim2.new(0, base + bandWidth * 0.55, 0, y)
-			}, 0.30 + i * 0.018, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
-		end
+		-- Sweep the bands back out, exposing the finished UI.
+		Tween(gradient, {Offset = Vector2.new(1.2, 0)}, 0.34, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+		task.wait(0.38)
 
-		task.wait(0.46)
 		if transition.Parent then
 			transition:Destroy()
 		end
