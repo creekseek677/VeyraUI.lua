@@ -333,15 +333,15 @@ function CoffeeIFY.new(config)
 				if child ~= self.topBar and child:IsA("GuiObject") then
 					Tween(child, {
 						BackgroundTransparency = 1
-					}, 0.18)
+					}, 0.1)
 				end
 			end
 
 			Tween(self.main, {
 				Size = minimizedSize
-			}, 0.3, Enum.EasingStyle.Quad)
+			}, 0.22, Enum.EasingStyle.Quad)
 
-			task.delay(0.22, function()
+			task.delay(0.1, function()
 				if self._minimized and not self._closing then
 					for _, child in ipairs(self.main:GetChildren()) do
 						if child ~= self.topBar and child:IsA("GuiObject") then
@@ -662,20 +662,25 @@ function CoffeeIFY:CreateTab(name)
 	self.tabCount += 1
 	local index = self.tabCount
 
+	-- smaller tab height
+	local TAB_H = 22
+	local TAB_GAP = 26
+
 	local btn = Create("TextButton", {
 		Name = name,
-		Size = UDim2.new(1, -10, 0, 26),
-		Position = UDim2.new(0, 5, 0, 6 + (index - 1) * 30),
+		Size = UDim2.new(1, -10, 0, TAB_H),
+		Position = UDim2.new(0, 5, 0, 6 + (index - 1) * TAB_GAP),
 		BackgroundColor3 = Color3.fromRGB(185, 175, 155),
 		BorderSizePixel = 0,
 		Text = "",
 		AutoButtonColor = false,
+		Rotation = 0,
 		Parent = self.sidebar
 	})
 
 	local icon = Create("Frame", {
-		Size = UDim2.new(0, 7, 0, 7),
-		Position = UDim2.new(0, 7, 0.5, -3.5),
+		Size = UDim2.new(0, 6, 0, 6),
+		Position = UDim2.new(0, 7, 0.5, -3),
 		BackgroundColor3 = Color3.fromRGB(70, 60, 50),
 		BorderSizePixel = 0,
 		Parent = btn
@@ -684,7 +689,7 @@ function CoffeeIFY:CreateTab(name)
 	local label = Create("TextLabel", {
 		Text = name,
 		Size = UDim2.new(1, -22, 1, 0),
-		Position = UDim2.new(0, 18, 0, 0),
+		Position = UDim2.new(0, 17, 0, 0),
 		BackgroundTransparency = 1,
 		TextColor3 = Color3.fromRGB(45, 40, 35),
 		Font = Enum.Font.GothamMedium,
@@ -737,16 +742,41 @@ function CoffeeIFY:CreateTab(name)
 
 		PlaySound(CLICK_SOUND, 0.35)
 
-		for _, t in pairs(self.tabs) do
-			Tween(t.Button, {BackgroundColor3 = Color3.fromRGB(185, 175, 155)}, 0.2)
+		-- reset all tabs first
+		for i, t in pairs(self.tabButtons) do
+			Tween(t.Button, {
+				BackgroundColor3 = Color3.fromRGB(185, 175, 155),
+				Rotation = 0,
+				Position = UDim2.new(0, 5, 0, 6 + (i - 1) * 26)
+			}, 0.22)
 			Tween(t.Label, {TextColor3 = Color3.fromRGB(45, 40, 35)}, 0.2)
 			Tween(t.Icon, {BackgroundColor3 = Color3.fromRGB(70, 60, 50)}, 0.2)
 			t.Page.Visible = false
 		end
 
-		Tween(btn, {BackgroundColor3 = Color3.fromRGB(48, 43, 38)}, 0.22)
+		-- selected tab
+		Tween(btn, {
+			BackgroundColor3 = Color3.fromRGB(48, 43, 38),
+			Rotation = 0,
+			Position = UDim2.new(0, 5, 0, 6 + (index - 1) * 26)
+		}, 0.22)
 		Tween(label, {TextColor3 = Color3.fromRGB(230, 220, 200)}, 0.22)
 		Tween(icon, {BackgroundColor3 = Color3.fromRGB(230, 220, 200)}, 0.22)
+
+		-- tilt the tabs BELOW the selected one (weight effect)
+		-- more noticeable tilt to the left, slightly off-center
+		for i, t in pairs(self.tabButtons) do
+			if i > index then
+				local distance = i - index
+				local tilt = -4.5 - (distance * 1.8) -- stronger the further down
+				local offsetX = -3 - (distance * 1.5)
+
+				Tween(t.Button, {
+					Rotation = tilt,
+					Position = UDim2.new(0, 5 + offsetX, 0, 6 + (i - 1) * 26)
+				}, 0.28, Enum.EasingStyle.Back)
+			end
+		end
 
 		page.Visible = true
 		self.contentTitle.Text = name
