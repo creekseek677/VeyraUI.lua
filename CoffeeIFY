@@ -225,7 +225,7 @@ function CoffeeIFY.new(config)
 	self.titleIcon = Create("TextLabel", {
 		Text = "◆",
 		Size = UDim2.new(0, 18, 1, 0),
-		Position = UDim2.new(0, 8, 0, 0),
+		Position = UDim2.new(0, 6, 0, 0),
 		BackgroundTransparency = 1,
 		TextColor3 = Color3.fromRGB(225, 215, 195),
 		Font = Enum.Font.GothamBold,
@@ -236,7 +236,7 @@ function CoffeeIFY.new(config)
 	self.title = Create("TextLabel", {
 		Text = "CoffeeIFY",
 		Size = UDim2.new(1, -90, 1, 0),
-		Position = UDim2.new(0, 28, 0, 0),
+		Position = UDim2.new(0, 32, 0, 0),
 		BackgroundTransparency = 1,
 		TextColor3 = Color3.fromRGB(225, 215, 195),
 		Font = Enum.Font.GothamMedium,
