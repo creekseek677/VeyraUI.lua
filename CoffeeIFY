@@ -6,6 +6,7 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local SoundService = game:GetService("SoundService")
+local TextService = game:GetService("TextService")
 
 local player = Players.LocalPlayer
 
@@ -60,6 +61,39 @@ end
 local function BindActivated(button, callback)
 	return button.Activated:Connect(callback)
 end
+
+local function MeasureText(text, font, size, width)
+	text = tostring(text or "")
+	local bounds = TextService:GetTextSize(
+		text,
+		size,
+		font,
+		Vector2.new(math.max(width or 1, 1), 10000)
+	)
+	return math.max(bounds.X, 1), math.max(bounds.Y, 1)
+end
+
+local function GetPageWidth(page, fallback)
+	local width = page and page.AbsoluteSize.X or 0
+	if width > 0 then
+		return width
+	end
+
+	local ancestor = page
+	while ancestor and ancestor.Parent do
+		ancestor = ancestor.Parent
+		if ancestor:IsA("GuiObject") and ancestor.Name == "Main" then
+			local rootWidth = ancestor.AbsoluteSize.X
+			if rootWidth <= 0 then
+				rootWidth = ancestor.Size.X.Offset
+			end
+			return math.max(rootWidth - 114, 120)
+		end
+	end
+
+	return fallback or 260
+end
+
 
 function CoffeeIFY:_Track(connection)
 	self._connections = self._connections or {}
@@ -727,9 +761,16 @@ end
 
 function CoffeeIFY:CreateButton(tab, text, callback)
 	local page = self:_GetPage(tab)
+	text = tostring(text or "Button")
+
+	local pageWidth = GetPageWidth(page, 260)
+	local naturalWidth = MeasureText(text, Enum.Font.Gotham, 12, 10000)
+	local labelWidth = math.max(math.min(math.max(naturalWidth + 6, 80), pageWidth - 36), 70)
+	local _, textHeight = MeasureText(text, Enum.Font.Gotham, 12, labelWidth - 4)
+	local rowHeight = math.max(26, textHeight + 10)
 
 	local frame = Create("Frame", {
-		Size = UDim2.new(1, 0, 0, 26),
+		Size = UDim2.new(1, 0, 0, rowHeight),
 		BackgroundColor3 = Color3.fromRGB(218, 208, 188),
 		BorderSizePixel = 0,
 		Parent = page
@@ -743,14 +784,16 @@ function CoffeeIFY:CreateButton(tab, text, callback)
 		Parent = frame
 	})
 
-	Create("TextLabel", {
-		Text = text or "Button",
-		Size = UDim2.new(1, -30, 1, 0),
-		Position = UDim2.new(0, 26, 0, 0),
+	local label = Create("TextLabel", {
+		Text = text,
+		Size = UDim2.new(1, -36, 0, math.max(18, rowHeight - 4)),
+		Position = UDim2.new(0, 26, 0, 2),
 		BackgroundTransparency = 1,
 		TextColor3 = Color3.fromRGB(40, 35, 30),
 		Font = Enum.Font.Gotham,
 		TextSize = 12,
+		TextWrapped = true,
+		TextYAlignment = Enum.TextYAlignment.Center,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = frame
 	})
@@ -765,52 +808,24 @@ function CoffeeIFY:CreateButton(tab, text, callback)
 
 	self:_Track(btn.MouseEnter:Connect(function()
 		PlaySound(HOVER_SOUND, 0.22)
-
-		Tween(frame, {
-			BackgroundColor3 = Color3.fromRGB(230, 220, 200)
-		}, 0.15)
-
-		Tween(box, {
-			Size = UDim2.new(0, 13, 0, 13),
-			Position = UDim2.new(0, 7.5, 0.5, -6.5)
-		}, 0.15)
+		Tween(frame, {BackgroundColor3 = Color3.fromRGB(230, 220, 200)}, 0.15)
+		Tween(box, {Size = UDim2.new(0, 13, 0, 13), Position = UDim2.new(0, 7.5, 0.5, -6.5)}, 0.15)
 	end))
 
 	self:_Track(btn.MouseLeave:Connect(function()
-		Tween(frame, {
-			BackgroundColor3 = Color3.fromRGB(218, 208, 188)
-		}, 0.15)
-
-		Tween(box, {
-			Size = UDim2.new(0, 12, 0, 12),
-			Position = UDim2.new(0, 8, 0.5, -6)
-		}, 0.15)
+		Tween(frame, {BackgroundColor3 = Color3.fromRGB(218, 208, 188)}, 0.15)
+		Tween(box, {Size = UDim2.new(0, 12, 0, 12), Position = UDim2.new(0, 8, 0.5, -6)}, 0.15)
 	end))
 
 	self:_Track(BindActivated(btn, function()
 		PlaySound(CLICK_SOUND, 0.4)
-
-		Tween(frame, {
-			BackgroundColor3 = Color3.fromRGB(200, 190, 170)
-		}, 0.08)
-
-		Tween(box, {
-			BackgroundColor3 = Color3.fromRGB(180, 160, 130),
-			Size = UDim2.new(0, 11, 0, 11)
-		}, 0.08)
+		Tween(frame, {BackgroundColor3 = Color3.fromRGB(200, 190, 170)}, 0.08)
+		Tween(box, {BackgroundColor3 = Color3.fromRGB(180, 160, 130), Size = UDim2.new(0, 11, 0, 11)}, 0.08)
 
 		task.delay(0.12, function()
 			if not frame.Parent then return end
-
-			Tween(frame, {
-				BackgroundColor3 = Color3.fromRGB(218, 208, 188)
-			}, 0.18)
-
-			Tween(box, {
-				BackgroundColor3 = Color3.fromRGB(40, 35, 30),
-				Size = UDim2.new(0, 12, 0, 12),
-				Position = UDim2.new(0, 8, 0.5, -6)
-			}, 0.18)
+			Tween(frame, {BackgroundColor3 = Color3.fromRGB(218, 208, 188)}, 0.18)
+			Tween(box, {BackgroundColor3 = Color3.fromRGB(40, 35, 30), Size = UDim2.new(0, 12, 0, 12), Position = UDim2.new(0, 8, 0.5, -6)}, 0.18)
 		end)
 
 		if callback then
@@ -823,10 +838,17 @@ end
 
 function CoffeeIFY:CreateToggle(tab, text, default, callback)
 	local page = self:_GetPage(tab)
+	text = tostring(text or "Toggle")
 	local state = default == true
 
+	local pageWidth = GetPageWidth(page, 260)
+	local naturalWidth = MeasureText(text, Enum.Font.Gotham, 12, 10000)
+	local labelWidth = math.max(math.min(math.max(naturalWidth + 6, 80), pageWidth - 36), 70)
+	local _, textHeight = MeasureText(text, Enum.Font.Gotham, 12, labelWidth - 4)
+	local rowHeight = math.max(26, textHeight + 10)
+
 	local frame = Create("Frame", {
-		Size = UDim2.new(1, 0, 0, 26),
+		Size = UDim2.new(1, 0, 0, rowHeight),
 		BackgroundColor3 = Color3.fromRGB(218, 208, 188),
 		BorderSizePixel = 0,
 		Parent = page
@@ -841,13 +863,15 @@ function CoffeeIFY:CreateToggle(tab, text, default, callback)
 	})
 
 	Create("TextLabel", {
-		Text = text or "Toggle",
-		Size = UDim2.new(1, -30, 1, 0),
-		Position = UDim2.new(0, 26, 0, 0),
+		Text = text,
+		Size = UDim2.new(1, -36, 0, math.max(18, rowHeight - 4)),
+		Position = UDim2.new(0, 26, 0, 2),
 		BackgroundTransparency = 1,
 		TextColor3 = Color3.fromRGB(40, 35, 30),
 		Font = Enum.Font.Gotham,
 		TextSize = 12,
+		TextWrapped = true,
+		TextYAlignment = Enum.TextYAlignment.Center,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = frame
 	})
@@ -862,53 +886,26 @@ function CoffeeIFY:CreateToggle(tab, text, default, callback)
 
 	self:_Track(btn.MouseEnter:Connect(function()
 		PlaySound(HOVER_SOUND, 0.22)
-
-		Tween(frame, {
-			BackgroundColor3 = Color3.fromRGB(230, 220, 200)
-		}, 0.15)
-
-		Tween(box, {
-			Size = UDim2.new(0, 13, 0, 13),
-			Position = UDim2.new(0, 7.5, 0.5, -6.5)
-		}, 0.15)
+		Tween(frame, {BackgroundColor3 = Color3.fromRGB(230, 220, 200)}, 0.15)
+		Tween(box, {Size = UDim2.new(0, 13, 0, 13), Position = UDim2.new(0, 7.5, 0.5, -6.5)}, 0.15)
 	end))
 
 	self:_Track(btn.MouseLeave:Connect(function()
-		Tween(frame, {
-			BackgroundColor3 = Color3.fromRGB(218, 208, 188)
-		}, 0.15)
-
-		Tween(box, {
-			Size = UDim2.new(0, 12, 0, 12),
-			Position = UDim2.new(0, 8, 0.5, -6)
-		}, 0.15)
+		Tween(frame, {BackgroundColor3 = Color3.fromRGB(218, 208, 188)}, 0.15)
+		Tween(box, {Size = UDim2.new(0, 12, 0, 12), Position = UDim2.new(0, 8, 0.5, -6)}, 0.15)
 	end))
 
 	self:_Track(BindActivated(btn, function()
 		PlaySound(CLICK_SOUND, 0.4)
-
 		state = not state
 
-		Tween(frame, {
-			BackgroundColor3 = Color3.fromRGB(200, 190, 170)
-		}, 0.08)
-
-		Tween(box, {
-			BackgroundColor3 = state and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(40, 35, 30),
-			Size = UDim2.new(0, 11, 0, 11)
-		}, 0.12)
+		Tween(frame, {BackgroundColor3 = Color3.fromRGB(200, 190, 170)}, 0.08)
+		Tween(box, {BackgroundColor3 = state and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(40, 35, 30), Size = UDim2.new(0, 11, 0, 11)}, 0.12)
 
 		task.delay(0.12, function()
 			if not frame.Parent then return end
-
-			Tween(frame, {
-				BackgroundColor3 = Color3.fromRGB(218, 208, 188)
-			}, 0.18)
-
-			Tween(box, {
-				Size = UDim2.new(0, 12, 0, 12),
-				Position = UDim2.new(0, 8, 0.5, -6)
-			}, 0.18)
+			Tween(frame, {BackgroundColor3 = Color3.fromRGB(218, 208, 188)}, 0.18)
+			Tween(box, {Size = UDim2.new(0, 12, 0, 12), Position = UDim2.new(0, 8, 0.5, -6)}, 0.18)
 		end)
 
 		if callback then
@@ -921,6 +918,7 @@ end
 
 function CoffeeIFY:CreateSlider(tab, text, min, max, default, callback)
 	local page = self:_GetPage(tab)
+	text = tostring(text or "Slider")
 
 	min = tonumber(min) or 0
 	max = tonumber(max) or 100
@@ -934,9 +932,15 @@ function CoffeeIFY:CreateSlider(tab, text, min, max, default, callback)
 	end
 
 	local value = math.clamp(tonumber(default) or min, min, max)
+	local pageWidth = GetPageWidth(page, 260)
+	local naturalWidth = MeasureText(text, Enum.Font.Gotham, 12, 10000)
+	local labelWidth = math.clamp(math.ceil(naturalWidth + 28), 70, math.floor(pageWidth * 0.5))
+	local _, textHeight = MeasureText(text, Enum.Font.Gotham, 12, math.max(labelWidth - 18, 40))
+	local rowHeight = math.max(26, textHeight + 10)
+	local barWidth = math.max(64, pageWidth - labelWidth - 28)
 
 	local frame = Create("Frame", {
-		Size = UDim2.new(1, 0, 0, 26),
+		Size = UDim2.new(1, 0, 0, rowHeight),
 		BackgroundColor3 = Color3.fromRGB(218, 208, 188),
 		BorderSizePixel = 0,
 		Parent = page
@@ -950,32 +954,37 @@ function CoffeeIFY:CreateSlider(tab, text, min, max, default, callback)
 		TextColor3 = Color3.fromRGB(40, 35, 30),
 		Font = Enum.Font.GothamBold,
 		TextSize = 13,
+		TextYAlignment = Enum.TextYAlignment.Center,
 		Parent = frame
 	})
 
 	Create("TextLabel", {
-		Text = text or "Slider",
-		Size = UDim2.new(0, 50, 1, 0),
-		Position = UDim2.new(0, 22, 0, 0),
+		Text = text,
+		Size = UDim2.new(0, labelWidth - 18, 1, -4),
+		Position = UDim2.new(0, 22, 0, 2),
 		BackgroundTransparency = 1,
 		TextColor3 = Color3.fromRGB(40, 35, 30),
 		Font = Enum.Font.Gotham,
 		TextSize = 12,
+		TextWrapped = true,
+		TextYAlignment = Enum.TextYAlignment.Center,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = frame
 	})
 
 	local bar = Create("Frame", {
-		Size = UDim2.new(0, 120, 0, 3),
-		Position = UDim2.new(1, -132, 0.5, -1.5),
+		Size = UDim2.new(0, barWidth, 0, 3),
+		Position = UDim2.new(1, -barWidth - 12, 0.5, -1.5),
 		BackgroundColor3 = Color3.fromRGB(155, 145, 125),
 		BorderSizePixel = 0,
 		Active = true,
 		Parent = frame
 	})
 
+	local normalized = (value - min) / (max - min)
+
 	local fill = Create("Frame", {
-		Size = UDim2.new((value - min) / (max - min), 0, 1, 0),
+		Size = UDim2.new(normalized, 0, 1, 0),
 		BackgroundColor3 = Color3.fromRGB(70, 60, 50),
 		BorderSizePixel = 0,
 		Parent = bar
@@ -983,7 +992,7 @@ function CoffeeIFY:CreateSlider(tab, text, min, max, default, callback)
 
 	local knob = Create("Frame", {
 		Size = UDim2.new(0, 10, 0, 10),
-		Position = UDim2.new((value - min) / (max - min), -5, 0.5, -5),
+		Position = UDim2.new(normalized, -5, 0.5, -5),
 		BackgroundColor3 = Color3.fromRGB(45, 40, 35),
 		BorderSizePixel = 0,
 		Active = true,
@@ -993,29 +1002,17 @@ function CoffeeIFY:CreateSlider(tab, text, min, max, default, callback)
 	local dragging = false
 
 	local function updateFromX(x)
-		if not bar.Parent then
-			return
-		end
+		if not bar.Parent then return end
 
 		local width = bar.AbsoluteSize.X
+		if width <= 0 then return end
 
-		if width <= 0 then
-			return
-		end
+		local rel = math.clamp((x - bar.AbsolutePosition.X) / width, 0, 1)
+		value = math.floor(min + (max - min) * rel + 0.5)
 
-		local rel = math.clamp(
-			(x - bar.AbsolutePosition.X) / width,
-			0,
-			1
-		)
-
-		local raw = min + (max - min) * rel
-		value = math.floor(raw + 0.5)
-
-		local normalized = (value - min) / (max - min)
-
-		fill.Size = UDim2.new(normalized, 0, 1, 0)
-		knob.Position = UDim2.new(normalized, -5, 0.5, -5)
+		local current = (value - min) / (max - min)
+		fill.Size = UDim2.new(current, 0, 1, 0)
+		knob.Position = UDim2.new(current, -5, 0.5, -5)
 
 		if callback then
 			task.spawn(callback, value)
@@ -1023,13 +1020,9 @@ function CoffeeIFY:CreateSlider(tab, text, min, max, default, callback)
 	end
 
 	local function beginSlider(input)
-		if self._closing then
-			return
-		end
+		if self._closing then return end
 
-		if input.UserInputType == Enum.UserInputType.MouseButton1
-			or input.UserInputType == Enum.UserInputType.Touch then
-
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 			dragging = true
 			PlaySound(CLICK_SOUND, 0.3)
 			updateFromX(input.Position.X)
@@ -1040,21 +1033,15 @@ function CoffeeIFY:CreateSlider(tab, text, min, max, default, callback)
 	self:_Track(knob.InputBegan:Connect(beginSlider))
 
 	self:_Track(UserInputService.InputChanged:Connect(function(input)
-		if not dragging or self._closing then
-			return
-		end
+		if not dragging or self._closing then return end
 
-		if input.UserInputType == Enum.UserInputType.MouseMovement
-			or input.UserInputType == Enum.UserInputType.Touch then
-
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
 			updateFromX(input.Position.X)
 		end
 	end))
 
 	self:_Track(UserInputService.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1
-			or input.UserInputType == Enum.UserInputType.Touch then
-
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 			dragging = false
 		end
 	end))
@@ -1066,7 +1053,7 @@ function CoffeeIFY:CreateTextBox(tab, placeholder, callback)
 	local page = self:_GetPage(tab)
 
 	local frame = Create("Frame", {
-		Size = UDim2.new(1, 0, 0, 28),
+		Size = UDim2.new(1, 0, 0, 32),
 		BackgroundColor3 = Color3.fromRGB(218, 208, 188),
 		BorderSizePixel = 0,
 		Parent = page
@@ -1157,9 +1144,17 @@ function CoffeeIFY:CreateDropdown(tab, text, options, default, callback, theme)
 
 	local open = false
 	local destroyed = false
+	local pageWidth = GetPageWidth(page, 260)
+	local naturalLabelWidth = MeasureText(text or "Dropdown", Enum.Font.Gotham, 12, 10000)
+	local naturalValueWidth = MeasureText(tostring(selected), Enum.Font.GothamMedium, 11, 10000)
+	local labelWidth = math.clamp(math.ceil(naturalLabelWidth + 18), 80, math.floor(pageWidth * 0.52))
+	local valueWidth = math.clamp(math.ceil(naturalValueWidth + 24), 70, math.floor(pageWidth * 0.44))
+	local _, labelHeight = MeasureText(text or "Dropdown", Enum.Font.Gotham, 12, math.max(labelWidth - 18, 40))
+	local _, selectedHeight = MeasureText(tostring(selected), Enum.Font.GothamMedium, 11, math.max(valueWidth - 18, 40))
+	local rowHeight = math.max(26, math.max(labelHeight, selectedHeight) + 8)
 
 	local frame = Create("Frame", {
-		Size = UDim2.new(1, 0, 0, 26),
+		Size = UDim2.new(1, 0, 0, rowHeight),
 		BackgroundColor3 = t.Bg,
 		BorderSizePixel = 0,
 		ClipsDescendants = false,
@@ -1167,7 +1162,7 @@ function CoffeeIFY:CreateDropdown(tab, text, options, default, callback, theme)
 	})
 
 	local mainBtn = Create("TextButton", {
-		Size = UDim2.new(1, 0, 0, 26),
+		Size = UDim2.new(1, 0, 0, rowHeight),
 		BackgroundColor3 = t.Bg,
 		BorderSizePixel = 0,
 		Text = "",
@@ -1177,8 +1172,10 @@ function CoffeeIFY:CreateDropdown(tab, text, options, default, callback, theme)
 
 	Create("TextLabel", {
 		Text = text or "Dropdown",
-		Size = UDim2.new(0.55, 0, 1, 0),
+		Size = UDim2.new(0, labelWidth - 10, 1, 0),
 		Position = UDim2.new(0, 10, 0, 0),
+		TextWrapped = true,
+		TextYAlignment = Enum.TextYAlignment.Center,
 		BackgroundTransparency = 1,
 		TextColor3 = t.Text,
 		Font = Enum.Font.Gotham,
@@ -1190,8 +1187,10 @@ function CoffeeIFY:CreateDropdown(tab, text, options, default, callback, theme)
 	local selectedLabel = Create("TextLabel", {
 		Name = "Selected",
 		Text = tostring(selected),
-		Size = UDim2.new(0.4, -10, 1, 0),
-		Position = UDim2.new(0.55, 0, 0, 0),
+		Size = UDim2.new(0, valueWidth - 6, 1, 0),
+		Position = UDim2.new(1, -valueWidth - 12, 0, 0),
+		TextWrapped = true,
+		TextYAlignment = Enum.TextYAlignment.Center,
 		BackgroundTransparency = 1,
 		TextColor3 = t.SelectedText,
 		Font = Enum.Font.GothamMedium,
@@ -1214,7 +1213,7 @@ function CoffeeIFY:CreateDropdown(tab, text, options, default, callback, theme)
 	local list = Create("Frame", {
 		Name = "List",
 		Size = UDim2.new(1, 0, 0, 0),
-		Position = UDim2.new(0, 0, 0, 26),
+		Position = UDim2.new(0, 0, 0, rowHeight),
 		BackgroundColor3 = t.ListBg,
 		BorderSizePixel = 0,
 		ClipsDescendants = true,
@@ -1392,9 +1391,15 @@ function CoffeeIFY:CreateKeybind(tab, text, default, callback)
 
 	local key = default or Enum.KeyCode.E
 	local listening = false
+	text = tostring(text or "Keybind")
+	local pageWidth = GetPageWidth(page, 260)
+	local naturalWidth = MeasureText(text, Enum.Font.Gotham, 12, 10000)
+	local labelWidth = math.clamp(math.ceil(naturalWidth + 18), 90, math.floor(pageWidth * 0.62))
+	local _, textHeight = MeasureText(text, Enum.Font.Gotham, 12, math.max(labelWidth - 18, 40))
+	local rowHeight = math.max(26, textHeight + 8)
 
 	local frame = Create("Frame", {
-		Size = UDim2.new(1, 0, 0, 26),
+		Size = UDim2.new(1, 0, 0, rowHeight),
 		BackgroundColor3 = Color3.fromRGB(218, 208, 188),
 		BorderSizePixel = 0,
 		Parent = page
@@ -1402,8 +1407,10 @@ function CoffeeIFY:CreateKeybind(tab, text, default, callback)
 
 	Create("TextLabel", {
 		Text = text or "Keybind",
-		Size = UDim2.new(0.6, 0, 1, 0),
+		Size = UDim2.new(0, labelWidth - 18, 1, 0),
 		Position = UDim2.new(0, 10, 0, 0),
+		TextWrapped = true,
+		TextYAlignment = Enum.TextYAlignment.Center,
 		BackgroundTransparency = 1,
 		TextColor3 = Color3.fromRGB(40, 35, 30),
 		Font = Enum.Font.Gotham,
