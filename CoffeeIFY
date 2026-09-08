@@ -429,82 +429,77 @@ function CoffeeIFY.new(config)
 		spinActive = false
 		PlaySound(CLICK_SOUND, 0.45)
 
-		for _, child in ipairs(self.main:GetDescendants()) do
-			if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
-				Tween(child, {TextTransparency = 1}, 0.25)
-			elseif child:IsA("GuiObject") and child ~= self.main then
-				Tween(child, {BackgroundTransparency = 1}, 0.28)
-			end
-		end
+		-- bandage wrap container (covers the whole main window)
+		local wrap = Create("Frame", {
+			Name = "BandageWrap",
+			Size = UDim2.new(1, 4, 1, 4),
+			Position = UDim2.new(0, -2, 0, -2),
+			BackgroundTransparency = 1,
+			ClipsDescendants = true,
+			ZIndex = 50,
+			Parent = self.main
+		})
 
-		Tween(self.main, {
-			BackgroundColor3 = Color3.fromRGB(232, 224, 205)
-		}, 0.2)
+		local bandages = {}
+		local stripCount = 9
+		local stripH = math.ceil((base + 20) / stripCount) + 8
 
-		task.wait(0.18)
-
-		local originalPosition = self.main.Position
-
-		Tween(self.main, {
-			Size = UDim2.new(0, base * 0.78, 0, base * 0.78),
-			Position = UDim2.new(
-				originalPosition.X.Scale,
-				originalPosition.X.Offset + base * 0.11,
-				originalPosition.Y.Scale,
-				originalPosition.Y.Offset + base * 0.11
-			)
-		}, 0.32, Enum.EasingStyle.Back, Enum.EasingDirection.InOut)
-
-		task.wait(0.2)
-
-		local fragments = {}
-
-		for i = 1, 8 do
-			local fragment = Create("Frame", {
-				Name = "DisassemblyPiece" .. i,
-				Size = UDim2.new(0, math.max(8, base * 0.06), 0, math.max(8, base * 0.06)),
-				Position = UDim2.new(
-					0.5,
-					math.cos(i / 8 * math.pi * 2) * base * 0.15,
-					0.5,
-					math.sin(i / 8 * math.pi * 2) * base * 0.15
-				),
-				AnchorPoint = Vector2.new(0.5, 0.5),
-				BackgroundColor3 = Color3.fromRGB(232, 224, 205),
+		-- create diagonal bandage strips that fly in
+		for i = 1, stripCount do
+			local strip = Create("Frame", {
+				Name = "Bandage" .. i,
+				Size = UDim2.new(1.6, 0, 0, stripH),
+				Position = UDim2.new(-1.2, 0, 0, (i - 1) * (stripH - 4) - 10),
+				BackgroundColor3 = Color3.fromRGB(240, 232, 215),
 				BorderSizePixel = 0,
-				ZIndex = 200,
-				Parent = self.gui
+				Rotation = -28, -- diagonal like the screenshot
+				ZIndex = 51,
+				Parent = wrap
 			})
 
-			fragments[i] = fragment
+			-- subtle edge
+			Create("UIStroke", {
+				Color = Color3.fromRGB(200, 190, 170),
+				Thickness = 1,
+				Parent = strip
+			})
+
+			bandages[i] = strip
 		end
 
-		self.main.Visible = false
+		-- animate strips wrapping in from the left/right alternating
+		for i, strip in ipairs(bandages) do
+			local fromLeft = (i % 2 == 1)
+			local startX = fromLeft and -1.4 or 1.4
+			local endX = fromLeft and -0.15 or -0.15
 
-		for i, fragment in ipairs(fragments) do
-			local angle = (i / #fragments) * math.pi * 2
-			local distance = base * (0.25 + i * 0.025)
+			strip.Position = UDim2.new(startX, 0, 0, (i - 1) * (stripH - 4) - 10)
 
-			Tween(fragment, {
-				Position = UDim2.new(
-					0.5,
-					math.cos(angle) * distance,
-					0.5,
-					math.sin(angle) * distance
-				),
-				Rotation = math.random(-180, 180),
-				BackgroundTransparency = 1,
-				Size = UDim2.new(0, 2, 0, 2)
-			}, 0.42 + i * 0.025, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+			Tween(strip, {
+				Position = UDim2.new(endX, 0, 0, (i - 1) * (stripH - 4) - 10)
+			}, 0.28 + i * 0.035, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 		end
 
-		task.wait(0.55)
+		task.wait(0.45)
 
-		for _, fragment in ipairs(fragments) do
-			if fragment and fragment.Parent then
-				fragment:Destroy()
+		-- fade all content under the bandages
+		for _, child in ipairs(self.main:GetDescendants()) do
+			if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+				Tween(child, {TextTransparency = 1}, 0.2)
+			elseif child:IsA("GuiObject") and child ~= self.main and child.Name ~= "BandageWrap" and not child:IsDescendantOf(wrap) then
+				Tween(child, {BackgroundTransparency = 1}, 0.2)
 			end
 		end
+
+		task.wait(0.15)
+
+		-- fast fade of the whole window + bandages
+		Tween(self.main, {BackgroundTransparency = 1}, 0.22)
+		for _, strip in ipairs(bandages) do
+			Tween(strip, {BackgroundTransparency = 1}, 0.2)
+		end
+
+		task.wait(0.25)
 
 		self:_CleanupConnections()
 
@@ -640,9 +635,78 @@ function CoffeeIFY.new(config)
 			intro:Destroy()
 		end
 
-		if not self._closing and self.main then
-			self.main.Visible = true
-			Tween(self.main, {BackgroundTransparency = 0}, 0.35)
+		if self._closing or not self.main then
+			return
+		end
+
+		-- ========== SECOND INTRO: bandage unwrap ==========
+		self.main.Visible = true
+		self.main.BackgroundTransparency = 0
+
+		local unwrap = Create("Frame", {
+			Name = "UnwrapLayer",
+			Size = UDim2.new(1, 4, 1, 4),
+			Position = UDim2.new(0, -2, 0, -2),
+			BackgroundTransparency = 1,
+			ClipsDescendants = true,
+			ZIndex = 80,
+			Parent = self.main
+		})
+
+		local strips = {}
+		local stripCount = 9
+		local stripH = math.ceil((base + 20) / stripCount) + 8
+
+		for i = 1, stripCount do
+			local strip = Create("Frame", {
+				Name = "UnwrapBandage" .. i,
+				Size = UDim2.new(1.7, 0, 0, stripH),
+				Position = UDim2.new(-0.15, 0, 0, (i - 1) * (stripH - 4) - 10),
+				BackgroundColor3 = Color3.fromRGB(240, 232, 215),
+				BorderSizePixel = 0,
+				Rotation = -28,
+				ZIndex = 81,
+				Parent = unwrap
+			})
+
+			Create("UIStroke", {
+				Color = Color3.fromRGB(200, 190, 170),
+				Thickness = 1,
+				Parent = strip
+			})
+
+			strips[i] = strip
+		end
+
+		-- hide real content under the wraps for a moment
+		self.sidebar.Visible = false
+		self.content.Visible = false
+		self.topBar.Visible = true
+
+		task.wait(0.15)
+
+		-- unwrap: strips slide outward alternating left/right
+		for i, strip in ipairs(strips) do
+			local toLeft = (i % 2 == 1)
+			local targetX = toLeft and -1.5 or 1.5
+
+			Tween(strip, {
+				Position = UDim2.new(targetX, 0, 0, (i - 1) * (stripH - 4) - 10)
+			}, 0.32 + i * 0.04, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		end
+
+		task.wait(0.55)
+
+		-- reveal UI
+		self.sidebar.Visible = true
+		self.content.Visible = true
+		Tween(self.sidebar, {BackgroundTransparency = 0}, 0.2)
+		Tween(self.content, {BackgroundTransparency = 0}, 0.2)
+
+		task.wait(0.25)
+
+		if unwrap.Parent then
+			unwrap:Destroy()
 		end
 	end)
 
@@ -1166,6 +1230,25 @@ function CoffeeIFY:CreateSlider(tab, text, min, max, default, callback)
 
 	local dragging = false
 
+	-- mechanical loop sound while holding slider
+	local mechSound = Instance.new("Sound")
+	mechSound.SoundId = "rbxassetid://9114226706" -- short mechanical tick/loop friendly
+	mechSound.Volume = 0.35
+	mechSound.Looped = true
+	mechSound.Parent = SoundService
+
+	local function stopMech()
+		if mechSound.IsPlaying then
+			mechSound:Stop()
+		end
+	end
+
+	local function startMech()
+		if not mechSound.IsPlaying then
+			mechSound:Play()
+		end
+	end
+
 	local function updateFromX(x)
 		if not bar.Parent then return end
 
@@ -1190,6 +1273,7 @@ function CoffeeIFY:CreateSlider(tab, text, min, max, default, callback)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 			dragging = true
 			PlaySound(CLICK_SOUND, 0.3)
+			startMech()
 			updateFromX(input.Position.X)
 		end
 	end
@@ -1208,6 +1292,7 @@ function CoffeeIFY:CreateSlider(tab, text, min, max, default, callback)
 	self:_Track(UserInputService.InputEnded:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 			dragging = false
+			stopMech()
 		end
 	end))
 
