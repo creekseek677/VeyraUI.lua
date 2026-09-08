@@ -183,7 +183,7 @@ function CoffeeIFY.new(config)
 	for i = 1, 8 do
 		local p = Create("Frame", {
 			Size = UDim2.new(0, 18, 0, 18),
-			Position = UDim2.new(0.5, math.random(-220, 220), 0.5, math.random(-160, 160)),
+			Position = UDim2.new(0.5, math.random(-220, 220), 0.5, math.random(-220, -40)), -- start higher
 			BackgroundColor3 = Color3.fromRGB(60, 55, 50),
 			BorderSizePixel = 0,
 			BackgroundTransparency = 0.4,
@@ -224,18 +224,18 @@ function CoffeeIFY.new(config)
 
 	self.titleIcon = Create("TextLabel", {
 		Text = "◆",
-		Size = UDim2.new(0, 18, 1, 0),
-		Position = UDim2.new(0, 6, 0, 0),
+		Size = UDim2.new(0, 26, 1, 0),
+		Position = UDim2.new(0, 4, 0, 0),
 		BackgroundTransparency = 1,
 		TextColor3 = Color3.fromRGB(225, 215, 195),
 		Font = Enum.Font.GothamBold,
-		TextSize = 12,
+		TextSize = 18,
 		Parent = self.topBar
 	})
 
 	self.title = Create("TextLabel", {
 		Text = "CoffeeIFY",
-		Size = UDim2.new(1, -90, 1, 0),
+		Size = UDim2.new(1, -100, 1, 0),
 		Position = UDim2.new(0, 32, 0, 0),
 		BackgroundTransparency = 1,
 		TextColor3 = Color3.fromRGB(225, 215, 195),
@@ -273,7 +273,7 @@ function CoffeeIFY.new(config)
 
 	self.sidebar = Create("Frame", {
 		Name = "Sidebar",
-		Size = UDim2.new(0, 98, 1, -28),
+		Size = UDim2.new(0, 112, 1, -28), -- a bit wider to the left
 		Position = UDim2.new(0, 0, 0, 28),
 		BackgroundColor3 = Color3.fromRGB(205, 195, 175),
 		BorderSizePixel = 0,
@@ -288,8 +288,8 @@ function CoffeeIFY.new(config)
 
 	self.content = Create("Frame", {
 		Name = "Content",
-		Size = UDim2.new(1, -98, 1, -28),
-		Position = UDim2.new(0, 98, 0, 28),
+		Size = UDim2.new(1, -112, 1, -28),
+		Position = UDim2.new(0, 112, 0, 28),
 		BackgroundColor3 = Color3.fromRGB(232, 224, 205),
 		BorderSizePixel = 0,
 		Parent = self.main
@@ -606,7 +606,7 @@ function CoffeeIFY.new(config)
 					0.5,
 					-40 + (i % 4) * 22,
 					0.5,
-					-30 + math.floor((i - 1) / 4) * 22
+					-110 + math.floor((i - 1) / 4) * 22  -- raised so it sits above the CoffeeIFY label
 				),
 				BackgroundTransparency = 0.15
 			}, 0.55 + i * 0.04, Enum.EasingStyle.Back)
@@ -662,14 +662,14 @@ function CoffeeIFY:CreateTab(name)
 	self.tabCount += 1
 	local index = self.tabCount
 
-	-- smaller tab height
+	-- smaller tab height, flush left with sidebar
 	local TAB_H = 22
 	local TAB_GAP = 26
 
 	local btn = Create("TextButton", {
 		Name = name,
-		Size = UDim2.new(1, -10, 0, TAB_H),
-		Position = UDim2.new(0, 5, 0, 6 + (index - 1) * TAB_GAP),
+		Size = UDim2.new(1, -4, 0, TAB_H), -- almost full width of sidebar
+		Position = UDim2.new(0, 2, 0, 6 + (index - 1) * TAB_GAP),
 		BackgroundColor3 = Color3.fromRGB(185, 175, 155),
 		BorderSizePixel = 0,
 		Text = "",
@@ -678,9 +678,30 @@ function CoffeeIFY:CreateTab(name)
 		Parent = self.sidebar
 	})
 
+	-- top + bottom selection lines (hidden by default)
+	local topLine = Create("Frame", {
+		Name = "TopLine",
+		Size = UDim2.new(1, 0, 0, 1.5),
+		Position = UDim2.new(0, 0, 0, 0),
+		BackgroundColor3 = Color3.fromRGB(42, 38, 34),
+		BorderSizePixel = 0,
+		Visible = false,
+		Parent = btn
+	})
+
+	local bottomLine = Create("Frame", {
+		Name = "BottomLine",
+		Size = UDim2.new(1, 0, 0, 1.5),
+		Position = UDim2.new(0, 0, 1, -1.5),
+		BackgroundColor3 = Color3.fromRGB(42, 38, 34),
+		BorderSizePixel = 0,
+		Visible = false,
+		Parent = btn
+	})
+
 	local icon = Create("Frame", {
-		Size = UDim2.new(0, 6, 0, 6),
-		Position = UDim2.new(0, 7, 0.5, -3),
+		Size = UDim2.new(0, 7, 0, 7),
+		Position = UDim2.new(0, 8, 0.5, -3.5),
 		BackgroundColor3 = Color3.fromRGB(70, 60, 50),
 		BorderSizePixel = 0,
 		Parent = btn
@@ -688,8 +709,8 @@ function CoffeeIFY:CreateTab(name)
 
 	local label = Create("TextLabel", {
 		Text = name,
-		Size = UDim2.new(1, -22, 1, 0),
-		Position = UDim2.new(0, 17, 0, 0),
+		Size = UDim2.new(1, -24, 1, 0),
+		Position = UDim2.new(0, 20, 0, 0),
 		BackgroundTransparency = 1,
 		TextColor3 = Color3.fromRGB(45, 40, 35),
 		Font = Enum.Font.GothamMedium,
@@ -729,11 +750,48 @@ function CoffeeIFY:CreateTab(name)
 		Icon = icon,
 		Label = label,
 		Page = page,
-		Name = name
+		Name = name,
+		TopLine = topLine,
+		BottomLine = bottomLine
 	}
 
 	self.tabs[name] = tabData
 	self.tabButtons[index] = tabData
+
+	local function glitchTypewriter(targetText)
+		if not self.contentTitle or not self.contentTitle.Parent then return end
+
+		local chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%&*"
+		local final = targetText
+		local len = #final
+
+		-- fast glitch phase
+		task.spawn(function()
+			for i = 1, 8 do
+				if not self.contentTitle or not self.contentTitle.Parent then return end
+				local glitched = ""
+				for j = 1, len do
+					if math.random() > 0.35 then
+						local r = math.random(1, #chars)
+						glitched = glitched .. chars:sub(r, r)
+					else
+						glitched = glitched .. final:sub(j, j)
+					end
+				end
+				self.contentTitle.Text = glitched
+				task.wait(0.028)
+			end
+
+			-- typewriter phase
+			self.contentTitle.Text = ""
+			for i = 1, len do
+				if not self.contentTitle or not self.contentTitle.Parent then return end
+				self.contentTitle.Text = final:sub(1, i)
+				task.wait(0.035)
+			end
+			self.contentTitle.Text = final
+		end)
+	end
 
 	local function select()
 		if self._closing then
@@ -747,10 +805,12 @@ function CoffeeIFY:CreateTab(name)
 			Tween(t.Button, {
 				BackgroundColor3 = Color3.fromRGB(185, 175, 155),
 				Rotation = 0,
-				Position = UDim2.new(0, 5, 0, 6 + (i - 1) * 26)
+				Position = UDim2.new(0, 2, 0, 6 + (i - 1) * 26)
 			}, 0.22)
 			Tween(t.Label, {TextColor3 = Color3.fromRGB(45, 40, 35)}, 0.2)
 			Tween(t.Icon, {BackgroundColor3 = Color3.fromRGB(70, 60, 50)}, 0.2)
+			if t.TopLine then t.TopLine.Visible = false end
+			if t.BottomLine then t.BottomLine.Visible = false end
 			t.Page.Visible = false
 		end
 
@@ -758,29 +818,34 @@ function CoffeeIFY:CreateTab(name)
 		Tween(btn, {
 			BackgroundColor3 = Color3.fromRGB(48, 43, 38),
 			Rotation = 0,
-			Position = UDim2.new(0, 5, 0, 6 + (index - 1) * 26)
+			Position = UDim2.new(0, 2, 0, 6 + (index - 1) * 26)
 		}, 0.22)
 		Tween(label, {TextColor3 = Color3.fromRGB(230, 220, 200)}, 0.22)
 		Tween(icon, {BackgroundColor3 = Color3.fromRGB(230, 220, 200)}, 0.22)
 
+		-- show top + bottom dark lines on selected tab
+		topLine.Visible = true
+		bottomLine.Visible = true
+
 		-- tilt the tabs BELOW the selected one (weight effect)
-		-- more noticeable tilt to the left, slightly off-center
 		for i, t in pairs(self.tabButtons) do
 			if i > index then
 				local distance = i - index
-				local tilt = -4.5 - (distance * 1.8) -- stronger the further down
+				local tilt = -4.5 - (distance * 1.8)
 				local offsetX = -3 - (distance * 1.5)
 
 				Tween(t.Button, {
 					Rotation = tilt,
-					Position = UDim2.new(0, 5 + offsetX, 0, 6 + (i - 1) * 26)
+					Position = UDim2.new(0, 2 + offsetX, 0, 6 + (i - 1) * 26)
 				}, 0.28, Enum.EasingStyle.Back)
 			end
 		end
 
 		page.Visible = true
-		self.contentTitle.Text = name
 		self.currentTab = tabData
+
+		-- glitch + typewriter on the content title
+		glitchTypewriter(name)
 	end
 
 	self:_Track(btn.MouseEnter:Connect(function()
@@ -857,28 +922,59 @@ function CoffeeIFY:CreateButton(tab, text, callback)
 		Parent = frame
 	})
 
+	local hovering = false
+
+	local function resetVisual()
+		Tween(frame, {
+			BackgroundColor3 = Color3.fromRGB(218, 208, 188),
+			Position = UDim2.new(0, 6, 0, 0)
+		}, 0.15)
+		Tween(box, {
+			BackgroundColor3 = Color3.fromRGB(40, 35, 30),
+			Size = UDim2.new(0, 12, 0, 12),
+			Position = UDim2.new(0, 14, 0.5, -6)
+		}, 0.15)
+		Tween(label, {
+			TextXAlignment = Enum.TextXAlignment.Left,
+			Position = UDim2.new(0, 32, 0, 2),
+			Size = UDim2.new(1, -72, 0, math.max(18, rowHeight - 4))
+		}, 0.15)
+	end
+
 	self:_Track(btn.MouseEnter:Connect(function()
+		hovering = true
 		PlaySound(HOVER_SOUND, 0.22)
 		Tween(frame, {BackgroundColor3 = Color3.fromRGB(230, 220, 200)}, 0.15)
 		Tween(box, {Size = UDim2.new(0, 13, 0, 13), Position = UDim2.new(0, 13.5, 0.5, -6.5)}, 0.15)
 	end))
 
 	self:_Track(btn.MouseLeave:Connect(function()
-		Tween(frame, {BackgroundColor3 = Color3.fromRGB(218, 208, 188)}, 0.15)
-		Tween(box, {Size = UDim2.new(0, 12, 0, 12), Position = UDim2.new(0, 14, 0.5, -6)}, 0.15)
+		hovering = false
+		resetVisual()
 	end))
 
 	self:_Track(BindActivated(btn, function()
 		PlaySound(CLICK_SOUND, 0.4)
-		Tween(frame, {BackgroundColor3 = Color3.fromRGB(200, 190, 170), Position = UDim2.new(0, 10, 0, 0)}, 0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-		Tween(box, {BackgroundColor3 = Color3.fromRGB(180, 160, 130), Size = UDim2.new(0, 11, 0, 11), Position = UDim2.new(0, 18, 0.5, -5.5)}, 0.12)
-		Tween(label, {TextXAlignment = Enum.TextXAlignment.Center, Position = UDim2.new(0, 38, 0, 2), Size = UDim2.new(1, -76, 0, math.max(18, rowHeight - 4))}, 0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
-		task.delay(0.12, function()
+		-- quick press feedback
+		Tween(frame, {BackgroundColor3 = Color3.fromRGB(200, 190, 170)}, 0.08)
+		Tween(box, {
+			BackgroundColor3 = Color3.fromRGB(180, 160, 130),
+			Size = UDim2.new(0, 11, 0, 11)
+		}, 0.08)
+
+		task.delay(0.1, function()
 			if not frame.Parent then return end
-			Tween(frame, {BackgroundColor3 = Color3.fromRGB(218, 208, 188), Position = UDim2.new(0, 6, 0, 0)}, 0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-			Tween(box, {BackgroundColor3 = Color3.fromRGB(40, 35, 30), Size = UDim2.new(0, 12, 0, 12), Position = UDim2.new(0, 14, 0.5, -6)}, 0.22)
-			Tween(label, {TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.new(0, 32, 0, 2), Size = UDim2.new(1, -72, 0, math.max(18, rowHeight - 4))}, 0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+			-- always return to normal, then re-apply hover if still over
+			resetVisual()
+			if hovering then
+				task.delay(0.12, function()
+					if hovering and frame.Parent then
+						Tween(frame, {BackgroundColor3 = Color3.fromRGB(230, 220, 200)}, 0.12)
+						Tween(box, {Size = UDim2.new(0, 13, 0, 13), Position = UDim2.new(0, 13.5, 0.5, -6.5)}, 0.12)
+					end
+				end)
+			end
 		end)
 
 		if callback then
@@ -937,13 +1033,17 @@ function CoffeeIFY:CreateToggle(tab, text, default, callback)
 		Parent = frame
 	})
 
+	local hovering = false
+
 	self:_Track(btn.MouseEnter:Connect(function()
+		hovering = true
 		PlaySound(HOVER_SOUND, 0.22)
 		Tween(frame, {BackgroundColor3 = Color3.fromRGB(230, 220, 200)}, 0.15)
 		Tween(box, {Size = UDim2.new(0, 13, 0, 13), Position = UDim2.new(0, 7.5, 0.5, -6.5)}, 0.15)
 	end))
 
 	self:_Track(btn.MouseLeave:Connect(function()
+		hovering = false
 		Tween(frame, {BackgroundColor3 = Color3.fromRGB(218, 208, 188)}, 0.15)
 		Tween(box, {Size = UDim2.new(0, 12, 0, 12), Position = UDim2.new(0, 8, 0.5, -6)}, 0.15)
 	end))
@@ -953,12 +1053,24 @@ function CoffeeIFY:CreateToggle(tab, text, default, callback)
 		state = not state
 
 		Tween(frame, {BackgroundColor3 = Color3.fromRGB(200, 190, 170)}, 0.08)
-		Tween(box, {BackgroundColor3 = state and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(40, 35, 30), Size = UDim2.new(0, 11, 0, 11)}, 0.12)
+		Tween(box, {
+			BackgroundColor3 = state and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(40, 35, 30),
+			Size = UDim2.new(0, 11, 0, 11)
+		}, 0.1)
 
-		task.delay(0.12, function()
+		task.delay(0.1, function()
 			if not frame.Parent then return end
-			Tween(frame, {BackgroundColor3 = Color3.fromRGB(218, 208, 188)}, 0.18)
-			Tween(box, {Size = UDim2.new(0, 12, 0, 12), Position = UDim2.new(0, 8, 0.5, -6)}, 0.18)
+			Tween(frame, {BackgroundColor3 = Color3.fromRGB(218, 208, 188)}, 0.15)
+			Tween(box, {Size = UDim2.new(0, 12, 0, 12), Position = UDim2.new(0, 8, 0.5, -6)}, 0.15)
+
+			if hovering then
+				task.delay(0.12, function()
+					if hovering and frame.Parent then
+						Tween(frame, {BackgroundColor3 = Color3.fromRGB(230, 220, 200)}, 0.12)
+						Tween(box, {Size = UDim2.new(0, 13, 0, 13), Position = UDim2.new(0, 7.5, 0.5, -6.5)}, 0.12)
+					end
+				end)
+			end
 		end)
 
 		if callback then
