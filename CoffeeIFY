@@ -429,80 +429,90 @@ function CoffeeIFY.new(config)
 		spinActive = false
 		PlaySound(CLICK_SOUND, 0.45)
 
-		-- bandage wrap container (covers the whole main window)
-		local wrap = Create("Frame", {
-			Name = "BandageWrap",
-			Size = UDim2.new(1, 4, 1, 4),
-			Position = UDim2.new(0, -2, 0, -2),
+		-- Sonic-Mania-style diagonal disassembly.
+		-- The number/size of the bands is calculated from the actual square GUI size,
+		-- so the transition keeps the same proportions on different screens.
+		local transition = Create("Frame", {
+			Name = "DiagonalDisassemble",
+			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.new(0, 0, 0, 0),
 			BackgroundTransparency = 1,
-			ClipsDescendants = true,
-			ZIndex = 50,
+			BorderSizePixel = 0,
+			ClipsDescendants = false,
+			ZIndex = 90,
 			Parent = self.main
 		})
 
-		local bandages = {}
-		local stripCount = 9
-		local stripH = math.ceil((base + 20) / stripCount) + 8
+		local bandCount = math.clamp(math.floor(base / 28), 11, 17)
+		local bandGap = base / bandCount
+		local bandHeight = math.max(14, bandGap * 1.05)
+		local bandWidth = base * 1.75
+		local angle = -28
+		local bands = {}
 
-		-- create diagonal bandage strips that fly in
-		for i = 1, stripCount do
-			local strip = Create("Frame", {
-				Name = "Bandage" .. i,
-				Size = UDim2.new(1.6, 0, 0, stripH),
-				Position = UDim2.new(-1.2, 0, 0, (i - 1) * (stripH - 4) - 10),
-				BackgroundColor3 = Color3.fromRGB(240, 232, 215),
+		for i = 1, bandCount do
+			local y = (i - 1) * bandGap - base * 0.35
+			local band = Create("Frame", {
+				Name = "Band" .. i,
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Size = UDim2.new(0, bandWidth, 0, bandHeight),
+				Position = UDim2.new(0, -bandWidth, 0, y),
+				Rotation = angle,
+				BackgroundColor3 = Color3.fromRGB(232, 224, 205),
+				BackgroundTransparency = 0.04,
 				BorderSizePixel = 0,
-				Rotation = -28, -- diagonal like the screenshot
-				ZIndex = 51,
-				Parent = wrap
+				ZIndex = 91,
+				Parent = transition
 			})
 
-			-- subtle edge
 			Create("UIStroke", {
-				Color = Color3.fromRGB(200, 190, 170),
+				Color = Color3.fromRGB(195, 187, 170),
 				Thickness = 1,
-				Parent = strip
+				Transparency = 0.35,
+				Parent = band
 			})
 
-			bandages[i] = strip
+			bands[i] = band
 		end
 
-		-- animate strips wrapping in from the left/right alternating
-		for i, strip in ipairs(bandages) do
-			local fromLeft = (i % 2 == 1)
-			local startX = fromLeft and -1.4 or 1.4
-			local endX = fromLeft and -0.15 or -0.15
-
-			strip.Position = UDim2.new(startX, 0, 0, (i - 1) * (stripH - 4) - 10)
-
-			Tween(strip, {
-				Position = UDim2.new(endX, 0, 0, (i - 1) * (stripH - 4) - 10)
-			}, 0.28 + i * 0.035, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		-- Cover the UI first, then peel the bands away in a diagonal wave.
+		for i, band in ipairs(bands) do
+			local y = (i - 1) * bandGap - base * 0.35
+			Tween(band, {
+				Position = UDim2.new(0, base * 0.5, 0, y)
+			}, 0.22 + i * 0.012, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 		end
 
-		task.wait(0.45)
+		task.wait(0.34)
 
-		-- fade all content under the bandages
-		for _, child in ipairs(self.main:GetDescendants()) do
-			if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
-				Tween(child, {TextTransparency = 1}, 0.2)
-			elseif child:IsA("GuiObject") and child ~= self.main and child.Name ~= "BandageWrap" and not child:IsDescendantOf(wrap) then
-				Tween(child, {BackgroundTransparency = 1}, 0.2)
+		-- Fade the actual interface quickly while it is hidden by the assembled bands.
+		local fadeObjects = {}
+		for _, obj in ipairs(self.main:GetDescendants()) do
+			if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
+				fadeObjects[#fadeObjects + 1] = {obj, "TextTransparency", obj.TextTransparency}
+			elseif obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
+				fadeObjects[#fadeObjects + 1] = {obj, "ImageTransparency", obj.ImageTransparency}
+			elseif obj:IsA("GuiObject") and obj ~= transition and not obj:IsDescendantOf(transition) then
+				fadeObjects[#fadeObjects + 1] = {obj, "BackgroundTransparency", obj.BackgroundTransparency}
 			end
 		end
 
-		task.wait(0.15)
+		for _, item in ipairs(fadeObjects) do
+			item[1][item[2]] = 1
+		end
+		self.main.BackgroundTransparency = 1
 
-		-- fast fade of the whole window + bandages
-		Tween(self.main, {BackgroundTransparency = 1}, 0.22)
-		for _, strip in ipairs(bandages) do
-			Tween(strip, {BackgroundTransparency = 1}, 0.2)
+		-- Reverse the diagonal movement for the close/disassemble.
+		for i, band in ipairs(bands) do
+			local y = (i - 1) * bandGap - base * 0.35
+			Tween(band, {
+				Position = UDim2.new(0, base * 1.5 + bandWidth, 0, y)
+			}, 0.28 + i * 0.018, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
 		end
 
-		task.wait(0.25)
+		task.wait(0.38)
 
 		self:_CleanupConnections()
-
 		if self.gui then
 			self.gui:Destroy()
 		end
@@ -639,86 +649,105 @@ function CoffeeIFY.new(config)
 			return
 		end
 
-		-- ========== SECOND INTRO: two-panel diagonal assemble / disassemble ==========
+		-- ========== SECOND INTRO: many-band diagonal Sonic-Mania-style assemble ==========
 		self.main.Visible = true
-		self.main.BackgroundTransparency = 0
+		self.main.BackgroundTransparency = 1
 
-		-- Keep the real interface underneath the shutters while they assemble.
-		self.sidebar.Visible = true
-		self.content.Visible = true
-		self.topBar.Visible = true
-
-		local shutterLayer = Create("Frame", {
-			Name = "DiagonalShutters",
+		local transition = Create("Frame", {
+			Name = "DiagonalAssemble",
 			Size = UDim2.new(1, 0, 1, 0),
 			Position = UDim2.new(0, 0, 0, 0),
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
+			ClipsDescendants = false,
 			ZIndex = 80,
 			Parent = self.main
 		})
 
-		local function makeDiagonal(name, rotation, startX, endX, transparency)
-			local panel = Create("Frame", {
-				Name = name,
-				AnchorPoint = Vector2.new(0.5, 0.5),
-				Size = UDim2.new(0, base * 0.78, 0, base * 1.55),
-				Position = UDim2.new(startX, 0, 0.5, 0),
-				Rotation = rotation,
-				BackgroundColor3 = Color3.fromRGB(240, 232, 215),
-				BackgroundTransparency = transparency,
-				BorderSizePixel = 0,
-				ZIndex = 81,
-				Parent = shutterLayer
-			})
-
-			Create("UIStroke", {
-				Color = Color3.fromRGB(205, 196, 179),
-				Thickness = 1,
-				Transparency = 0.35,
-				Parent = panel
-			})
-
-			return panel, endX
-		end
-
-		-- Two oversized diagonal shutters. They overlap to form the clean,
-		-- paper-like assembled cover seen in the reference.
-		local leftPanel, leftTarget = makeDiagonal("LeftDiagonal", -22, -0.95, 0.23, 0.18)
-		local rightPanel, rightTarget = makeDiagonal("RightDiagonal", 22, 1.95, 0.77, 0.18)
-
-		-- Briefly assemble the two diagonals over the whole window.
-		Tween(leftPanel, {
-			Position = UDim2.new(leftTarget, 0, 0.5, 0)
-		}, 0.42, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-
-		Tween(rightPanel, {
-			Position = UDim2.new(rightTarget, 0, 0.5, 0)
-		}, 0.42, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-
-		task.wait(0.46)
-
-		-- Give the interface a tiny settle/fade as the assembled cover breaks apart.
-		for _, obj in ipairs({self.sidebar, self.content, self.topBar}) do
-			if obj and obj.Parent then
-				obj.BackgroundTransparency = 1
-				Tween(obj, {BackgroundTransparency = 0}, 0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		-- Snapshot the real UI transparency so it can appear with a fast fade.
+		local fadeObjects = {}
+		for _, obj in ipairs(self.main:GetDescendants()) do
+			if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
+				fadeObjects[#fadeObjects + 1] = {obj, "TextTransparency", obj.TextTransparency}
+			elseif obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
+				fadeObjects[#fadeObjects + 1] = {obj, "ImageTransparency", obj.ImageTransparency}
+			elseif obj:IsA("GuiObject") and obj ~= transition and not obj:IsDescendantOf(transition) then
+				fadeObjects[#fadeObjects + 1] = {obj, "BackgroundTransparency", obj.BackgroundTransparency}
 			end
 		end
 
-		-- Disassemble: the diagonals peel back to opposite sides.
-		Tween(leftPanel, {
-			Position = UDim2.new(-0.95, 0, 0.5, 0)
-		}, 0.52, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+		for _, item in ipairs(fadeObjects) do
+			item[1][item[2]] = 1
+		end
 
-		Tween(rightPanel, {
-			Position = UDim2.new(1.95, 0, 0.5, 0)
-		}, 0.52, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+		local bandCount = math.clamp(math.floor(base / 28), 11, 17)
+		local bandGap = base / bandCount
+		local bandHeight = math.max(14, bandGap * 1.05)
+		local bandWidth = base * 1.75
+		local angle = -28
+		local bands = {}
 
-		task.wait(0.56)
+		for i = 1, bandCount do
+			local y = (i - 1) * bandGap - base * 0.35
+			local band = Create("Frame", {
+				Name = "Band" .. i,
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Size = UDim2.new(0, bandWidth, 0, bandHeight),
+				Position = UDim2.new(0, -bandWidth, 0, y),
+				Rotation = angle,
+				BackgroundColor3 = Color3.fromRGB(232, 224, 205),
+				BackgroundTransparency = 0.04,
+				BorderSizePixel = 0,
+				ZIndex = 81,
+				Parent = transition
+			})
 
-		if shutterLayer.Parent then
-			shutterLayer:Destroy()
+			Create("UIStroke", {
+				Color = Color3.fromRGB(195, 187, 170),
+				Thickness = 1,
+				Transparency = 0.35,
+				Parent = band
+			})
+
+			bands[i] = band
+		end
+
+		-- Assemble the diagonal bands across the GUI. The small stagger makes the
+		-- transition read as many individual slices instead of one giant shutter.
+		for i, band in ipairs(bands) do
+			local y = (i - 1) * bandGap - base * 0.35
+			Tween(band, {
+				Position = UDim2.new(0, base * 0.5, 0, y)
+			}, 0.25 + i * 0.012, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+		end
+
+		task.wait(0.42)
+
+		-- Fast UI reveal immediately after the diagonal assembly.
+		self.main.BackgroundTransparency = 1
+		Tween(self.main, {BackgroundTransparency = 0}, 0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+		for _, item in ipairs(fadeObjects) do
+			local obj, prop, target = item[1], item[2], item[3]
+			if obj and obj.Parent then
+				Tween(obj, {[prop] = target}, 0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+			end
+		end
+
+		-- Let the interface settle for a moment while the bands remain visible.
+		task.wait(0.08)
+
+		-- Finish by peeling every diagonal slice away in the opposite direction.
+		for i, band in ipairs(bands) do
+			local y = (i - 1) * bandGap - base * 0.35
+			Tween(band, {
+				Position = UDim2.new(0, base * 1.5 + bandWidth, 0, y)
+			}, 0.30 + i * 0.018, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+		end
+
+		task.wait(0.46)
+		if transition.Parent then
+			transition:Destroy()
 		end
 
 	end)
