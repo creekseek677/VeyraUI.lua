@@ -432,13 +432,13 @@ function CoffeeIFY.new(config)
 		-- Sonic-Mania-style diagonal disassembly.
 		-- The number/size of the bands is calculated from the actual square GUI size,
 		-- so the transition keeps the same proportions on different screens.
-		local transition = Create("Frame", {
+		local transition = Create("CanvasGroup", {
 			Name = "DiagonalDisassemble",
 			Size = UDim2.new(1, 0, 1, 0),
 			Position = UDim2.new(0, 0, 0, 0),
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
-			ClipsDescendants = false,
+			ClipsDescendants = true,
 			ZIndex = 90,
 			Parent = self.main
 		})
@@ -446,7 +446,7 @@ function CoffeeIFY.new(config)
 		local bandCount = math.clamp(math.floor(base / 28), 11, 17)
 		local bandGap = base / bandCount
 		local bandHeight = math.max(14, bandGap * 1.05)
-		local bandWidth = base * 1.75
+		local bandWidth = base * 1.55
 		local angle = -28
 		local bands = {}
 
@@ -456,7 +456,7 @@ function CoffeeIFY.new(config)
 				Name = "Band" .. i,
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				Size = UDim2.new(0, bandWidth, 0, bandHeight),
-				Position = UDim2.new(0, -bandWidth, 0, y),
+				Position = UDim2.new(0, -bandWidth * 0.22, 0, y),
 				Rotation = angle,
 				BackgroundColor3 = Color3.fromRGB(232, 224, 205),
 				BackgroundTransparency = 0.04,
@@ -506,7 +506,7 @@ function CoffeeIFY.new(config)
 		for i, band in ipairs(bands) do
 			local y = (i - 1) * bandGap - base * 0.35
 			Tween(band, {
-				Position = UDim2.new(0, base * 1.5 + bandWidth, 0, y)
+				Position = UDim2.new(0, base + bandWidth * 0.22, 0, y)
 			}, 0.28 + i * 0.018, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
 		end
 
@@ -653,13 +653,13 @@ function CoffeeIFY.new(config)
 		self.main.Visible = true
 		self.main.BackgroundTransparency = 1
 
-		local transition = Create("Frame", {
+		local transition = Create("CanvasGroup", {
 			Name = "DiagonalAssemble",
 			Size = UDim2.new(1, 0, 1, 0),
 			Position = UDim2.new(0, 0, 0, 0),
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
-			ClipsDescendants = false,
+			ClipsDescendants = true,
 			ZIndex = 80,
 			Parent = self.main
 		})
@@ -683,7 +683,7 @@ function CoffeeIFY.new(config)
 		local bandCount = math.clamp(math.floor(base / 28), 11, 17)
 		local bandGap = base / bandCount
 		local bandHeight = math.max(14, bandGap * 1.05)
-		local bandWidth = base * 1.75
+		local bandWidth = base * 1.55
 		local angle = -28
 		local bands = {}
 
@@ -693,7 +693,7 @@ function CoffeeIFY.new(config)
 				Name = "Band" .. i,
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				Size = UDim2.new(0, bandWidth, 0, bandHeight),
-				Position = UDim2.new(0, -bandWidth, 0, y),
+				Position = UDim2.new(0, -bandWidth * 0.22, 0, y),
 				Rotation = angle,
 				BackgroundColor3 = Color3.fromRGB(232, 224, 205),
 				BackgroundTransparency = 0.04,
@@ -741,7 +741,7 @@ function CoffeeIFY.new(config)
 		for i, band in ipairs(bands) do
 			local y = (i - 1) * bandGap - base * 0.35
 			Tween(band, {
-				Position = UDim2.new(0, base * 1.5 + bandWidth, 0, y)
+				Position = UDim2.new(0, base + bandWidth * 0.55, 0, y)
 			}, 0.30 + i * 0.018, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
 		end
 
