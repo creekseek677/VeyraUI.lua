@@ -152,21 +152,36 @@ function Anim.bindPress(button: GuiButton, target: GuiObject?, options)
 	options = options or {}
 	local down = options.down or 0.02
 	local t = options.time or 0.08
-	local oSize = (target or button).Size
-	local oPos = (target or button).Position
+	local obj = target or button
+	local oSize = obj.Size
+	local oPos = obj.Position
 
-	button.MouseButton1Down:Connect(function()
-		Anim.tween(target or button, t, {
+	local function press()
+		Anim.tween(obj, t, {
 			Size = UDim2.new(oSize.X.Scale, oSize.X.Offset - (oSize.X.Offset * down), oSize.Y.Scale, oSize.Y.Offset - (oSize.Y.Offset * down)),
 			Position = UDim2.new(oPos.X.Scale, oPos.X.Offset + 1, oPos.Y.Scale, oPos.Y.Offset + 1),
 		}, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	end
+
+	local function release()
+		Anim.tween(obj, t, { Size = oSize, Position = oPos }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	end
+
+	button.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
+			press()
+		end
 	end)
-	button.MouseButton1Up:Connect(function()
-		Anim.tween(target or button, t, { Size = oSize, Position = oPos }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+	button.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
+			release()
+		end
 	end)
-	button.MouseLeave:Connect(function()
-		Anim.tween(target or button, t, { Size = oSize, Position = oPos }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-	end)
+
+	button.MouseLeave:Connect(release)
 end
 
 --// Icons (lucide.lua)
@@ -399,7 +414,6 @@ function Window:_setInteractionEnabled(enabled: boolean)
 	self._interactive = enabled
 	if self._rootFrame then
 		(self._rootFrame :: Frame).Active = enabled
-		(self._rootFrame :: Frame).Selectable = enabled
 	end
 	if self._shield then
 		(self._shield :: Frame).Visible = not enabled
@@ -482,6 +496,9 @@ function Window:Toggle()
 	if self._closing then return end
 	self._visible = not self._visible
 	if self._visible then
+		self._minimized = false
+		(self._sidebar :: Frame).Visible = true
+		(self._content :: Frame).Visible = true
 		(self._rootFrame :: Frame).Visible = true
 		self:_intro()
 	else
@@ -535,6 +552,13 @@ function Window:Close()
 end
 
 function Window:Destroy()
+	if Global.Capturing and Global.Capturing.Tab and Global.Capturing.Tab.Window == self then
+		pcall(function()
+			Global.Capturing._setCapture(false)
+		end)
+		Global.Capturing = nil
+	end
+
 	-- disconnect input connections
 	for _, c in ipairs(self._connections) do
 		pcall(function() c:Disconnect() end)
@@ -660,8 +684,8 @@ function Window:CreateTab(opts)
 	end)
 	Anim.bindPress(btn)
 
-	btn.MouseButton1Click:Connect(function()
-		if self._closing then return end
+	btn.Activated:Connect(function()
+		if self._closing or self._interactive == false then return end
 		tab:Select()
 	end)
 
@@ -937,7 +961,7 @@ function Section:CreateButton(opts)
 		end
 	end)
 
-	btn.MouseButton1Click:Connect(function()
+	btn.Activated:Connect(function()
 		if self.Tab.Window._interactive == false then return end
 		PlaySound(CLICK_SOUND, 0.35)
 		Anim.springy(btn, 0.16, { Size = UDim2.new(1, 0, 0, 28) })
@@ -1060,7 +1084,7 @@ function Section:CreateToggle(opts)
 		end
 	end
 
-	root.MouseButton1Click:Connect(function()
+	root.Activated:Connect(function()
 		if self.Tab.Window._interactive == false then return end
 		setValue(not comp.Value, true)
 	end)
@@ -1084,7 +1108,7 @@ function Section:CreateSlider(opts)
 	local default = tonumber(opts.Default)
 	if default == nil then default = minV end
 	default = clamp(default, minV, maxV)
-	default = roundToIncrement(default, inc)
+	default = clamp(roundToIncrement(default, inc), minV, maxV)
 
 	local comp = setmetatable({ Value = default }, ComponentBase)
 	local dragging = false
@@ -1190,7 +1214,7 @@ function Section:CreateSlider(opts)
 
 	local function setValue(v: number, fire: boolean)
 		v = clamp(v, minV, maxV)
-		v = roundToIncrement(v, inc)
+		v = clamp(roundToIncrement(v, inc), minV, maxV)
 		if comp.Value == v then
 			render(v, false)
 			return
@@ -1244,11 +1268,12 @@ end
 -- Dropdown
 function Section:CreateDropdown(opts)
 	opts = opts or {}
-	local options = opts.Options or {}
+	local options = type(opts.Options) == "table" and opts.Options or {}
 	local default = opts.Default
 	if default == nil and #options > 0 then default = options[1] end
 	local comp = setmetatable({ Value = default }, ComponentBase)
 	local open = false
+	local sr, sg, sb
 
 	local root = new("Frame", {
 		Name = "Dropdown",
@@ -1389,7 +1414,7 @@ function Section:CreateDropdown(opts)
 		Anim.bindHoverInvasion(oBtn, oOverlay, { time = 0.12 })
 		Anim.bindPress(oBtn)
 
-		oBtn.MouseButton1Click:Connect(function()
+		oBtn.Activated:Connect(function()
 			if self.Tab.Window._interactive == false then return end
 			comp.Value = opt
 			valueLbl.Text = tostring(opt)
@@ -1416,7 +1441,7 @@ function Section:CreateDropdown(opts)
 	local function setOpen(v: boolean)
 		open = v
 		if open then
-			local targetH = 28 + math.min(#options, 6) * 28
+			local targetH = 36 + math.min(#options, 6) * 28
 			arrow.Text = "▴"; arrowDark.Text = "▴"
 			Anim.tween(root, 0.18, { Size = UDim2.new(1, 0, 0, targetH) }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 			Anim.tween(list, 0.18, { Size = UDim2.new(1, 0, 0, targetH - 28) }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
@@ -1427,7 +1452,7 @@ function Section:CreateDropdown(opts)
 		end
 	end
 
-	btn.MouseButton1Click:Connect(function()
+	btn.Activated:Connect(function()
 		if self.Tab.Window._interactive == false then return end
 		setOpen(not open)
 	end)
@@ -1556,8 +1581,17 @@ function Section:CreateColorPicker(opts)
 	}
 
 	local function setColor(c: Color3, fire: boolean)
+		if typeof(c) ~= "Color3" then
+			return
+		end
+
 		comp.Value = c
 		swatch.BackgroundColor3 = c
+
+		if sr then sr:SetValue(math.floor(c.R * 255 + 0.5)) end
+		if sg then sg:SetValue(math.floor(c.G * 255 + 0.5)) end
+		if sb then sb:SetValue(math.floor(c.B * 255 + 0.5)) end
+
 		if fire then
 			safeCallback(opts.Callback, c)
 		end
@@ -1585,7 +1619,7 @@ function Section:CreateColorPicker(opts)
 		hov.Parent = p
 		Anim.bindHoverInvasion(p, hov, { time = 0.12 })
 		Anim.bindPress(p)
-		p.MouseButton1Click:Connect(function()
+		p.Activated:Connect(function()
 			if self.Tab.Window._interactive == false then return end
 			setColor(c, true)
 		end)
@@ -1614,9 +1648,9 @@ function Section:CreateColorPicker(opts)
 		return s
 	end
 
-	local sr = makeRGB("Red", "R")
-	local sg = makeRGB("Green", "G")
-	local sb = makeRGB("Blue", "B")
+	sr = makeRGB("Red", "R")
+	sg = makeRGB("Green", "G")
+	sb = makeRGB("Blue", "B")
 
 	-- remove from section list (already reparented)
 	-- (these components are still owned by section; it's fine.)
@@ -1627,7 +1661,7 @@ function Section:CreateColorPicker(opts)
 	local function setOpen(v: boolean)
 		open = v
 		if open then
-			local targetH = 28 + 34 + 3 * 36 + 8 * 4
+			local targetH = 210
 			Anim.tween(root, 0.18, { Size = UDim2.new(1, 0, 0, targetH) }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 			Anim.tween(body, 0.18, { Size = UDim2.new(1, 0, 0, targetH - 28) }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 		else
@@ -1636,7 +1670,7 @@ function Section:CreateColorPicker(opts)
 		end
 	end
 
-	btn.MouseButton1Click:Connect(function()
+	btn.Activated:Connect(function()
 		if self.Tab.Window._interactive == false then return end
 		setOpen(not open)
 	end)
@@ -1744,7 +1778,7 @@ function Section:CreateKeybind(opts)
 		end
 	end
 
-	root.MouseButton1Click:Connect(function()
+	root.Activated:Connect(function()
 		if self.Tab.Window._interactive == false then return end
 		if Global.Capturing and Global.Capturing ~= comp then
 			-- cancel previous capture
@@ -1775,6 +1809,7 @@ function Section:CreateKeybind(opts)
 		end
 
 		-- fire callback if pressed
+		if self._closing then return end
 		if input.KeyCode == comp.Value then
 			if input.KeyCode == self.Tab.Window.ToggleKey then
 				return
@@ -1889,10 +1924,10 @@ function CoffeeIFY:CreateWindow(opts)
 	setLucide(closeIcon, "x")
 	setLucide(closeIconDark, "x")
 
-	minBtn.MouseButton1Click:Connect(function()
+	minBtn.Activated:Connect(function()
 		w:Minimize()
 	end)
-	closeBtn.MouseButton1Click:Connect(function()
+	closeBtn.Activated:Connect(function()
 		w:Close()
 	end)
 
@@ -1947,7 +1982,6 @@ function CoffeeIFY:CreateWindow(opts)
 	end)
 	table.insert(w._connections, toggleConn)
 
-	-- store window
 	-- store window
 	table.insert(Global.Windows, w)
 
@@ -2067,7 +2101,7 @@ end
 -- Notify
 function CoffeeIFY:Notify(text, duration)
 	text = tostring(text or "Notification")
-	duration = duration or 3
+	duration = math.max(0, tonumber(duration) or 3)
 	assert(PlayerGui, "CoffeeIFY requires PlayerGui")
 
 	local holder = new("Frame", {
