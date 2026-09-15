@@ -1,4 +1,4 @@
--- DISASSEMBLE TESh
+-- DISASSEMBLE TEST
 -- TEMPORARY TEST
 
 local Players = game:GetService("Players")
@@ -11,6 +11,9 @@ local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local HttpService = game:GetService("HttpService")
 local LocalizationService = game:GetService("LocalizationService")
+
+local Library = {}
+Library.__index = Library
 
 -- Normalize Roblox image references into a reliable asset URI.
 -- Accepts: 123456, rbxassetid://123456, Roblox asset URLs, and whitespace.
@@ -5929,9 +5932,6 @@ local function CreateKeySystem(config)
 
 	return api
 end
-
-local Library = {}
-Library.__index = Library
 
 local NotifManager = NotificationManager.new()
 
