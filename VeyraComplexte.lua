@@ -162,10 +162,12 @@ if type(Settings.CustomImageThemes) ~= "table" then
 	Settings.CustomImageThemes = {}
 end
 
+local Theme
+
 local function IsImageThemeActive()
 	return Settings.UseBackgroundImage == true
-		and type(Settings.BackgroundImage) == "string"
-		and Settings.BackgroundImage ~= ""
+	and type(Settings.BackgroundImage) == "string"
+	and Settings.BackgroundImage ~= ""
 end
 
 local function GetOutlineColor()
@@ -270,7 +272,7 @@ local function ProtectAndParent(sg)
 	sg.Parent = PlayerGui
 end
 
-local Theme = {
+Theme = {
 	Background = Color3.fromRGB(22, 22, 26),
 	Secondary = Color3.fromRGB(30, 30, 36),
 	Tertiary = Color3.fromRGB(38, 38, 46),
