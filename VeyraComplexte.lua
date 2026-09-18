@@ -12,9 +12,6 @@ local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local HttpService = game:GetService("HttpService")
 local LocalizationService = game:GetService("LocalizationService")
 
-local Library = {}
-Library.__index = Library
-
 -- Normalize Roblox image references into a reliable asset URI.
 -- Accepts: 123456, rbxassetid://123456, Roblox asset URLs, and whitespace.
 local function NormalizeBackgroundImage(value)
@@ -2926,7 +2923,7 @@ local function CreateDropdown(tab, config)
 			changed:Fire(opt)
 			if config.Callback then task.spawn(config.Callback, opt) end
 			forceClose(false)
-		end)
+		end))
 	end
 
 	AddInteractiveFeedback(frame, cleanup)
@@ -5932,6 +5929,9 @@ local function CreateKeySystem(config)
 
 	return api
 end
+
+local Library = {}
+Library.__index = Library
 
 local NotifManager = NotificationManager.new()
 
