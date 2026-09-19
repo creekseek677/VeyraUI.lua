@@ -4114,7 +4114,7 @@ local function SetupSettingsTab(window)
 
 	local themeDropdown = settingsTab:CreateDropdown({
 		Name = "Theme",
-		Options = themeNames,
+		Options = {"Dark", "Light", "Neon", "Cyan", "Glass", "Crimson"},
 		Default = currentTheme,
 		Callback = function(v)
 			Settings.Theme = v
@@ -4153,6 +4153,10 @@ local function SetupSettingsTab(window)
 		end,
 	})
 	window._ThemeDropdown = themeDropdown
+	if themeDropdown and themeDropdown.SetOptions then
+		themeDropdown:SetOptions(themeNames, true)
+		themeDropdown:Set(currentTheme, true)
+	end
 
 	settingsTab:CreateSlider({
 		Name = "Corner Radius",
