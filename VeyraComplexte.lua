@@ -5815,7 +5815,7 @@ local function CreateKeySystem(config)
 	outline.BackgroundColor3 = Theme.OutlineAccent or Color3.fromRGB(255, 255, 255)
 	outline.BackgroundTransparency = 0.05
 	outline.BorderSizePixel = 0
-	outline.Size = UDim2.new(0, 2, 1, -20)
+	outline.Size = UDim2.new(0, 1, 1, -20)
 	outline.Position = UDim2.new(0, 0, 0, 10)
 	outline.ZIndex = 5
 	outline.Parent = main
