@@ -775,7 +775,11 @@ local function DecorateGuiTree(root)
 		if not obj:IsA("GuiObject") then return end
 		local n = string.lower(obj.Name or "")
 		if obj.BackgroundTransparency < 1 then
-			if n ~= "root" and n ~= "body" and n ~= "contentcontainer" and n ~= "tabbar" and n ~= "outlineaccent" and n ~= "dim" and n ~= "resizegrip" and n ~= "backgroundimage" then
+			-- Skip structural / fixed-radius elements so Corner Radius slider only affects the main window chrome
+			if n ~= "root" and n ~= "body" and n ~= "contentcontainer" and n ~= "tabbar"
+				and n ~= "outlineaccent" and n ~= "dim" and n ~= "resizegrip" and n ~= "backgroundimage"
+				and n ~= "search" and n ~= "tabbg" and n ~= "titlebar" and n ~= "titlefix"
+				and n ~= "sidebar" and n ~= "backgroundholder" and n ~= "veyramobiletoggle" then
 				EnsureCorner(obj, Settings.CornerRadius or Theme.CornerRadius or 2)
 			end
 		end
@@ -4076,8 +4080,8 @@ local function CreateTab(window, config)
 	tabBg.Parent = tabBtn
 
 	local tabBgCorner = Instance.new("UICorner")
-	tabBgCorner.Name = "VeyraCorner"
-	tabBgCorner.CornerRadius = UDim.new(0, Theme.CornerRadius or 2)
+	tabBgCorner.Name = "VeyraFixedCorner"
+	tabBgCorner.CornerRadius = UDim.new(0, 6) -- fixed, independent of Corner Radius slider
 	tabBgCorner.Parent = tabBg
 
 		local btnPad = Instance.new("UIPadding")
@@ -4777,9 +4781,10 @@ local function CreateWindow(library, config)
 	outline.BackgroundColor3 = Theme.OutlineAccent or Color3.fromRGB(255, 255, 255)
 	outline.BackgroundTransparency = 0.05
 	outline.BorderSizePixel = 0
-	
-	outline.Size = UDim2.new(0, 2, 1, 0)
-	outline.Position = UDim2.new(0, 0, 0, 0)
+	-- Inset by corner radius so the accent bar does not create sharp "tips" at the rounded corners
+	local cr = math.max(0, math.floor(tonumber(Settings.CornerRadius or Theme.CornerRadius or 2) or 2))
+	outline.Size = UDim2.new(0, 2, 1, -2 * cr)
+	outline.Position = UDim2.new(0, 0, 0, cr)
 	outline.ZIndex = 5
 	outline.Parent = main
 
@@ -4897,6 +4902,11 @@ local function CreateWindow(library, config)
 	searchPad.PaddingLeft = UDim.new(0, 8)
 	searchPad.PaddingRight = UDim.new(0, 8)
 	searchPad.Parent = searchBox
+
+	local searchCorner = Instance.new("UICorner")
+	searchCorner.Name = "VeyraFixedCorner"
+	searchCorner.CornerRadius = UDim.new(0, 6) -- fixed, independent of Corner Radius slider
+	searchCorner.Parent = searchBox
 
 	local tabBar = Instance.new("ScrollingFrame")
 	tabBar.Name = "TabBar"
@@ -5152,6 +5162,12 @@ local function CreateWindow(library, config)
 		Theme.CornerRadius = math.max(0, math.floor(tonumber(Settings.CornerRadius or Theme.CornerRadius or 2) or 2))
 		EnsureCorner(root, Theme.CornerRadius)
 		EnsureCorner(main, Theme.CornerRadius)
+		-- Keep left accent bar inset so rounded corners never produce sharp tips
+		if outline and outline.Parent then
+			local cr = Theme.CornerRadius
+			outline.Size = UDim2.new(0, 2, 1, -2 * cr)
+			outline.Position = UDim2.new(0, 0, 0, cr)
+		end
 		titleLabel.TextColor3 = Theme.Text
 		titleLabel.Font = Theme.FontBold
 		subtitle.TextColor3 = Theme.SecondaryText
@@ -7850,6 +7866,14 @@ Flipper = {
 }
 
 function AttachFloatingToggle(screenGui, onToggle)
+	-- Parent to a dedicated ScreenGui so the toggle stays visible when the main UI is hidden
+	local toggleGui = Instance.new("ScreenGui")
+	toggleGui.Name = "VeyraMobileToggleGui"
+	toggleGui.DisplayOrder = 100
+	toggleGui.IgnoreGuiInset = true
+	toggleGui.ResetOnSpawn = false
+	ProtectAndParent(toggleGui)
+
 	local btn = Instance.new("ImageButton")
 	btn.Name = "VeyraMobileToggle"
 	btn.Image = "rbxassetid://112235310154264"
@@ -7861,14 +7885,23 @@ function AttachFloatingToggle(screenGui, onToggle)
 	btn.AnchorPoint = Vector2.new(0, 0.5)
 	btn.Visible = false
 	btn.ZIndex = 999
-	btn.Parent = screenGui
+	btn.Parent = toggleGui
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(1, 0)
 	corner.Parent = btn
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(55, 55, 65)
-	stroke.Thickness = 1
+	stroke.Name = "VeyraToggleStroke"
+	stroke.Color = GetOutlineColor()
+	stroke.Thickness = 1.5
+	stroke.Transparency = 0.2
 	stroke.Parent = btn
+
+	-- Keep outline in sync with theme
+	local themeConn = OnThemeChange(function()
+		if stroke and stroke.Parent then
+			stroke.Color = GetOutlineColor()
+		end
+	end)
 
 	local dragging = false
 	local dragStart, startPos
@@ -7901,6 +7934,15 @@ function AttachFloatingToggle(screenGui, onToggle)
 	end)
 	local touch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 	if touch then btn.Visible = true end
+
+	-- Cleanup the dedicated gui when the button is destroyed
+	btn.Destroying:Connect(function()
+		if themeConn then themeConn() end
+		if toggleGui and toggleGui.Parent then
+			pcall(function() toggleGui:Destroy() end)
+		end
+	end)
+
 	return btn
 end
 
