@@ -1,10 +1,7 @@
--- DISASSEMBLE TEST
--- TEMPORARY TEST
-
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local GuiService = game:GetService("GuiService") -- variaballs, haha!!! get itright?
+local GuiService = game:GetService("GuiService") 
 local SoundService = game:GetService("SoundService")
 
 local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
@@ -21,8 +18,6 @@ local RegisterConfigElement, ListConfigs, SaveNamedConfig, LoadNamedConfig, Dele
 local AutoSaveEnabled, CurrentConfigName
 local ConfigRegistry
 
--- Normalize Roblox image references into a reliable asset URI.
--- Accepts: 123456, rbxassetid://123456, Roblox asset URLs, and whitespace.
 local function NormalizeBackgroundImage(value)
 	value = tostring(value or "")
 	value = string.gsub(value, "^%s+", "")
@@ -32,7 +27,7 @@ local function NormalizeBackgroundImage(value)
 		return ""
 	end
 
-	-- Already a valid Roblox content URI. Keep rbxthumb for compatibility.
+	
 	if string.sub(string.lower(value), 1, 13) == "rbxassetid://" then
 		local id = string.match(value, "rbxassetid://(%d+)")
 		return id and ("rbxassetid://" .. id) or ""
@@ -41,13 +36,13 @@ local function NormalizeBackgroundImage(value)
 		return value
 	end
 
-	-- Raw numeric asset ID.
+	
 	local numericId = string.match(value, "^(%d+)$")
 	if numericId then
 		return "rbxassetid://" .. numericId
 	end
 
-	-- Common Roblox asset URL forms.
+	
 	local urlId = string.match(value, "[?&]id=(%d+)")
 	if not urlId then
 		urlId = string.match(value, "/asset/(%d+)")
@@ -303,7 +298,7 @@ Theme = {
 	NotificationSuccess = Color3.fromRGB(80, 200, 120),
 	NotificationWarning = Color3.fromRGB(255, 180, 60),
 	NotificationError = Color3.fromRGB(255, 80, 80),
-	OutlineAccent = Color3.fromRGB(90, 90, 100), -- gray default (Dark)
+	OutlineAccent = Color3.fromRGB(90, 90, 100), 
 	GradientSurfaceA = Color3.fromRGB(24, 26, 32),
 	GradientSurfaceB = Color3.fromRGB(36, 39, 50),
 	GradientPanelA = Color3.fromRGB(28, 30, 40),
@@ -345,7 +340,7 @@ local ThemePresets = {
 		NotificationSuccess = Color3.fromRGB(80, 200, 120),
 		NotificationWarning = Color3.fromRGB(255, 180, 60),
 		NotificationError = Color3.fromRGB(255, 80, 80),
-		OutlineAccent = Color3.fromRGB(90, 90, 100), -- gray for Dark
+		OutlineAccent = Color3.fromRGB(90, 90, 100), 
 		GradientSurfaceA = Color3.fromRGB(24, 26, 32),
 		GradientSurfaceB = Color3.fromRGB(36, 39, 50),
 		GradientPanelA = Color3.fromRGB(28, 30, 40),
@@ -378,7 +373,7 @@ local ThemePresets = {
 		NotificationSuccess = Color3.fromRGB(30, 160, 90),
 		NotificationWarning = Color3.fromRGB(210, 140, 30),
 		NotificationError = Color3.fromRGB(210, 50, 50),
-		OutlineAccent = Color3.fromRGB(160, 160, 170), -- gray for Light
+		OutlineAccent = Color3.fromRGB(160, 160, 170), 
 		GradientSurfaceA = Color3.fromRGB(248, 249, 252),
 		GradientSurfaceB = Color3.fromRGB(229, 232, 239),
 		GradientPanelA = Color3.fromRGB(255, 255, 255),
@@ -411,26 +406,26 @@ local ThemePresets = {
 		NotificationSuccess = Color3.fromRGB(80, 220, 160),
 		NotificationWarning = Color3.fromRGB(255, 180, 80),
 		NotificationError = Color3.fromRGB(255, 80, 120),
-		OutlineAccent = Color3.fromRGB(255, 90, 180), -- pink for Neon
+		OutlineAccent = Color3.fromRGB(255, 90, 180), 
 		GradientSurfaceA = Color3.fromRGB(20, 14, 36),
 		GradientSurfaceB = Color3.fromRGB(42, 28, 68),
 		GradientPanelA = Color3.fromRGB(26, 18, 46),
 		GradientPanelB = Color3.fromRGB(48, 32, 78),
-		GradientAccentA = Color3.fromRGB(255, 80, 200), -- pink to purple
+		GradientAccentA = Color3.fromRGB(255, 80, 200), 
 		GradientAccentB = Color3.fromRGB(140, 60, 255),
 		GradientBackgroundA = Color3.fromRGB(20, 8, 42),
 		GradientBackgroundB = Color3.fromRGB(96, 22, 92),
 		GradientRotation = 135,
 	},
 	Cyan = {
-		Background = Color3.fromRGB(0, 128, 128),        -- teal
-		Secondary = Color3.fromRGB(0, 160, 160),        -- lighter teal
-		Tertiary = Color3.fromRGB(0, 128, 128),         -- darker teal
-		Hover = Color3.fromRGB(0, 200, 200),            -- cyan
+		Background = Color3.fromRGB(0, 128, 128),        
+		Secondary = Color3.fromRGB(0, 160, 160),        
+		Tertiary = Color3.fromRGB(0, 128, 128),         
+		Hover = Color3.fromRGB(0, 200, 200),            
 		Text = Color3.fromRGB(255, 255, 255),
 		SecondaryText = Color3.fromRGB(200, 255, 255),
 		MutedText = Color3.fromRGB(150, 220, 220),
-		Accent = Color3.fromRGB(0, 255, 255),           -- cyan
+		Accent = Color3.fromRGB(0, 255, 255),           
 		Border = Color3.fromRGB(0, 80, 80),
 		ToggleOn = Color3.fromRGB(0, 255, 255),
 		ToggleOff = Color3.fromRGB(0, 90, 90),
@@ -444,7 +439,7 @@ local ThemePresets = {
 		NotificationSuccess = Color3.fromRGB(0, 255, 200),
 		NotificationWarning = Color3.fromRGB(255, 200, 0),
 		NotificationError = Color3.fromRGB(255, 80, 80),
-		OutlineAccent = Color3.fromRGB(0, 255, 255),    -- cyan
+		OutlineAccent = Color3.fromRGB(0, 255, 255),    
 		GradientSurfaceA = Color3.fromRGB(0, 160, 180),
 		GradientSurfaceB = Color3.fromRGB(0, 100, 120),
 		GradientPanelA = Color3.fromRGB(0, 140, 160),
@@ -477,7 +472,7 @@ local ThemePresets = {
 		NotificationSuccess = Color3.fromRGB(100, 240, 190),
 		NotificationWarning = Color3.fromRGB(255, 210, 120),
 		NotificationError = Color3.fromRGB(255, 110, 140),
-		OutlineAccent = Color3.fromRGB(255, 255, 255), -- pure white outlines
+		OutlineAccent = Color3.fromRGB(255, 255, 255), 
 		GradientSurfaceA = Color3.fromRGB(55, 75, 110),
 		GradientSurfaceB = Color3.fromRGB(30, 42, 68),
 		GradientPanelA = Color3.fromRGB(40, 55, 85),
@@ -676,7 +671,6 @@ local function EnsureCorner(obj, radius)
 	return corner
 end
 
--- Animated UIGradient registry: slow rotation + subtle offset drift.
 local AnimatedGradients = {}
 local GradientAnimConn = nil
 local GradientAnimTime = 0
@@ -696,6 +690,13 @@ end
 
 local function RegisterGradient(gradient, kind, baseRotation)
 	if not gradient or not gradient:IsA("UIGradient") then return end
+	local existing = AnimatedGradients[gradient]
+	if existing then
+		existing.Kind = kind or existing.Kind or "Default"
+		existing.Base = tonumber(baseRotation) or existing.Base or (Theme.GradientRotation or 90)
+		existing.Speed = GRADIENT_ROTATE_SPEED[kind] or existing.Speed or GRADIENT_ROTATE_SPEED.Default
+		return
+	end
 	AnimatedGradients[gradient] = {
 		Kind = kind or "Default",
 		Base = tonumber(baseRotation) or (Theme.GradientRotation or 90),
@@ -710,9 +711,7 @@ local function RegisterGradient(gradient, kind, baseRotation)
 				if not grad or not grad.Parent then
 					table.insert(remove, grad)
 				else
-					local spin = (GradientAnimTime * meta.Speed + meta.Phase * 20) % 360
-					grad.Rotation = (meta.Base + spin) % 360
-					-- Soft horizontal shimmer via Offset
+					grad.Rotation = (grad.Rotation + meta.Speed * dt) % 360
 					local wave = math.sin(GradientAnimTime * 0.7 + meta.Phase) * 0.15
 					grad.Offset = Vector2.new(wave, math.cos(GradientAnimTime * 0.45 + meta.Phase) * 0.08)
 				end
@@ -763,7 +762,9 @@ local function SetThemeGradient(obj, kind)
 		ColorSequenceKeypoint.new(1, b),
 	})
 	local baseRot = Theme.GradientRotation or 90
-	gradient.Rotation = baseRot
+	if not AnimatedGradients[gradient] then
+		gradient.Rotation = baseRot
+	end
 	RegisterGradient(gradient, kind, baseRot)
 	return gradient
 end
@@ -803,7 +804,7 @@ local function SetTheme(t)
 end
 
 local function ApplyThemePreset(name)
-	if name == "Aurora" then name = "Cyan" end -- migrate old name
+	if name == "Aurora" then name = "Cyan" end 
 	local preset = ThemePresets[name]
 	if not preset then
 		warn("[VeyraUI] Unknown theme preset:", tostring(name))
@@ -1409,7 +1410,6 @@ function TweenEngine.CancelOnObject(object)
 	end
 end
 
--- Shared UI interaction feedback — distinct hover vs click tones.
 local UI_HOVER_SOUND_ID = "rbxassetid://10066936758"
 local UI_CLICK_SOUND_ID = "rbxassetid://6042053626"
 local UI_TOGGLE_SOUND_ID = "rbxassetid://6895079853"
@@ -1452,7 +1452,6 @@ local function PlayUIToggleSound()
 	return PlayUISound(UI_TOGGLE_SOUND_ID, 0.32, 1.05)
 end
 
--- Back-compat alias
 local function PlayUIInteractionSound()
 	return PlayUIClickSound()
 end
@@ -1732,7 +1731,6 @@ function NotificationManager.new()
 	container.AnchorPoint = Vector2.new(1, 1)
 	container.Parent = gui
 
-
 	self.Gui = gui
 	self.Container = container
 	self.Draggable = true
@@ -1761,7 +1759,6 @@ function NotificationManager:Notify(config)
 
 	local cleanup = CreateCleanup()
 	local closed = false
-
 
 	local bg = Theme.NotificationBackground or Theme.Background
 	local bd = Theme.NotificationBorder or Theme.Border
@@ -1792,7 +1789,6 @@ function NotificationManager:Notify(config)
 			end)
 		end
 	end
-
 
 	local function shade(c, mul)
 		return Color3.new(
@@ -1825,7 +1821,6 @@ function NotificationManager:Notify(config)
 	header.ZIndex = 2
 	header.Parent = frame
 
-
 	local contentOffset = 14
 	if imageId and tostring(imageId) ~= "" then
 		local icon = Instance.new("ImageLabel")
@@ -1853,7 +1848,6 @@ function NotificationManager:Notify(config)
 	title.Text = config.Title or "Notification"
 	title.ZIndex = 4
 	title.Parent = header
-
 
 	local body = Instance.new("Frame")
 	body.Name = "Body"
@@ -1894,21 +1888,19 @@ function NotificationManager:Notify(config)
 	desc.LayoutOrder = 2
 	desc.Parent = body
 
-
 	local accent = Instance.new("Frame")
 	accent.Name = "Accent"
 	accent.BackgroundColor3 = barColor
 	accent.BorderSizePixel = 0
-	-- Shortened end-caps: inset top/bottom so accent does not run full height
-	accent.Size = UDim2.new(0, 3, 1, -12)
-	accent.Position = UDim2.new(0, 0, 0, 6)
+	
+	accent.Size = UDim2.new(0, 3, 1, 0)
+	accent.Position = UDim2.new(0, 0, 0, 0)
 	accent.ZIndex = 5
 	accent.Parent = frame
 
 	local accentCorner = Instance.new("UICorner")
 	accentCorner.CornerRadius = UDim.new(0, 2)
 	accentCorner.Parent = accent
-
 
 	local barBg = Instance.new("Frame")
 	barBg.Name = "ProgressBG"
@@ -1937,7 +1929,6 @@ function NotificationManager:Notify(config)
 	end
 
 	cleanup:AddInstance(frame)
-
 
 	if audioId and tostring(audioId) ~= "" then
 		local sound = Instance.new("Sound")
@@ -2061,7 +2052,6 @@ function NotificationManager:Notify(config)
 	notif.Manager = self
 	table.insert(self.Notifications, 1, notif)
 
-
 	local maxN = self.MaxNotifications or MAX_NOTIFICATIONS
 	while #self.Notifications > maxN do
 		local oldest = self.Notifications[#self.Notifications]
@@ -2089,7 +2079,6 @@ function NotificationManager:Notify(config)
 end
 
 function NotificationManager:GetPositionForIndex(index)
-
 
 	local y = 0
 	for i = 1, index - 1 do
@@ -2363,7 +2352,6 @@ local function CreateButton(tab, config)
 
 	cleanup:AddConnection(frame.Activated:Connect(function()
 		if not enabled then return end
-
 
 		local code = config.Script or config.Code
 		if type(code) == "string" and #code > 0 then
@@ -2927,7 +2915,6 @@ local function CreateDropdown(tab, config)
 	stroke.Transparency = 0.3
 	stroke.Parent = frame
 
-
 	local header = Instance.new("Frame")
 	header.Name = "Header"
 	header.BackgroundTransparency = 1
@@ -2957,7 +2944,6 @@ local function CreateDropdown(tab, config)
 	arrow.Text = "▼"
 	arrow.Parent = header
 
-
 	local list = Instance.new("Frame")
 	list.Name = "List"
 	list.BackgroundColor3 = Theme.Secondary
@@ -2981,8 +2967,8 @@ local function CreateDropdown(tab, config)
 	ll.Padding = UDim.new(0, 0)
 	ll.Parent = list
 
-	-- Full height for every option — no inner ScrollingFrame.
-	-- Parent tab ScrollingFrame grows/scrolls so mobile can reach the bottom.
+	
+	
 	local function getListHeight()
 		return math.max(#options, 1) * optionH
 	end
@@ -3004,7 +2990,7 @@ local function CreateDropdown(tab, config)
 		scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
 		scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 		if not scrollIntoView then return end
-		-- After layout, scroll so the expanded dropdown bottom is visible (mobile-friendly).
+		
 		task.defer(function()
 			if destroyed or not open or not frame.Parent then return end
 			local absY = frame.AbsolutePosition.Y
@@ -3071,7 +3057,6 @@ local function CreateDropdown(tab, config)
 		open = true
 		local height = getListHeight()
 		local totalH = closedHeight + height
-
 
 		frame.AnchorPoint = Vector2.new(0, 0)
 		frame.ClipsDescendants = true
@@ -3666,7 +3651,7 @@ local function CreateColorPicker(tab, config)
 	previewStroke.Transparency = 0.3
 	previewStroke.Parent = preview
 
-	-- Dropdown panel
+	
 	local panel = Instance.new("Frame")
 	panel.Name = "Panel"
 	panel.BackgroundColor3 = Theme.Secondary
@@ -3692,7 +3677,7 @@ local function CreateColorPicker(tab, config)
 	panelPad.PaddingRight = UDim.new(0, 12)
 	panelPad.Parent = panel
 
-	-- SV square
+	
 	local svSize = 120
 	local sv = Instance.new("Frame")
 	sv.Name = "SV"
@@ -3758,7 +3743,7 @@ local function CreateColorPicker(tab, config)
 	svCursorStroke.Thickness = 1.5
 	svCursorStroke.Parent = svCursor
 
-	-- Hue bar
+	
 	local hueBar = Instance.new("Frame")
 	hueBar.Name = "Hue"
 	hueBar.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -3802,7 +3787,7 @@ local function CreateColorPicker(tab, config)
 	hueCursorStroke.Thickness = 1
 	hueCursorStroke.Parent = hueCursor
 
-	-- Hex label
+	
 	local hexLabel = Instance.new("TextLabel")
 	hexLabel.BackgroundTransparency = 1
 	hexLabel.Size = UDim2.new(0, 80, 0, 18)
@@ -3811,7 +3796,12 @@ local function CreateColorPicker(tab, config)
 	hexLabel.TextSize = 12
 	hexLabel.TextColor3 = Theme.SecondaryText
 	hexLabel.TextXAlignment = Enum.TextXAlignment.Left
-	hexLabel.Text = string.format("#%02X%02X%02X", color.R * 255, color.G * 255, color.B * 255)
+	hexLabel.Text = string.format(
+		"#%02X%02X%02X",
+		math.clamp(math.floor(color.R * 255 + 0.5), 0, 255),
+		math.clamp(math.floor(color.G * 255 + 0.5), 0, 255),
+		math.clamp(math.floor(color.B * 255 + 0.5), 0, 255)
+	)
 	hexLabel.ZIndex = 6
 	hexLabel.Parent = panel
 
@@ -3840,7 +3830,10 @@ local function CreateColorPicker(tab, config)
 		preview.BackgroundColor3 = color
 		bigPreview.BackgroundColor3 = color
 		sv.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
-		hexLabel.Text = string.format("#%02X%02X%02X", math.floor(color.R * 255 + 0.5), math.floor(color.G * 255 + 0.5), math.floor(color.B * 255 + 0.5))
+		local r = math.clamp(math.floor(color.R * 255 + 0.5), 0, 255)
+		local g = math.clamp(math.floor(color.G * 255 + 0.5), 0, 255)
+		local b = math.clamp(math.floor(color.B * 255 + 0.5), 0, 255)
+		hexLabel.Text = string.format("#%02X%02X%02X", r, g, b)
 		svCursor.Position = UDim2.new(s, 0, 1 - v, 0)
 		hueCursor.Position = UDim2.new(0, -2, h, -2)
 		if fire then
@@ -3868,10 +3861,12 @@ local function CreateColorPicker(tab, config)
 		if absSize.Y < 1 then return end
 		local relY = math.clamp((inputPos.Y - absPos.Y) / absSize.Y, 0, 1)
 		h = relY
+		if s <= 0.0001 then s = 1 end
+		if v <= 0.0001 then v = 1 end
 		applyColor(true)
 	end
 
-	-- Input handling (PC + mobile)
+	
 	local function isPrimary(input)
 		return input.UserInputType == Enum.UserInputType.MouseButton1
 			or input.UserInputType == Enum.UserInputType.Touch
@@ -3917,7 +3912,7 @@ local function CreateColorPicker(tab, config)
 	local function setOpen(state)
 		open = state
 		if open then
-			-- close other dropdowns/colorpickers in tab
+			
 			if tab and tab.Components then
 				for _, c in ipairs(tab.Components) do
 					if c ~= cp and c.Close then pcall(function() c:Close() end) end
@@ -4033,10 +4028,6 @@ local function CreateTab(window, config)
 	layout.Padding = UDim.new(0, 8)
 	layout.Parent = content
 
-
-
-
-
 	local canvasRefreshPending = false
 	local function updateCanvasSize()
 		if content.Parent == nil or canvasRefreshPending then return end
@@ -4054,10 +4045,9 @@ local function CreateTab(window, config)
 	cleanup:AddConnection(content.DescendantRemoving:Connect(updateCanvasSize))
 	task.defer(updateCanvasSize)
 
-
 	local tabBtn = Instance.new("TextButton")
 	tabBtn.Name = "TabBtn_" .. name
-	tabBtn.BackgroundTransparency = 1 -- keep button itself transparent so text stays clean
+	tabBtn.BackgroundTransparency = 1 
 	tabBtn.BorderSizePixel = 0
 	tabBtn.Size = UDim2.new(1, 0, 0, 30)
 	tabBtn.Position = UDim2.new(0, 0, 0, 0)
@@ -4074,7 +4064,7 @@ local function CreateTab(window, config)
 	tabBtn.ZIndex = 2
 	tabBtn.Parent = window.TabBar
 
-	-- Full-size gradient background (stays inside tab bounds so nothing gets clipped)
+	
 	local tabBg = Instance.new("Frame")
 	tabBg.Name = "TabBg"
 	tabBg.BackgroundColor3 = Theme.Secondary
@@ -4094,7 +4084,6 @@ local function CreateTab(window, config)
 	btnPad.PaddingLeft = UDim.new(0, 0)
 	btnPad.PaddingRight = UDim.new(0, 0)
 	btnPad.Parent = tabBtn
-
 
 	cleanup:AddInstance(content)
 	cleanup:AddInstance(tabBtn)
@@ -4122,13 +4111,13 @@ local function CreateTab(window, config)
 			content.Visible = true
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.Text
-			-- Full-sidebar-width active gradient.
+			
 			tabBg.Size = UDim2.new(1, 0, 1, 0)
 			tabBg.Position = UDim2.new(0, 0, 0, 0)
 			tabBg.BackgroundTransparency = 0.2
 			tabBg.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 			local g = SetThemeGradient(tabBg, "Accent")
-			if g then g.Rotation = 0 end -- left → right
+			if g then g.Rotation = 0 end 
 		else
 			content.Visible = false
 
@@ -4156,7 +4145,7 @@ local function CreateTab(window, config)
 			tabBg.BackgroundTransparency = 0.2
 			tabBg.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 			local g = SetThemeGradient(tabBg, "Accent")
-			if g then g.Rotation = 0 end -- left → right
+			if g then g.Rotation = 0 end 
 		else
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.SecondaryText
@@ -4203,7 +4192,6 @@ local function SetupSettingsTab(window)
 
 	local settingsTab = window:CreateTab({ Name = "Settings" })
 	settingsTab:CreateSection({ Name = "Profile" })
-
 
 	do
 		local parent = GetParentForComponent(settingsTab)
@@ -4301,7 +4289,6 @@ local function SetupSettingsTab(window)
 			end
 		end)
 
-
 		local unhook = OnThemeChange(function()
 			if not card or not card.Parent then return end
 			card.BackgroundColor3 = Theme.Tertiary
@@ -4324,8 +4311,7 @@ local function SetupSettingsTab(window)
 
 	settingsTab:CreateSection({ Name = "Appearance" })
 
-
-	-- Prefer a stable order for built-ins, then append any other ThemePresets keys.
+	
 	local baseThemeNames = { "Dark", "Darker", "Light", "Neon", "Cyan", "Glass", "Crimson", "Aqua", "Amethyst", "Rose" }
 	for name in pairs(ThemePresets) do
 		if type(name) == "string" and not table.find(baseThemeNames, name) then
@@ -4522,7 +4508,6 @@ local function SetupSettingsTab(window)
 
 	settingsTab:CreateSection({ Name = "Controls" })
 
-
 	window._UIVisible = Settings.UIVisible ~= false
 	if window.Gui then
 		window.Gui.Enabled = window._UIVisible
@@ -4551,11 +4536,9 @@ local function SetupSettingsTab(window)
 		Mode = "Toggle",
 		Callback = function()
 
-
 			window:ToggleUIVisible()
 		end,
 	})
-
 
 	do
 		local oldSet = kb.Set
@@ -4565,8 +4548,6 @@ local function SetupSettingsTab(window)
 			Settings.ToggleUIKey = name
 		end
 	end
-
-
 
 	local uiKey = defaultKey
 	local function refreshUiKey()
@@ -4583,17 +4564,12 @@ local function SetupSettingsTab(window)
 		refreshUiKey()
 		if input.KeyCode == uiKey then
 
-
 			if window.Gui and not window.Gui.Enabled then
 				window:SetUIVisible(true)
 			end
 		end
 	end)
 	window.Cleanup:AddConnection(uiToggleConn)
-
-
-
-
 
 	settingsTab:CreateButton({
 		Name = "Save Settings",
@@ -4707,7 +4683,6 @@ local function SetupConfigProfiles(window, settingsTab)
 	})
 end
 
-
 	pcall(function() SetupConfigProfiles(window, settingsTab) end)
 	return settingsTab
 end
@@ -4746,7 +4721,7 @@ local function CreateWindow(library, config)
 	root.Position = UDim2.new(0.5, -width / 2, 0.5, -height / 2)
 	root.ClipsDescendants = true
 	root.Parent = gui
-
+	EnsureCorner(root, Settings.CornerRadius or Theme.CornerRadius or 2)
 
 	local uiScale = Instance.new("UIScale")
 	uiScale.Name = "VeyraScale"
@@ -4762,7 +4737,7 @@ local function CreateWindow(library, config)
 	main.ClipsDescendants = true
 	main.Parent = root
 
-	-- Invisible holder frame so the background image always has a stable parent layer
+	
 	local bgHolder = Instance.new("Frame")
 	bgHolder.Name = "BackgroundHolder"
 	bgHolder.BackgroundTransparency = 1
@@ -4797,18 +4772,16 @@ local function CreateWindow(library, config)
 	mainStroke.Transparency = 0.35
 	mainStroke.Parent = main
 
-
 	local outline = Instance.new("Frame")
 	outline.Name = "OutlineAccent"
 	outline.BackgroundColor3 = Theme.OutlineAccent or Color3.fromRGB(255, 255, 255)
 	outline.BackgroundTransparency = 0.05
 	outline.BorderSizePixel = 0
-	-- Shortened: inset from top/bottom so the accent does not run full height
-	outline.Size = UDim2.new(0, 2, 1, -24)
-	outline.Position = UDim2.new(0, 0, 0, 12)
+	
+	outline.Size = UDim2.new(0, 2, 1, 0)
+	outline.Position = UDim2.new(0, 0, 0, 0)
 	outline.ZIndex = 5
 	outline.Parent = main
-
 
 	local titleBar = Instance.new("Frame")
 	titleBar.Name = "TitleBar"
@@ -4819,8 +4792,6 @@ local function CreateWindow(library, config)
 	titleBar.ZIndex = 3
 	titleBar.Parent = main
 	SetThemeGradient(titleBar, "Surface")
-
-
 
 	local titleFix = Instance.new("Frame")
 	titleFix.BackgroundColor3 = Theme.Secondary
@@ -4878,7 +4849,6 @@ local function CreateWindow(library, config)
 	minBtn.Active = true
 	minBtn.Parent = titleBar
 
-
 	local body = Instance.new("Frame")
 	body.Name = "Body"
 	body.BackgroundTransparency = 1
@@ -4888,7 +4858,6 @@ local function CreateWindow(library, config)
 	body.ZIndex = 2
 	body.Parent = main
 
-
 	local SIDEBAR_W = SIDEBAR_W_DEFAULT
 	if isTouch then
 		if width < 400 then
@@ -4897,7 +4866,6 @@ local function CreateWindow(library, config)
 			SIDEBAR_W = 120
 		end
 	end
-
 
 	local sidebar = Instance.new("Frame")
 	sidebar.Name = "Sidebar"
@@ -4930,7 +4898,6 @@ local function CreateWindow(library, config)
 	searchPad.PaddingRight = UDim.new(0, 8)
 	searchPad.Parent = searchBox
 
-
 	local tabBar = Instance.new("ScrollingFrame")
 	tabBar.Name = "TabBar"
 	tabBar.BackgroundTransparency = 1
@@ -4957,7 +4924,6 @@ local function CreateWindow(library, config)
 	tabPad.PaddingRight = UDim.new(0, 0)
 	tabPad.PaddingBottom = UDim.new(0, 6)
 	tabPad.Parent = tabBar
-
 
 	local contentContainer = Instance.new("Frame")
 	contentContainer.Name = "ContentContainer"
@@ -4991,12 +4957,11 @@ local function CreateWindow(library, config)
 		_RestoredHeight = height,
 	}
 
-
 	local function filterTabs()
 		local raw = searchBox.Text or ""
 		local q = string.lower((string.gsub(raw, "^%s+", "")))
 		q = (string.gsub(q, "%s+$", ""))
-		-- Iterate actual TabBar children so every tab (Settings + user-created) is filtered reliably
+		
 		for _, child in ipairs(tabBar:GetChildren()) do
 			if child:IsA("TextButton") and string.find(child.Name, "TabBtn_", 1, true) then
 				local name = string.lower(tostring(child.Text or ""))
@@ -5004,7 +4969,7 @@ local function CreateWindow(library, config)
 				child.Visible = show
 			end
 		end
-		-- Keep internal tabs table in sync for any other logic
+		
 		for _, tab in ipairs(tabs) do
 			if tab.Button and tab.Button.Parent then
 				local name = string.lower(tostring(tab.Name or tab.Button.Text or ""))
@@ -5035,7 +5000,6 @@ local function CreateWindow(library, config)
 		window:ToggleMinimize()
 	end))
 
-
 	local function makeResizeHandle(name, size, pos, mode)
 		local btn = Instance.new("TextButton")
 		btn.Name = name
@@ -5064,7 +5028,7 @@ local function CreateWindow(library, config)
 				local newW = startSize.X
 				local newH = startSize.Y
 				if mode == "right" or mode == "corner" then
-					-- Min only — no upper size cap
+					
 					newW = math.max(280, startSize.X + dx)
 				end
 				if mode == "bottom" or mode == "corner" then
@@ -5088,7 +5052,6 @@ local function CreateWindow(library, config)
 		return btn
 	end
 
-
 	local resizeGrip = makeResizeHandle("ResizeGrip", UDim2.new(0, 22, 0, 22), UDim2.new(1, -22, 1, -22), "corner")
 
 	local gripVisual = Instance.new("Frame")
@@ -5103,7 +5066,6 @@ local function CreateWindow(library, config)
 	local grip2 = gripVisual:Clone()
 	grip2.Position = UDim2.new(1, -8, 1, -6)
 	grip2.Parent = main
-
 
 	window._RestoredWidth = width
 	window._RestoredHeight = height
@@ -5122,7 +5084,7 @@ local function CreateWindow(library, config)
 		Duration = 0.32,
 		Easing = "QuadOut",
 		OnComplete = function()
-			-- Re-apply full theme (Glass transparency, image layer, etc.) after open anim
+			
 			if not cleanup:IsDestroyed() and window and window.RefreshTheme then
 				window:RefreshTheme()
 			end
@@ -5130,7 +5092,6 @@ local function CreateWindow(library, config)
 	})
 
 	cleanup:AddInstance(gui)
-
 
 	local function refitToViewport()
 		if minimized or cleanup:IsDestroyed() then return end
@@ -5142,7 +5103,7 @@ local function CreateWindow(library, config)
 		local fitY = (vp.Y - margin) / math.max(height, 1)
 		local scale = math.min(1, fitX, fitY)
 		uiScale.Scale = math.clamp(scale, 0.5, 1)
-		-- Keep user size; only enforce minimums (no upper cap)
+		
 		local fitW = math.max(280, math.floor(tonumber(window.Width) or width))
 		local fitH = math.max(180, math.floor(tonumber(window.Height) or height))
 		root.Size = UDim2.fromOffset(fitW, fitH)
@@ -5189,6 +5150,8 @@ local function CreateWindow(library, config)
 	local function refreshWindowTheme()
 		if cleanup:IsDestroyed() then return end
 		Theme.CornerRadius = math.max(0, math.floor(tonumber(Settings.CornerRadius or Theme.CornerRadius or 2) or 2))
+		EnsureCorner(root, Theme.CornerRadius)
+		EnsureCorner(main, Theme.CornerRadius)
 		titleLabel.TextColor3 = Theme.Text
 		titleLabel.Font = Theme.FontBold
 		subtitle.TextColor3 = Theme.SecondaryText
@@ -5208,8 +5171,8 @@ local function CreateWindow(library, config)
 		pcall(function() TweenEngine.CancelOnObject(main) end)
 
 		if useImg then
-			-- Full image cover: strip gradients, make chrome transparent so image
-			-- shows through top bar, sidebar, and background.
+			
+			
 			clearVeyraGradients(main)
 			main.BackgroundColor3 = Theme.Background
 			main.BackgroundTransparency = 1
@@ -5414,9 +5377,9 @@ local function CreateWindow(library, config)
 	end
 
 	function window:ToggleMinimize()
-		-- Never derive restore size from root.Size while an animation is running.
-		-- root.Size may be the temporary title-bar height, which caused spam-minimize
-		-- to progressively corrupt the saved window height.
+		
+		
+		
 		local grip = main:FindFirstChild("ResizeGrip")
 		local gripR = main:FindFirstChild("ResizeRight")
 		local gripB = main:FindFirstChild("ResizeBottom")
@@ -5440,8 +5403,8 @@ local function CreateWindow(library, config)
 			if gripR then gripR.Visible = false end
 			if gripB then gripB.Visible = false end
 
-			-- Keep the window centered during minimize. No positional tween means no
-			-- harsh downward "sinking" as the height collapses.
+			
+			
 			TweenEngine.Play(root, {
 				Size = UDim2.fromOffset(window._RestoredWidth, TITLE_H),
 			}, {
@@ -5479,7 +5442,7 @@ local function CreateWindow(library, config)
 		TweenEngine.CancelOnObject(root)
 		TweenEngine.CancelOnObject(main)
 
-		-- Let the contents disappear first, then break the window chrome apart.
+		
 		root.ClipsDescendants = false
 		main.ClipsDescendants = false
 
@@ -5508,7 +5471,7 @@ local function CreateWindow(library, config)
 			fadeContent(obj)
 		end
 
-		-- Keep the background visually present while its pieces are prepared.
+		
 		task.delay(0.75, function()
 			if cleanup:IsDestroyed() then return end
 
@@ -5573,7 +5536,7 @@ local function CreateWindow(library, config)
 				end
 			end
 
-			-- ~5 seconds from the first visible disassembly to the final vanish.
+			
 			for _, data in ipairs(shards) do
 				local shard = data.Object
 				local startPos = shard.Position
@@ -5639,7 +5602,6 @@ local function CreateWindow(library, config)
 			end
 		end)
 	end
-
 
 	pcall(function()
 		SetupSettingsTab(window)
@@ -5866,7 +5828,7 @@ local function CreateKeySystem(config)
 	titleBar.Size = UDim2.new(1, 0, 0, 36)
 	titleBar.ZIndex = 3
 	titleBar.Parent = main
-	SetThemeGradient(titleBar, "Surface") -- Added gradient to title bar
+	SetThemeGradient(titleBar, "Surface") 
 	titleBar.BackgroundTransparency = 0
 
 	local titleLabel = Instance.new("TextLabel")
@@ -6024,7 +5986,7 @@ local function CreateKeySystem(config)
 	local function refreshTheme()
 		if closed or cleanup:IsDestroyed() then return end
 		SetThemeGradient(main, "Background")
-		SetThemeGradient(titleBar, "Surface") -- reapply gradient on theme change
+		SetThemeGradient(titleBar, "Surface") 
 		mainStroke.Color = Theme.OutlineAccent or Theme.Border
 		mainStroke.Transparency = 0.35
 		titleLabel.TextColor3 = Theme.Text
@@ -6069,7 +6031,6 @@ local function CreateKeySystem(config)
 		end
 	end
 
-
 	local function playSplitAndOpen()
 		if closed or splitting then return end
 		splitting = true
@@ -6080,7 +6041,6 @@ local function CreateKeySystem(config)
 		getBtn.Active = false
 		enterBtn.Active = false
 		closeBtn.Active = false
-
 
 		if onSuccess then
 			task.spawn(onSuccess)
@@ -6293,8 +6253,6 @@ local function CreateKeySystem(config)
 
 	return api
 end
-
-
 
 IconAssets = {
 	assets = {
@@ -7119,8 +7077,6 @@ IconAssets = {
 	},
 }
 
-
-
 function GetIcon(name)
 	if type(name) ~= "string" or name == "" then return nil end
 	local key = name
@@ -7134,9 +7090,6 @@ function GetIcon(name)
 	return nil
 end
 
-
-
--- Glass depth-of-field backdrop (adapted surface effect)
 local Lighting = game:GetService("Lighting")
 
 local function _Mk(className, props)
@@ -7307,8 +7260,6 @@ function SurfaceBlur:Destroy()
 	if blur then pcall(function() blur:Destroy() end) end
 end
 
-
-
 local CONFIG_ROOT = "VeyraConfigs"
 
 local function EnsureConfigRoot()
@@ -7346,7 +7297,7 @@ ListConfigs = function()
 	return configs
 end
 
-ConfigRegistry = ConfigRegistry or {} -- flag -> { get = fn, set = fn, kind = string }
+ConfigRegistry = ConfigRegistry or {} 
 AutoSaveEnabled = false
 CurrentConfigName = "default"
 
@@ -7466,9 +7417,6 @@ local function MaybeAutoSave()
 		pcall(SaveNamedConfig, CurrentConfigName)
 	end
 end
-
-
-
 
 local function isMotor(value)
 	local motorType = tostring(value):match("^Motor%((.+)%)$")
@@ -7671,7 +7619,6 @@ function Spring:step(state, dt)
 		velocity = v1,
 	}
 end
-
 
 local noop = function() end
 
@@ -7902,8 +7849,6 @@ Flipper = {
 	isMotor = isMotor,
 }
 
-
-
 function AttachFloatingToggle(screenGui, onToggle)
 	local btn = Instance.new("ImageButton")
 	btn.Name = "VeyraMobileToggle"
@@ -7958,7 +7903,6 @@ function AttachFloatingToggle(screenGui, onToggle)
 	if touch then btn.Visible = true end
 	return btn
 end
-
 
 local Library = {}
 Library.__index = Library
@@ -8105,7 +8049,6 @@ function Library:Init(options)
 			})
 		end)
 	end
-
 
 	if type(options.KeySystem) == "table" then
 		task.spawn(function()
@@ -8293,8 +8236,6 @@ function Library:Notify(a, b, c)
 	})
 end
 
-
--- Unified surface / config / icon API
 function Library:GetIcon(name)
 	return GetIcon(name)
 end
@@ -8385,26 +8326,19 @@ Library.Version = "2.0.0-unified"
 Library.Flipper = Flipper
 Library.AttachFloatingToggle = AttachFloatingToggle
 
-
-
-
---[[ --------------------------------------------------------------------------
-     Extended control kit (merged builders)
-     -------------------------------------------------------------------------- ]]
-
 local ExtendedKit = {}
 do
-	-- Isolated animation utilities (spring / linear motors)
+	
 	local okFlip = pcall(function()
 		ExtendedKit.Flipper = Flipper
 	end)
 
-	-- Icon resolution
+	
 	function ExtendedKit.Icon(name)
 		return GetIcon(name)
 	end
 
-	-- Profile helpers exposed for script authors
+	
 	ExtendedKit.ListProfiles = ListConfigs
 	ExtendedKit.SaveProfile = SaveNamedConfig
 	ExtendedKit.LoadProfile = LoadNamedConfig
@@ -8412,9 +8346,6 @@ do
 end
 
 Library.ExtendedKit = ExtendedKit
-
-
-
 
 local _MergedArchive = {
 	AcrylicBuilders = [=[function Library._CreateButton(tab, config)
@@ -13901,7 +13832,6 @@ end
 
 }
 
--- Optional: materialize archived builders in a sandboxed environment when requested.
 function Library:LoadExtendedBuilders()
 	local out = {}
 	if _MergedArchive.AcrylicBuilders then
