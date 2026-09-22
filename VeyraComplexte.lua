@@ -520,7 +520,7 @@ local ThemePresets = {
 		GradientBackgroundA = Color3.fromRGB(8, 8, 10),
 		GradientBackgroundB = Color3.fromRGB(18, 18, 24),
 		GradientRotation = 135,
-	},,
+	},
 
 	Darker = {
 		Background = Color3.fromRGB(18, 18, 20),
