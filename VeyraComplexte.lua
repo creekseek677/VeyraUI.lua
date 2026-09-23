@@ -2260,9 +2260,9 @@ local function CreateButton(tab, config)
 	corner.Parent = frame
 
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = Theme.Border
-	stroke.Thickness = 1
-	stroke.Transparency = 0.5
+	stroke.Color = GetOutlineColor()
+	stroke.Thickness = 1.25
+	stroke.Transparency = 0.25
 	stroke.Parent = frame
 
 	local title = Instance.new("TextLabel")
@@ -2304,16 +2304,15 @@ local function CreateButton(tab, config)
 	end
 
 	local function applyImageStyle()
+		stroke.Color = GetOutlineColor()
 		if IsImageThemeActive() then
 			frame.BackgroundTransparency = 0.82
-			stroke.Color = GetOutlineColor()
 			stroke.Thickness = 1.5
 			stroke.Transparency = 0.15
 		else
 			frame.BackgroundTransparency = enabled and 0.1 or 0.5
-			stroke.Color = Theme.Border
-			stroke.Thickness = 1
-			stroke.Transparency = 0.5
+			stroke.Thickness = 1.25
+			stroke.Transparency = 0.25
 		end
 	end
 	applyImageStyle()
@@ -2732,22 +2731,21 @@ local function CreateSlider(tab, config)
 	corner.Parent = frame
 
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = Theme.Border
-	stroke.Thickness = 1
-	stroke.Transparency = 0.5
+	stroke.Color = GetOutlineColor()
+	stroke.Thickness = 1.25
+	stroke.Transparency = 0.25
 	stroke.Parent = frame
 
 	local function applySliderImageStyle()
+		stroke.Color = GetOutlineColor()
 		if IsImageThemeActive() then
 			frame.BackgroundTransparency = 0.82
-			stroke.Color = GetOutlineColor()
 			stroke.Thickness = 1.5
 			stroke.Transparency = 0.15
 		else
 			frame.BackgroundTransparency = 0.15
-			stroke.Color = Theme.Border
-			stroke.Thickness = 1
-			stroke.Transparency = 0.5
+			stroke.Thickness = 1.25
+			stroke.Transparency = 0.25
 		end
 	end
 	applySliderImageStyle()
@@ -3027,9 +3025,9 @@ local function CreateDropdown(tab, config)
 	corner.Parent = frame
 
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = Theme.OutlineAccent or Theme.Border
+	stroke.Color = GetOutlineColor()
 	stroke.Thickness = 1.5
-	stroke.Transparency = 0.3
+	stroke.Transparency = 0.25
 	stroke.Parent = frame
 
 	local header = Instance.new("Frame")
@@ -3074,7 +3072,7 @@ local function CreateDropdown(tab, config)
 	list.Parent = frame
 
 	local ls = Instance.new("UIStroke")
-	ls.Color = Theme.OutlineAccent or Theme.Border
+	ls.Color = GetOutlineColor()
 	ls.Thickness = 1.5
 	ls.Transparency = 0.25
 	ls.Parent = list
@@ -3254,9 +3252,14 @@ local function CreateDropdown(tab, config)
 		btn.TextTransparency = 0
 		btn.Text = tostring(opt)
 		btn.TextXAlignment = Enum.TextXAlignment.Left
+		btn.TextYAlignment = Enum.TextYAlignment.Center
 		btn.AutoButtonColor = false
 		btn.Visible = true
 		btn.ZIndex = 4
+		local optPad = Instance.new("UIPadding")
+		optPad.PaddingLeft = UDim.new(0, 12)
+		optPad.PaddingRight = UDim.new(0, 12)
+		optPad.Parent = btn
 		btn.LayoutOrder = i
 		btn.Parent = list
 
@@ -4166,22 +4169,22 @@ local function CreateTab(window, config)
 	tabBtn.Name = "TabBtn_" .. name
 	tabBtn.BackgroundTransparency = 1 
 	tabBtn.BorderSizePixel = 0
-	tabBtn.Size = UDim2.new(1, 0, 0, 30)
-	tabBtn.Position = UDim2.new(0, 0, 0, 0)
+	tabBtn.Size = UDim2.new(1, -12, 0, 32)
+	tabBtn.Position = UDim2.new(0, 6, 0, 0)
 	tabBtn.AnchorPoint = Vector2.new(0, 0)
 	tabBtn.Font = Theme.Font
 	tabBtn.TextSize = 12
 	tabBtn.TextColor3 = Theme.SecondaryText
 	tabBtn.Text = name
 	tabBtn.TextXAlignment = Enum.TextXAlignment.Center
+	tabBtn.TextYAlignment = Enum.TextYAlignment.Center
 	tabBtn.TextTruncate = Enum.TextTruncate.AtEnd
 	tabBtn.AutoButtonColor = false
 	tabBtn.Active = true
-	tabBtn.ClipsDescendants = false
+	tabBtn.ClipsDescendants = true
 	tabBtn.ZIndex = 2
 	tabBtn.Parent = window.TabBar
 
-	
 	local tabBg = Instance.new("Frame")
 	tabBg.Name = "TabBg"
 	tabBg.BackgroundColor3 = Theme.Secondary
@@ -4197,9 +4200,16 @@ local function CreateTab(window, config)
 	tabBgCorner.CornerRadius = UDim.new(0, 6)
 	tabBgCorner.Parent = tabBg
 
-		local btnPad = Instance.new("UIPadding")
-	btnPad.PaddingLeft = UDim.new(0, 0)
-	btnPad.PaddingRight = UDim.new(0, 0)
+	local tabStroke = Instance.new("UIStroke")
+	tabStroke.Name = "TabStroke"
+	tabStroke.Color = GetOutlineColor()
+	tabStroke.Thickness = 1
+	tabStroke.Transparency = 1
+	tabStroke.Parent = tabBg
+
+	local btnPad = Instance.new("UIPadding")
+	btnPad.PaddingLeft = UDim.new(0, 6)
+	btnPad.PaddingRight = UDim.new(0, 6)
 	btnPad.Parent = tabBtn
 
 	cleanup:AddInstance(content)
@@ -4224,20 +4234,23 @@ local function CreateTab(window, config)
 	end))
 
 	function tab:SetActive(active)
+		local tabStroke = tabBg:FindFirstChild("TabStroke")
 		if active then
 			content.Visible = true
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.Text
-			
 			tabBg.Size = UDim2.new(1, 0, 1, 0)
 			tabBg.Position = UDim2.new(0, 0, 0, 0)
-			tabBg.BackgroundTransparency = 0.2
-			tabBg.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-			local g = SetThemeGradient(tabBg, "Accent")
-			if g then g.Rotation = 0 end 
+			tabBg.BackgroundTransparency = 0.35
+			tabBg.BackgroundColor3 = Theme.Hover
+			local grad = tabBg:FindFirstChild("VeyraGradient")
+			if grad then grad:Destroy() end
+			if tabStroke then
+				tabStroke.Color = GetOutlineColor()
+				tabStroke.Transparency = 0.2
+			end
 		else
 			content.Visible = false
-
 			for _, c in ipairs(tab.Components) do
 				if c.Close then pcall(function() c:Close() end) end
 			end
@@ -4247,6 +4260,9 @@ local function CreateTab(window, config)
 			local grad = tabBg:FindFirstChild("VeyraGradient")
 			if grad then grad:Destroy() end
 			tabBg.BackgroundColor3 = Theme.Secondary
+			if tabStroke then
+				tabStroke.Transparency = 1
+			end
 		end
 	end
 
@@ -4254,15 +4270,20 @@ local function CreateTab(window, config)
 		if cleanup:IsDestroyed() then return end
 		content.ScrollBarImageColor3 = Theme.Border
 		tabBtn.Font = Theme.Font
+		local tabStroke = tabBg:FindFirstChild("TabStroke")
 		if content.Visible then
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.Text
 			tabBg.Size = UDim2.new(1, 0, 1, 0)
 			tabBg.Position = UDim2.new(0, 0, 0, 0)
-			tabBg.BackgroundTransparency = 0.2
-			tabBg.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-			local g = SetThemeGradient(tabBg, "Accent")
-			if g then g.Rotation = 0 end 
+			tabBg.BackgroundTransparency = 0.35
+			tabBg.BackgroundColor3 = Theme.Hover
+			local grad = tabBg:FindFirstChild("VeyraGradient")
+			if grad then grad:Destroy() end
+			if tabStroke then
+				tabStroke.Color = GetOutlineColor()
+				tabStroke.Transparency = 0.2
+			end
 		else
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.SecondaryText
@@ -4270,6 +4291,9 @@ local function CreateTab(window, config)
 			local grad = tabBg:FindFirstChild("VeyraGradient")
 			if grad then grad:Destroy() end
 			tabBg.BackgroundColor3 = Theme.Secondary
+			if tabStroke then
+				tabStroke.Transparency = 1
+			end
 		end
 		for _, s in ipairs(tab.Sections) do
 			if s.RefreshTheme then s:RefreshTheme() end
@@ -5045,10 +5069,10 @@ local function CreateWindow(library, config)
 	tabLayout.Parent = tabBar
 
 	local tabPad = Instance.new("UIPadding")
-	tabPad.PaddingTop = UDim.new(0, 2)
+	tabPad.PaddingTop = UDim.new(0, 4)
 	tabPad.PaddingLeft = UDim.new(0, 0)
 	tabPad.PaddingRight = UDim.new(0, 0)
-	tabPad.PaddingBottom = UDim.new(0, 6)
+	tabPad.PaddingBottom = UDim.new(0, 8)
 	tabPad.Parent = tabBar
 
 	local contentContainer = Instance.new("Frame")
@@ -7998,37 +8022,46 @@ function AttachFloatingToggle(screenGui, onToggle)
 	corner.CornerRadius = UDim.new(1, 0)
 	corner.Parent = btn
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(55, 55, 65)
-	stroke.Thickness = 1
+	stroke.Color = GetOutlineColor()
+	stroke.Thickness = 1.5
+	stroke.Transparency = 0.2
 	stroke.Parent = btn
 
 	local dragging = false
+	local moved = false
 	local dragStart, startPos
 	btn.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
 			dragging = true
+			moved = false
 			dragStart = input.Position
 			startPos = btn.Position
 		end
 	end)
 	btn.InputEnded:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-			if dragging then
-				local delta = input.Position - dragStart
-				if delta.Magnitude < 10 and onToggle then
-					task.spawn(onToggle)
-				end
+			if dragging and not moved and onToggle then
+				task.spawn(onToggle)
 			end
 			dragging = false
+			moved = false
 		end
 	end)
 	UserInputService.InputChanged:Connect(function(input)
 		if dragging and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
 			local delta = input.Position - dragStart
-			btn.Position = UDim2.new(
-				startPos.X.Scale, startPos.X.Offset + delta.X,
-				startPos.Y.Scale, startPos.Y.Offset + delta.Y
-			)
+			if delta.Magnitude > 8 then
+				moved = true
+				btn.Position = UDim2.new(
+					startPos.X.Scale, startPos.X.Offset + delta.X,
+					startPos.Y.Scale, startPos.Y.Offset + delta.Y
+				)
+			end
+		end
+	end)
+	btn.Activated:Connect(function()
+		if not moved and onToggle then
+			task.spawn(onToggle)
 		end
 	end)
 	local touch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
