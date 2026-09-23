@@ -64,7 +64,8 @@ local DefaultSettings = {
 	Theme = "Dark",
 	ToggleUIKey = "X",
 	UIVisible = true,
-	CornerRadius = 2,
+	CornerRadius = 6, -- fixed nice rounding (slider no longer controls this)
+	AccentHeight = 1, -- 0..1 fraction of window height for the left accent bar
 	UseBackgroundImage = false,
 	BackgroundImage = "",
 	BackgroundImageTransparency = 0.32,
@@ -144,7 +145,8 @@ local function ConfigSave()
 end
 
 pcall(ConfigLoad)
-Settings.CornerRadius = math.clamp(tonumber(Settings.CornerRadius) or 2, 0, 8)
+Settings.CornerRadius = math.clamp(tonumber(Settings.CornerRadius) or 6, 0, 12)
+Settings.AccentHeight = math.clamp(tonumber(Settings.AccentHeight) or 1, 0.05, 1)
 Settings.BackgroundImageTransparency = math.clamp(tonumber(Settings.BackgroundImageTransparency) or 0.32, 0, 1)
 if typeof(Settings.BackgroundImageTint) ~= "Color3" then
 	local t = Settings.BackgroundImageTint
@@ -311,7 +313,7 @@ Theme = {
 	Font = Enum.Font.GothamMedium,
 	FontBold = Enum.Font.GothamBold,
 	FontMono = Enum.Font.Code,
-	CornerRadius = 2,
+	CornerRadius = 6,
 	ElementHeight = 32,
 	AnimationSpeed = 0.35,
 	HoverSpeed = 0.15,
@@ -775,8 +777,11 @@ local function DecorateGuiTree(root)
 		if not obj:IsA("GuiObject") then return end
 		local n = string.lower(obj.Name or "")
 		if obj.BackgroundTransparency < 1 then
-			if n ~= "root" and n ~= "body" and n ~= "contentcontainer" and n ~= "tabbar" and n ~= "outlineaccent" and n ~= "dim" and n ~= "resizegrip" and n ~= "backgroundimage" then
-				EnsureCorner(obj, Settings.CornerRadius or Theme.CornerRadius or 2)
+			if n ~= "root" and n ~= "body" and n ~= "contentcontainer" and n ~= "tabbar"
+				and n ~= "outlineaccent" and n ~= "dim" and n ~= "resizegrip" and n ~= "backgroundimage"
+				and n ~= "search" and n ~= "tabbg" and n ~= "titlebar" and n ~= "titlefix"
+				and n ~= "sidebar" and n ~= "backgroundholder" then
+				EnsureCorner(obj, Settings.CornerRadius or Theme.CornerRadius or 6)
 			end
 		end
 	end
@@ -2146,233 +2151,80 @@ end
 local function CreateSection(tab, config)
 	config = config or {}
 	local cleanup = CreateCleanup()
-	local collapsed = config.Collapsed == true
-	local animating = false
-
-	local CHEVRON_DOWN = (GetIcon and GetIcon("chevron-down")) or "rbxassetid://10709790948"
-	local CHEVRON_RIGHT = (GetIcon and GetIcon("chevron-right")) or "rbxassetid://10709791437"
 
 	local container = Instance.new("Frame")
 	container.Name = "Section_" .. (config.Name or "Untitled")
 	container.BackgroundTransparency = 1
 	container.Size = UDim2.new(1, 0, 0, 0)
 	container.AutomaticSize = Enum.AutomaticSize.Y
-	container.ClipsDescendants = false
 	container.Parent = tab.Content
 
 	local layout = Instance.new("UIListLayout")
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Padding = UDim.new(0, 6)
+	layout.Padding = UDim.new(0, 8)
 	layout.Parent = container
-
-	-- Header (clickable) with title left + chevron right
-	local header = Instance.new("TextButton")
-	header.Name = "Header"
-	header.BackgroundColor3 = Theme.Secondary
-	header.BackgroundTransparency = 0.55
-	header.BorderSizePixel = 0
-	header.Size = UDim2.new(1, 0, 0, 28)
-	header.AutoButtonColor = false
-	header.Text = ""
-	header.LayoutOrder = 0
-	header.ZIndex = 2
-	header.Parent = container
-
-	local headerCorner = Instance.new("UICorner")
-	headerCorner.Name = "VeyraFixedCorner"
-	headerCorner.CornerRadius = UDim.new(0, 6)
-	headerCorner.Parent = header
 
 	local title = Instance.new("TextLabel")
 	title.BackgroundTransparency = 1
-	title.Size = UDim2.new(1, -36, 1, 0)
-	title.Position = UDim2.new(0, 10, 0, 0)
+	title.Size = UDim2.new(1, 0, 0, 20)
 	title.Font = Theme.FontBold
 	title.TextSize = 13
 	title.TextColor3 = Theme.Text
 	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.Text = config.Name or "Section"
-	title.ZIndex = 3
-	title.Parent = header
+	title.LayoutOrder = 0
+	title.Parent = container
 
-	local arrow = Instance.new("ImageLabel")
-	arrow.Name = "Arrow"
-	arrow.BackgroundTransparency = 1
-	arrow.Size = UDim2.new(0, 16, 0, 16)
-	arrow.Position = UDim2.new(1, -24, 0.5, -8)
-	arrow.Image = collapsed and CHEVRON_RIGHT or CHEVRON_DOWN
-	arrow.ImageColor3 = Theme.SecondaryText
-	arrow.ScaleType = Enum.ScaleType.Fit
-	arrow.ZIndex = 3
-	arrow.Parent = header
-
-	local descLabel = nil
 	if config.Description then
-		descLabel = Instance.new("TextLabel")
-		descLabel.BackgroundTransparency = 1
-		descLabel.Size = UDim2.new(1, 0, 0, 16)
-		descLabel.Font = Theme.Font
-		descLabel.TextSize = 11
-		descLabel.TextColor3 = Theme.SecondaryText
-		descLabel.TextXAlignment = Enum.TextXAlignment.Left
-		descLabel.Text = config.Description
-		descLabel.LayoutOrder = 1
-		descLabel.Parent = container
+		local d = Instance.new("TextLabel")
+		d.BackgroundTransparency = 1
+		d.Size = UDim2.new(1, 0, 0, 16)
+		d.Font = Theme.Font
+		d.TextSize = 11
+		d.TextColor3 = Theme.SecondaryText
+		d.TextXAlignment = Enum.TextXAlignment.Left
+		d.Text = config.Description
+		d.LayoutOrder = 1
+		d.Parent = container
 	end
-
-	-- Content wrapper used for collapse animation (slides / height tween)
-	local contentWrap = Instance.new("Frame")
-	contentWrap.Name = "ContentWrap"
-	contentWrap.BackgroundTransparency = 1
-	contentWrap.Size = UDim2.new(1, 0, 0, 0)
-	contentWrap.AutomaticSize = Enum.AutomaticSize.Y
-	contentWrap.ClipsDescendants = true
-	contentWrap.LayoutOrder = 2
-	contentWrap.Parent = container
 
 	local content = Instance.new("Frame")
 	content.Name = "Content"
 	content.BackgroundTransparency = 1
 	content.Size = UDim2.new(1, 0, 0, 0)
 	content.AutomaticSize = Enum.AutomaticSize.Y
-	content.Position = UDim2.new(0, 0, 0, 0)
-	content.Parent = contentWrap
+	content.LayoutOrder = 2
+	content.Parent = container
 
 	local cl = Instance.new("UIListLayout")
 	cl.SortOrder = Enum.SortOrder.LayoutOrder
 	cl.Padding = UDim.new(0, 6)
 	cl.Parent = content
 
-	local contentPad = Instance.new("UIPadding")
-	contentPad.PaddingTop = UDim.new(0, 4)
-	contentPad.Parent = content
-
 	cleanup:AddInstance(container)
+
+	local descLabel = nil
+	if config.Description then
+		descLabel = container:FindFirstChildWhichIsA("TextLabel")
+
+		for _, ch in ipairs(container:GetChildren()) do
+			if ch:IsA("TextLabel") and ch ~= title then
+				descLabel = ch
+				break
+			end
+		end
+	end
 
 	local section = {
 		Container = container,
 		Content = content,
-		Header = header,
 		Cleanup = cleanup,
-		Collapsed = collapsed,
 	}
-
-	local function measureContentHeight()
-		-- Force layout update then read absolute content size
-		local h = 0
-		for _, ch in ipairs(content:GetChildren()) do
-			if ch:IsA("GuiObject") and ch.Visible then
-				h = math.max(h, ch.AbsolutePosition.Y + ch.AbsoluteSize.Y - content.AbsolutePosition.Y)
-			end
-		end
-		-- Fallback via UIListLayout
-		if cl.AbsoluteContentSize then
-			h = math.max(h, cl.AbsoluteContentSize.Y + 4)
-		end
-		return math.max(0, h)
-	end
-
-	local function setCollapsed(state, animate)
-		if animating then return end
-		collapsed = state and true or false
-		section.Collapsed = collapsed
-		arrow.Image = collapsed and CHEVRON_RIGHT or CHEVRON_DOWN
-
-		if not animate then
-			if collapsed then
-				contentWrap.AutomaticSize = Enum.AutomaticSize.None
-				contentWrap.Size = UDim2.new(1, 0, 0, 0)
-				content.Visible = false
-			else
-				content.Visible = true
-				contentWrap.AutomaticSize = Enum.AutomaticSize.Y
-				contentWrap.Size = UDim2.new(1, 0, 0, 0)
-			end
-			return
-		end
-
-		animating = true
-		if collapsed then
-			-- Collapse: capture height then tween to 0, content slides left slightly
-			local h = measureContentHeight()
-			contentWrap.AutomaticSize = Enum.AutomaticSize.None
-			contentWrap.Size = UDim2.new(1, 0, 0, h)
-			content.Visible = true
-			content.Position = UDim2.new(0, 0, 0, 0)
-			TweenEngine.Play(contentWrap, { Size = UDim2.new(1, 0, 0, 0) }, {
-				Duration = 0.22,
-				Easing = "QuadOut",
-				OnComplete = function()
-					content.Visible = false
-					animating = false
-				end,
-			})
-			TweenEngine.Play(content, { Position = UDim2.new(-0.08, 0, 0, 0) }, {
-				Duration = 0.22,
-				Easing = "QuadOut",
-			})
-		else
-			-- Expand: start from 0, measure, tween up, slide in from left
-			content.Visible = true
-			content.Position = UDim2.new(-0.08, 0, 0, 0)
-			contentWrap.AutomaticSize = Enum.AutomaticSize.None
-			contentWrap.Size = UDim2.new(1, 0, 0, 0)
-			task.defer(function()
-				local h = measureContentHeight()
-				if h < 1 then h = 1 end
-				TweenEngine.Play(contentWrap, { Size = UDim2.new(1, 0, 0, h) }, {
-					Duration = 0.25,
-					Easing = "QuadOut",
-					OnComplete = function()
-						contentWrap.AutomaticSize = Enum.AutomaticSize.Y
-						contentWrap.Size = UDim2.new(1, 0, 0, 0)
-						animating = false
-					end,
-				})
-				TweenEngine.Play(content, { Position = UDim2.new(0, 0, 0, 0) }, {
-					Duration = 0.25,
-					Easing = "QuadOut",
-				})
-			end)
-		end
-	end
-
-	-- Initial state
-	setCollapsed(collapsed, false)
-
-	cleanup:AddConnection(header.Activated:Connect(function()
-		setCollapsed(not collapsed, true)
-	end))
-
-	-- Hover feedback on header
-	cleanup:AddConnection(header.MouseEnter:Connect(function()
-		header.BackgroundTransparency = 0.35
-		arrow.ImageColor3 = Theme.Text
-	end))
-	cleanup:AddConnection(header.MouseLeave:Connect(function()
-		header.BackgroundTransparency = 0.55
-		arrow.ImageColor3 = Theme.SecondaryText
-	end))
-
-	function section:SetCollapsed(state)
-		setCollapsed(state, true)
-	end
-
-	function section:IsCollapsed()
-		return collapsed
-	end
-
-	function section:Toggle()
-		setCollapsed(not collapsed, true)
-	end
 
 	function section:RefreshTheme()
 		if cleanup:IsDestroyed() then return end
 		title.Font = Theme.FontBold
 		title.TextColor3 = Theme.Text
-		header.BackgroundColor3 = Theme.Secondary
-		arrow.ImageColor3 = Theme.SecondaryText
-		arrow.Image = collapsed and CHEVRON_RIGHT or CHEVRON_DOWN
 		if descLabel then
 			descLabel.Font = Theme.Font
 			descLabel.TextColor3 = Theme.SecondaryText
@@ -2567,9 +2419,31 @@ end
 local function CreateToggle(tab, config)
 	config = config or {}
 	local cleanup = CreateCleanup()
-	local value = config.Default == true
+
+	-- true/false OR "yes"/"no"
+	local function parseYesNo(v, fallback)
+		if v == nil then return fallback end
+		if type(v) == "boolean" then return v end
+		local s = string.lower(tostring(v))
+		if s == "yes" or s == "y" or s == "on" or s == "true" or s == "1" then return true end
+		if s == "no" or s == "n" or s == "off" or s == "false" or s == "0" then return false end
+		return fallback
+	end
+
+	local value = parseYesNo(config.Default, false)
 	local enabled = true
 	local parent = GetParentForComponent(tab)
+
+	-- Status = "yes" / "no" (optional). If set → switch LEFT, status badge RIGHT
+	local statusText = config.Status or config.status
+	if statusText ~= nil then
+		if type(statusText) == "boolean" then
+			statusText = statusText and "yes" or "no"
+		else
+			statusText = tostring(statusText)
+		end
+	end
+	local hasStatus = statusText ~= nil and statusText ~= ""
 
 	local frame = Instance.new("Frame")
 	frame.Name = "Toggle_" .. (config.Name or "Untitled")
@@ -2580,26 +2454,29 @@ local function CreateToggle(tab, config)
 	frame.Parent = parent
 
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, Theme.CornerRadius)
+	corner.CornerRadius = UDim.new(0, math.max(Theme.CornerRadius or 0, 4))
 	corner.Parent = frame
 
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = Theme.Border
-	stroke.Thickness = 1
-	stroke.Transparency = 0.5
+	stroke.Name = "VeyraToggleStroke"
+	stroke.Color = GetOutlineColor()
+	stroke.Thickness = 1.25
+	stroke.Transparency = 0.35
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	stroke.Parent = frame
 
 	local function applyToggleImageStyle()
+		local outline = GetOutlineColor()
 		if IsImageThemeActive() then
 			frame.BackgroundTransparency = 0.82
-			stroke.Color = GetOutlineColor()
+			stroke.Color = outline
 			stroke.Thickness = 1.5
 			stroke.Transparency = 0.15
 		else
 			frame.BackgroundTransparency = enabled and 0.15 or 0.5
-			stroke.Color = Theme.Border
-			stroke.Thickness = 1
-			stroke.Transparency = 0.5
+			stroke.Color = outline
+			stroke.Thickness = 1.25
+			stroke.Transparency = 0.35
 		end
 	end
 	applyToggleImageStyle()
@@ -2618,39 +2495,61 @@ local function CreateToggle(tab, config)
 	title.Parent = frame
 
 	local titlePadding = Instance.new("UIPadding")
-	titlePadding.PaddingLeft = UDim.new(0, 12)
-	titlePadding.PaddingRight = UDim.new(0, 64)
+	if hasStatus then
+		titlePadding.PaddingLeft = UDim.new(0, 56)
+		titlePadding.PaddingRight = UDim.new(0, 72)
+	else
+		titlePadding.PaddingLeft = UDim.new(0, 12)
+		titlePadding.PaddingRight = UDim.new(0, 64)
+	end
 	titlePadding.Parent = title
 
+	local descLabel = nil
 	if config.Description then
-		local d = Instance.new("TextLabel")
-		d.BackgroundTransparency = 1
-		d.Size = UDim2.new(1, 0, 0, 14)
-		d.AnchorPoint = Vector2.new(0, 0.5)
-		d.Position = UDim2.new(0, 0, 0.5, 8)
-		d.Font = Theme.Font
-		d.TextSize = 11
-		d.TextColor3 = Theme.SecondaryText
-		d.TextXAlignment = Enum.TextXAlignment.Left
-		d.TextYAlignment = Enum.TextYAlignment.Center
-		d.Text = config.Description
-		d.Parent = frame
+		descLabel = Instance.new("TextLabel")
+		descLabel.BackgroundTransparency = 1
+		descLabel.Size = UDim2.new(1, 0, 0, 14)
+		descLabel.AnchorPoint = Vector2.new(0, 0.5)
+		descLabel.Position = UDim2.new(0, 0, 0.5, 8)
+		descLabel.Font = Theme.Font
+		descLabel.TextSize = 11
+		descLabel.TextColor3 = Theme.SecondaryText
+		descLabel.TextXAlignment = Enum.TextXAlignment.Left
+		descLabel.TextYAlignment = Enum.TextYAlignment.Center
+		descLabel.Text = config.Description
+		descLabel.Parent = frame
 		local descPadding = Instance.new("UIPadding")
-		descPadding.PaddingLeft = UDim.new(0, 12)
-		descPadding.PaddingRight = UDim.new(0, 64)
-		descPadding.Parent = d
+		if hasStatus then
+			descPadding.PaddingLeft = UDim.new(0, 56)
+			descPadding.PaddingRight = UDim.new(0, 72)
+		else
+			descPadding.PaddingLeft = UDim.new(0, 12)
+			descPadding.PaddingRight = UDim.new(0, 64)
+		end
+		descPadding.Parent = descLabel
 	end
 
 	local switch = Instance.new("Frame")
 	switch.BackgroundColor3 = value and Theme.ToggleOn or Theme.ToggleOff
 	switch.BorderSizePixel = 0
 	switch.Size = UDim2.new(0, 40, 0, 22)
-	switch.Position = UDim2.new(1, -52, 0.5, -11)
+	if hasStatus then
+		switch.Position = UDim2.new(0, 12, 0.5, -11) -- LEFT
+	else
+		switch.Position = UDim2.new(1, -52, 0.5, -11) -- RIGHT (default)
+	end
 	switch.Parent = frame
 
 	local sc = Instance.new("UICorner")
 	sc.CornerRadius = UDim.new(1, 0)
 	sc.Parent = switch
+
+	local switchStroke = Instance.new("UIStroke")
+	switchStroke.Color = GetOutlineColor()
+	switchStroke.Thickness = 1.25
+	switchStroke.Transparency = value and 0.15 or 0.45
+	switchStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	switchStroke.Parent = switch
 
 	local knob = Instance.new("Frame")
 	knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
@@ -2663,15 +2562,51 @@ local function CreateToggle(tab, config)
 	kc.CornerRadius = UDim.new(1, 0)
 	kc.Parent = knob
 
+	local statusBadge, statusLabel
+	if hasStatus then
+		statusBadge = Instance.new("Frame")
+		statusBadge.Name = "Status"
+		statusBadge.BackgroundColor3 = Theme.Tertiary
+		statusBadge.BackgroundTransparency = 0.15
+		statusBadge.BorderSizePixel = 0
+		statusBadge.Size = UDim2.new(0, 56, 0, 22)
+		statusBadge.Position = UDim2.new(1, -64, 0.5, -11)
+		statusBadge.Parent = frame
+
+		local sbCorner = Instance.new("UICorner")
+		sbCorner.CornerRadius = UDim.new(0, 6)
+		sbCorner.Parent = statusBadge
+
+		local sbStroke = Instance.new("UIStroke")
+		sbStroke.Color = GetOutlineColor()
+		sbStroke.Thickness = 1
+		sbStroke.Transparency = 0.4
+		sbStroke.Parent = statusBadge
+
+		statusLabel = Instance.new("TextLabel")
+		statusLabel.BackgroundTransparency = 1
+		statusLabel.Size = UDim2.new(1, 0, 1, 0)
+		statusLabel.Font = Theme.FontBold
+		statusLabel.TextSize = 11
+		statusLabel.TextColor3 = Theme.Text
+		statusLabel.TextXAlignment = Enum.TextXAlignment.Center
+		statusLabel.TextYAlignment = Enum.TextYAlignment.Center
+		statusLabel.Text = statusText
+		statusLabel.Parent = statusBadge
+	end
+
 	local function updateVisual(animate)
 		local targetColor = value and Theme.ToggleOn or Theme.ToggleOff
 		local targetPos = value and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
+		local st = value and 0.15 or 0.45
 		if animate then
 			TweenEngine.Play(switch, { BackgroundColor3 = targetColor }, { Duration = 0.2, Easing = "QuadOut" })
 			TweenEngine.Play(knob, { Position = targetPos }, { Duration = 0.25, Easing = "BackOut" })
+			TweenEngine.Play(switchStroke, { Transparency = st }, { Duration = 0.2, Easing = "QuadOut" })
 		else
 			switch.BackgroundColor3 = targetColor
 			knob.Position = targetPos
+			switchStroke.Transparency = st
 		end
 	end
 
@@ -2679,6 +2614,7 @@ local function CreateToggle(tab, config)
 	hit.BackgroundTransparency = 1
 	hit.Size = UDim2.new(1, 0, 1, 0)
 	hit.Text = ""
+	hit.ZIndex = 5
 	hit.Parent = frame
 
 	local changed = CreateSignal()
@@ -2700,16 +2636,44 @@ local function CreateToggle(tab, config)
 
 	local toggle = { Frame = frame, Cleanup = cleanup, Changed = changed }
 
+	function toggle:SetStatus(text)
+		if not statusLabel then return end
+		if type(text) == "boolean" then
+			text = text and "yes" or "no"
+		end
+		statusLabel.Text = tostring(text or "")
+	end
+
+	function toggle:GetStatus()
+		return statusLabel and statusLabel.Text or nil
+	end
+
 	function toggle:RefreshTheme()
 		if cleanup:IsDestroyed() then return end
 		frame.BackgroundColor3 = Theme.Secondary
 		title.Font = Theme.Font
 		title.TextColor3 = Theme.Text
+		if descLabel then
+			descLabel.Font = Theme.Font
+			descLabel.TextColor3 = Theme.SecondaryText
+		end
 		updateVisual(false)
 		applyToggleImageStyle()
+		stroke.Color = GetOutlineColor()
+		switchStroke.Color = GetOutlineColor()
+		if statusBadge then
+			statusBadge.BackgroundColor3 = Theme.Tertiary
+			local s = statusBadge:FindFirstChildOfClass("UIStroke")
+			if s then s.Color = GetOutlineColor() end
+		end
+		if statusLabel then
+			statusLabel.Font = Theme.FontBold
+			statusLabel.TextColor3 = Theme.Text
+		end
 	end
 
 	function toggle:Set(v, suppress)
+		v = parseYesNo(v, value)
 		if value == v then return end
 		value = v
 		updateVisual(true)
@@ -2724,7 +2688,7 @@ local function CreateToggle(tab, config)
 	end
 
 	function toggle:SetEnabled(state)
-		enabled = state
+		enabled = state and true or false
 		applyToggleImageStyle()
 	end
 
@@ -4229,8 +4193,8 @@ local function CreateTab(window, config)
 	tabBg.Parent = tabBtn
 
 	local tabBgCorner = Instance.new("UICorner")
-	tabBgCorner.Name = "VeyraCorner"
-	tabBgCorner.CornerRadius = UDim.new(0, Theme.CornerRadius or 2)
+	tabBgCorner.Name = "VeyraFixedCorner"
+	tabBgCorner.CornerRadius = UDim.new(0, 6)
 	tabBgCorner.Parent = tabBg
 
 		local btnPad = Instance.new("UIPadding")
@@ -4555,13 +4519,13 @@ local function SetupSettingsTab(window)
 	end
 
 	settingsTab:CreateSlider({
-		Name = "Corner Radius",
-		Min = 0,
-		Max = 8,
-		Default = tonumber(Settings.CornerRadius) or 2,
+		Name = "Accent Height",
+		Min = 0.05,
+		Max = 1,
+		Step = 0.05,
+		Default = tonumber(Settings.AccentHeight) or 1,
 		Callback = function(v)
-			Settings.CornerRadius = math.clamp(math.floor(tonumber(v) or 2), 0, 8)
-			Theme.CornerRadius = Settings.CornerRadius
+			Settings.AccentHeight = math.clamp(tonumber(v) or 1, 0.05, 1)
 			if window.RefreshTheme then window:RefreshTheme() end
 		end,
 	})
@@ -4930,11 +4894,15 @@ local function CreateWindow(library, config)
 	outline.BackgroundColor3 = Theme.OutlineAccent or Color3.fromRGB(255, 255, 255)
 	outline.BackgroundTransparency = 0.05
 	outline.BorderSizePixel = 0
-	
-	outline.Size = UDim2.new(0, 2, 1, 0)
-	outline.Position = UDim2.new(0, 0, 0, 0)
+	-- Height controlled by Settings.AccentHeight (0..1), vertically centered
+	local ah = math.clamp(tonumber(Settings.AccentHeight) or 1, 0.05, 1)
+	outline.Size = UDim2.new(0, 2, ah, 0)
+	outline.Position = UDim2.new(0, 0, (1 - ah) / 2, 0)
 	outline.ZIndex = 5
 	outline.Parent = main
+	local outlineCorner = Instance.new("UICorner")
+	outlineCorner.CornerRadius = UDim.new(1, 0) -- pill ends
+	outlineCorner.Parent = outline
 
 	local titleBar = Instance.new("Frame")
 	titleBar.Name = "TitleBar"
@@ -5050,6 +5018,11 @@ local function CreateWindow(library, config)
 	searchPad.PaddingLeft = UDim.new(0, 8)
 	searchPad.PaddingRight = UDim.new(0, 8)
 	searchPad.Parent = searchBox
+
+	local searchCorner = Instance.new("UICorner")
+	searchCorner.Name = "VeyraFixedCorner"
+	searchCorner.CornerRadius = UDim.new(0, 6)
+	searchCorner.Parent = searchBox
 
 	local tabBar = Instance.new("ScrollingFrame")
 	tabBar.Name = "TabBar"
@@ -5302,9 +5275,15 @@ local function CreateWindow(library, config)
 
 	local function refreshWindowTheme()
 		if cleanup:IsDestroyed() then return end
-		Theme.CornerRadius = math.max(0, math.floor(tonumber(Settings.CornerRadius or Theme.CornerRadius or 2) or 2))
+		Theme.CornerRadius = math.max(0, math.floor(tonumber(Settings.CornerRadius or Theme.CornerRadius or 6) or 6))
 		EnsureCorner(root, Theme.CornerRadius)
 		EnsureCorner(main, Theme.CornerRadius)
+		-- Accent height (0..1) – vertically centered left bar
+		if outline and outline.Parent then
+			local ah = math.clamp(tonumber(Settings.AccentHeight) or 1, 0.05, 1)
+			outline.Size = UDim2.new(0, 2, ah, 0)
+			outline.Position = UDim2.new(0, 0, (1 - ah) / 2, 0)
+		end
 		titleLabel.TextColor3 = Theme.Text
 		titleLabel.Font = Theme.FontBold
 		subtitle.TextColor3 = Theme.SecondaryText
@@ -8209,6 +8188,17 @@ function Library:Init(options)
 		end)
 	end
 
+	-- Simple: Init({ Title = "..." }) returns the window
+	if options.Title or options.Name then
+		return self:CreateWindow({
+			Title = options.Title or options.Name or "Veyra",
+			Subtitle = options.Subtitle or "",
+			MobileToggle = options.MobileToggle,
+			VeyraBlur = options.VeyraBlur,
+			Size = options.Size,
+		})
+	end
+
 	return Library
 end
 
@@ -8264,14 +8254,21 @@ Library.Animation = TweenEngine
 local function wrapTab(tab)
 	local t = tab
 	function t:Section(name, desc)
+		if type(name) == "table" then
+			return self:CreateSection(name)
+		end
 		return self:CreateSection({ Name = name, Description = desc })
 	end
 	function t:Toggle(name, default, callback)
+		-- Tab:Toggle({ Name = "...", Default = "no", Status = "yes", Callback = fn })
+		if type(name) == "table" then
+			return self:CreateToggle(name)
+		end
 		if type(default) == "function" then
 			callback = default
 			default = false
 		end
-		return self:CreateToggle({ Name = name, Default = default == true, Callback = callback })
+		return self:CreateToggle({ Name = name, Default = default, Callback = callback })
 	end
 	function t:Slider(name, min, max, default, callback)
 		if type(min) == "function" then
