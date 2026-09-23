@@ -12,7 +12,6 @@ local LocalizationService = game:GetService("LocalizationService")
 local SurfaceBlur
 local IconAssets
 local Flipper
-local AttachFloatingToggle
 local GetIcon
 local RegisterConfigElement, ListConfigs, SaveNamedConfig, LoadNamedConfig, DeleteNamedConfig
 local AutoSaveEnabled, CurrentConfigName
@@ -2151,22 +2150,28 @@ end
 local function CreateSection(tab, config)
 	config = config or {}
 	local cleanup = CreateCleanup()
+	local collapsible = config.Collapsible == true
+	local collapsed = collapsible and config.DefaultCollapsed == true
+	local HEADER_H = 20
+	local DESC_H = config.Description and 16 or 0
+	local HEADER_GAP = config.Description and 8 or 0
+	local CONTENT_GAP = 8
 
 	local container = Instance.new("Frame")
 	container.Name = "Section_" .. (config.Name or "Untitled")
 	container.BackgroundTransparency = 1
-	container.Size = UDim2.new(1, 0, 0, 0)
-	container.AutomaticSize = Enum.AutomaticSize.Y
+	container.Size = UDim2.new(1, 0, 0, HEADER_H + DESC_H + HEADER_GAP)
+	container.AutomaticSize = Enum.AutomaticSize.None
 	container.Parent = tab.Content
 
 	local layout = Instance.new("UIListLayout")
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Padding = UDim.new(0, 8)
+	layout.Padding = UDim.new(0, CONTENT_GAP)
 	layout.Parent = container
 
 	local title = Instance.new("TextLabel")
 	title.BackgroundTransparency = 1
-	title.Size = UDim2.new(1, 0, 0, 20)
+	title.Size = UDim2.new(1, collapsible and -24 or 0, 0, HEADER_H)
 	title.Font = Theme.FontBold
 	title.TextSize = 13
 	title.TextColor3 = Theme.Text
@@ -2175,10 +2180,40 @@ local function CreateSection(tab, config)
 	title.LayoutOrder = 0
 	title.Parent = container
 
+	local collapseButton
+	local collapseArrow
+	if collapsible then
+		collapseButton = Instance.new("TextButton")
+		collapseButton.Name = "CollapseButton"
+		collapseButton.BackgroundTransparency = 1
+		collapseButton.BorderSizePixel = 0
+		collapseButton.AutoButtonColor = false
+		collapseButton.Text = ""
+		collapseButton.Size = UDim2.new(1, 0, 0, HEADER_H)
+		collapseButton.Position = UDim2.new(0, 0, 0, 0)
+		collapseButton.ZIndex = 5
+		collapseButton.Parent = container
+
+		collapseArrow = Instance.new("TextLabel")
+		collapseArrow.Name = "CollapseArrow"
+		collapseArrow.BackgroundTransparency = 1
+		collapseArrow.Size = UDim2.fromOffset(18, HEADER_H)
+		collapseArrow.Position = UDim2.new(1, -18, 0, 0)
+		collapseArrow.Font = Theme.FontBold
+		collapseArrow.TextSize = 11
+		collapseArrow.TextXAlignment = Enum.TextXAlignment.Center
+		collapseArrow.TextYAlignment = Enum.TextYAlignment.Center
+		collapseArrow.TextColor3 = Theme.SecondaryText
+		collapseArrow.Text = collapsed and ">" or "v"
+		collapseArrow.ZIndex = 6
+		collapseArrow.Parent = container
+	end
+
+	local descLabel = nil
 	if config.Description then
 		local d = Instance.new("TextLabel")
 		d.BackgroundTransparency = 1
-		d.Size = UDim2.new(1, 0, 0, 16)
+		d.Size = UDim2.new(1, 0, 0, DESC_H)
 		d.Font = Theme.Font
 		d.TextSize = 11
 		d.TextColor3 = Theme.SecondaryText
@@ -2186,6 +2221,7 @@ local function CreateSection(tab, config)
 		d.Text = config.Description
 		d.LayoutOrder = 1
 		d.Parent = container
+		descLabel = d
 	end
 
 	local content = Instance.new("Frame")
@@ -2193,7 +2229,7 @@ local function CreateSection(tab, config)
 	content.BackgroundTransparency = 1
 	content.Size = UDim2.new(1, 0, 0, 0)
 	content.AutomaticSize = Enum.AutomaticSize.Y
-	content.LayoutOrder = 2
+	content.LayoutOrder = config.Description and 2 or 1
 	content.Parent = container
 
 	local cl = Instance.new("UIListLayout")
@@ -2203,23 +2239,79 @@ local function CreateSection(tab, config)
 
 	cleanup:AddInstance(container)
 
-	local descLabel = nil
-	if config.Description then
-		descLabel = container:FindFirstChildWhichIsA("TextLabel")
-
-		for _, ch in ipairs(container:GetChildren()) do
-			if ch:IsA("TextLabel") and ch ~= title then
-				descLabel = ch
-				break
-			end
+	local function updateSectionSize()
+		if cleanup:IsDestroyed() or not container.Parent then return end
+		local headerPart = HEADER_H + DESC_H + HEADER_GAP
+		if collapsed then
+			container.Size = UDim2.new(1, 0, 0, headerPart)
+			return
 		end
+		local contentHeight = cl.AbsoluteContentSize.Y
+		local total = headerPart
+		if contentHeight > 0 then
+			total += CONTENT_GAP + contentHeight
+		end
+		container.Size = UDim2.new(1, 0, 0, total)
 	end
+
+	local function applyCollapsedState(instant)
+		if not collapsible then return end
+		content.Visible = not collapsed
+		if collapseArrow then
+			collapseArrow.Text = collapsed and ">" or "v"
+		end
+		updateSectionSize()
+	end
+
+	cleanup:AddConnection(cl:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		updateSectionSize()
+	end))
+	cleanup:AddConnection(tab.Content:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+		updateSectionSize()
+	end))
+
+	if collapseButton then
+		AddInteractiveFeedback(collapseButton, cleanup, { Hover = false, ActivateSound = true })
+		cleanup:AddConnection(collapseButton.Activated:Connect(function()
+			collapsed = not collapsed
+			section.Collapsed = collapsed
+			applyCollapsedState(false)
+		end))
+	end
+
+	applyCollapsedState(true)
 
 	local section = {
 		Container = container,
 		Content = content,
 		Cleanup = cleanup,
+		Collapsible = collapsible,
+		Collapsed = collapsed,
 	}
+
+	function section:SetCollapsed(value)
+		if cleanup:IsDestroyed() or not collapsible then return end
+		collapsed = value == true
+		section.Collapsed = collapsed
+		applyCollapsedState(true)
+	end
+
+	function section:Toggle()
+		if cleanup:IsDestroyed() or not collapsible then return end
+		section:SetCollapsed(not collapsed)
+	end
+
+	function section:Expand()
+		self:SetCollapsed(false)
+	end
+
+	function section:Collapse()
+		self:SetCollapsed(true)
+	end
+
+	function section:IsCollapsed()
+		return collapsed
+	end
 
 	function section:RefreshTheme()
 		if cleanup:IsDestroyed() then return end
@@ -2228,6 +2320,11 @@ local function CreateSection(tab, config)
 		if descLabel then
 			descLabel.Font = Theme.Font
 			descLabel.TextColor3 = Theme.SecondaryText
+		end
+		if collapseArrow then
+			collapseArrow.Font = Theme.FontBold
+			collapseArrow.TextColor3 = Theme.SecondaryText
+			collapseArrow.Text = collapsed and ">" or "v"
 		end
 	end
 
@@ -2260,9 +2357,9 @@ local function CreateButton(tab, config)
 	corner.Parent = frame
 
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = GetOutlineColor()
-	stroke.Thickness = 1.25
-	stroke.Transparency = 0.25
+	stroke.Color = Theme.Border
+	stroke.Thickness = 1
+	stroke.Transparency = 0.5
 	stroke.Parent = frame
 
 	local title = Instance.new("TextLabel")
@@ -2304,15 +2401,16 @@ local function CreateButton(tab, config)
 	end
 
 	local function applyImageStyle()
-		stroke.Color = GetOutlineColor()
 		if IsImageThemeActive() then
 			frame.BackgroundTransparency = 0.82
+			stroke.Color = GetOutlineColor()
 			stroke.Thickness = 1.5
 			stroke.Transparency = 0.15
 		else
 			frame.BackgroundTransparency = enabled and 0.1 or 0.5
-			stroke.Thickness = 1.25
-			stroke.Transparency = 0.25
+			stroke.Color = Theme.Border
+			stroke.Thickness = 1
+			stroke.Transparency = 0.5
 		end
 	end
 	applyImageStyle()
@@ -2731,21 +2829,22 @@ local function CreateSlider(tab, config)
 	corner.Parent = frame
 
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = GetOutlineColor()
-	stroke.Thickness = 1.25
-	stroke.Transparency = 0.25
+	stroke.Color = Theme.Border
+	stroke.Thickness = 1
+	stroke.Transparency = 0.5
 	stroke.Parent = frame
 
 	local function applySliderImageStyle()
-		stroke.Color = GetOutlineColor()
 		if IsImageThemeActive() then
 			frame.BackgroundTransparency = 0.82
+			stroke.Color = GetOutlineColor()
 			stroke.Thickness = 1.5
 			stroke.Transparency = 0.15
 		else
 			frame.BackgroundTransparency = 0.15
-			stroke.Thickness = 1.25
-			stroke.Transparency = 0.25
+			stroke.Color = Theme.Border
+			stroke.Thickness = 1
+			stroke.Transparency = 0.5
 		end
 	end
 	applySliderImageStyle()
@@ -3025,9 +3124,9 @@ local function CreateDropdown(tab, config)
 	corner.Parent = frame
 
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = GetOutlineColor()
+	stroke.Color = Theme.OutlineAccent or Theme.Border
 	stroke.Thickness = 1.5
-	stroke.Transparency = 0.25
+	stroke.Transparency = 0.3
 	stroke.Parent = frame
 
 	local header = Instance.new("Frame")
@@ -3072,7 +3171,7 @@ local function CreateDropdown(tab, config)
 	list.Parent = frame
 
 	local ls = Instance.new("UIStroke")
-	ls.Color = GetOutlineColor()
+	ls.Color = Theme.OutlineAccent or Theme.Border
 	ls.Thickness = 1.5
 	ls.Transparency = 0.25
 	ls.Parent = list
@@ -3252,14 +3351,9 @@ local function CreateDropdown(tab, config)
 		btn.TextTransparency = 0
 		btn.Text = tostring(opt)
 		btn.TextXAlignment = Enum.TextXAlignment.Left
-		btn.TextYAlignment = Enum.TextYAlignment.Center
 		btn.AutoButtonColor = false
 		btn.Visible = true
 		btn.ZIndex = 4
-		local optPad = Instance.new("UIPadding")
-		optPad.PaddingLeft = UDim.new(0, 12)
-		optPad.PaddingRight = UDim.new(0, 12)
-		optPad.Parent = btn
 		btn.LayoutOrder = i
 		btn.Parent = list
 
@@ -4169,22 +4263,22 @@ local function CreateTab(window, config)
 	tabBtn.Name = "TabBtn_" .. name
 	tabBtn.BackgroundTransparency = 1 
 	tabBtn.BorderSizePixel = 0
-	tabBtn.Size = UDim2.new(1, -12, 0, 32)
-	tabBtn.Position = UDim2.new(0, 6, 0, 0)
+	tabBtn.Size = UDim2.new(1, 0, 0, 30)
+	tabBtn.Position = UDim2.new(0, 0, 0, 0)
 	tabBtn.AnchorPoint = Vector2.new(0, 0)
 	tabBtn.Font = Theme.Font
 	tabBtn.TextSize = 12
 	tabBtn.TextColor3 = Theme.SecondaryText
 	tabBtn.Text = name
 	tabBtn.TextXAlignment = Enum.TextXAlignment.Center
-	tabBtn.TextYAlignment = Enum.TextYAlignment.Center
 	tabBtn.TextTruncate = Enum.TextTruncate.AtEnd
 	tabBtn.AutoButtonColor = false
 	tabBtn.Active = true
-	tabBtn.ClipsDescendants = true
+	tabBtn.ClipsDescendants = false
 	tabBtn.ZIndex = 2
 	tabBtn.Parent = window.TabBar
 
+	
 	local tabBg = Instance.new("Frame")
 	tabBg.Name = "TabBg"
 	tabBg.BackgroundColor3 = Theme.Secondary
@@ -4200,16 +4294,9 @@ local function CreateTab(window, config)
 	tabBgCorner.CornerRadius = UDim.new(0, 6)
 	tabBgCorner.Parent = tabBg
 
-	local tabStroke = Instance.new("UIStroke")
-	tabStroke.Name = "TabStroke"
-	tabStroke.Color = GetOutlineColor()
-	tabStroke.Thickness = 1
-	tabStroke.Transparency = 1
-	tabStroke.Parent = tabBg
-
-	local btnPad = Instance.new("UIPadding")
-	btnPad.PaddingLeft = UDim.new(0, 6)
-	btnPad.PaddingRight = UDim.new(0, 6)
+		local btnPad = Instance.new("UIPadding")
+	btnPad.PaddingLeft = UDim.new(0, 0)
+	btnPad.PaddingRight = UDim.new(0, 0)
 	btnPad.Parent = tabBtn
 
 	cleanup:AddInstance(content)
@@ -4234,23 +4321,20 @@ local function CreateTab(window, config)
 	end))
 
 	function tab:SetActive(active)
-		local tabStroke = tabBg:FindFirstChild("TabStroke")
 		if active then
 			content.Visible = true
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.Text
+			
 			tabBg.Size = UDim2.new(1, 0, 1, 0)
 			tabBg.Position = UDim2.new(0, 0, 0, 0)
-			tabBg.BackgroundTransparency = 0.35
-			tabBg.BackgroundColor3 = Theme.Hover
-			local grad = tabBg:FindFirstChild("VeyraGradient")
-			if grad then grad:Destroy() end
-			if tabStroke then
-				tabStroke.Color = GetOutlineColor()
-				tabStroke.Transparency = 0.2
-			end
+			tabBg.BackgroundTransparency = 0.2
+			tabBg.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			local g = SetThemeGradient(tabBg, "Accent")
+			if g then g.Rotation = 0 end 
 		else
 			content.Visible = false
+
 			for _, c in ipairs(tab.Components) do
 				if c.Close then pcall(function() c:Close() end) end
 			end
@@ -4260,9 +4344,6 @@ local function CreateTab(window, config)
 			local grad = tabBg:FindFirstChild("VeyraGradient")
 			if grad then grad:Destroy() end
 			tabBg.BackgroundColor3 = Theme.Secondary
-			if tabStroke then
-				tabStroke.Transparency = 1
-			end
 		end
 	end
 
@@ -4270,20 +4351,15 @@ local function CreateTab(window, config)
 		if cleanup:IsDestroyed() then return end
 		content.ScrollBarImageColor3 = Theme.Border
 		tabBtn.Font = Theme.Font
-		local tabStroke = tabBg:FindFirstChild("TabStroke")
 		if content.Visible then
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.Text
 			tabBg.Size = UDim2.new(1, 0, 1, 0)
 			tabBg.Position = UDim2.new(0, 0, 0, 0)
-			tabBg.BackgroundTransparency = 0.35
-			tabBg.BackgroundColor3 = Theme.Hover
-			local grad = tabBg:FindFirstChild("VeyraGradient")
-			if grad then grad:Destroy() end
-			if tabStroke then
-				tabStroke.Color = GetOutlineColor()
-				tabStroke.Transparency = 0.2
-			end
+			tabBg.BackgroundTransparency = 0.2
+			tabBg.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			local g = SetThemeGradient(tabBg, "Accent")
+			if g then g.Rotation = 0 end 
 		else
 			tabBtn.BackgroundTransparency = 1
 			tabBtn.TextColor3 = Theme.SecondaryText
@@ -4291,9 +4367,6 @@ local function CreateTab(window, config)
 			local grad = tabBg:FindFirstChild("VeyraGradient")
 			if grad then grad:Destroy() end
 			tabBg.BackgroundColor3 = Theme.Secondary
-			if tabStroke then
-				tabStroke.Transparency = 1
-			end
 		end
 		for _, s in ipairs(tab.Sections) do
 			if s.RefreshTheme then s:RefreshTheme() end
@@ -5069,10 +5142,10 @@ local function CreateWindow(library, config)
 	tabLayout.Parent = tabBar
 
 	local tabPad = Instance.new("UIPadding")
-	tabPad.PaddingTop = UDim.new(0, 4)
+	tabPad.PaddingTop = UDim.new(0, 2)
 	tabPad.PaddingLeft = UDim.new(0, 0)
 	tabPad.PaddingRight = UDim.new(0, 0)
-	tabPad.PaddingBottom = UDim.new(0, 8)
+	tabPad.PaddingBottom = UDim.new(0, 6)
 	tabPad.Parent = tabBar
 
 	local contentContainer = Instance.new("Frame")
@@ -5769,24 +5842,6 @@ local function CreateWindow(library, config)
 			window.Cleanup:AddCallback(function()
 				if window._SurfaceBlur then window._SurfaceBlur:Destroy() end
 			end)
-		end)
-	end
-
-	if config.MobileToggle ~= false then
-		pcall(function()
-			local touch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
-			if touch or config.MobileToggle == true then
-				window._MobileToggle = AttachFloatingToggle(gui, function()
-					if window.ToggleUIVisible then
-						window:ToggleUIVisible()
-					elseif window.Gui then
-						window.Gui.Enabled = not window.Gui.Enabled
-					end
-				end)
-				if window._MobileToggle then
-					window.Cleanup:AddInstance(window._MobileToggle)
-				end
-			end
 		end)
 	end
 
@@ -8005,282 +8060,6 @@ Flipper = {
 	isMotor = isMotor,
 }
 
-function AttachFloatingToggle(screenGui, onToggle)
-	local btn = Instance.new("ImageButton")
-	btn.Name = "VeyraMobileToggle"
-	btn.Image = "rbxassetid://112235310154264"
-	btn.ImageColor3 = Color3.fromRGB(255, 255, 255)
-	btn.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
-	btn.BackgroundTransparency = 0.15
-	btn.Position = UDim2.new(0, 15, 0.5, -25)
-	btn.Size = UDim2.new(0, 50, 0, 50)
-	btn.AnchorPoint = Vector2.new(0, 0.5)
-	btn.Visible = false
-	btn.ZIndex = 999
-	btn.Parent = screenGui
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(1, 0)
-	corner.Parent = btn
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = GetOutlineColor()
-	stroke.Thickness = 1.5
-	stroke.Transparency = 0.2
-	stroke.Parent = btn
-
-	local dragging = false
-	local moved = false
-	local dragStart, startPos
-	btn.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-			dragging = true
-			moved = false
-			dragStart = input.Position
-			startPos = btn.Position
-		end
-	end)
-	btn.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-			if dragging and not moved and onToggle then
-				task.spawn(onToggle)
-			end
-			dragging = false
-			moved = false
-		end
-	end)
-	UserInputService.InputChanged:Connect(function(input)
-		if dragging and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
-			local delta = input.Position - dragStart
-			if delta.Magnitude > 8 then
-				moved = true
-				btn.Position = UDim2.new(
-					startPos.X.Scale, startPos.X.Offset + delta.X,
-					startPos.Y.Scale, startPos.Y.Offset + delta.Y
-				)
-			end
-		end
-	end)
-	btn.Activated:Connect(function()
-		if not moved and onToggle then
-			task.spawn(onToggle)
-		end
-	end)
-	local touch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
-	if touch then btn.Visible = true end
-	return btn
-end
-
-local Library = {}
-Library.__index = Library
-
-local NotifManager = NotificationManager.new()
-
-local Windows = {}
-
-function Library:CreateWindow(config)
-	local win = CreateWindow(Library, config)
-	table.insert(Windows, win)
-
-	local oldDestroy = win.Destroy
-	function win:Destroy()
-		local idx = table.find(Windows, self)
-		if idx then table.remove(Windows, idx) end
-		if oldDestroy then oldDestroy(self) end
-	end
-	return win
-end
-
-function Library:Notify(config)
-	return NotifManager:Notify(config)
-end
-
-function Library:SetNotifDraggable(enabled)
-	NotifManager.Draggable = enabled and true or false
-end
-Library.NotifDraggable = true
-
-function Library:CreateNode(config)
-	config = config or {}
-
-	if config.Content and not config.Description then
-		config.Description = config.Content
-	end
-	if config.Length ~= nil and config.Duration == nil then
-		config.Duration = config.Length
-	end
-	return NotifManager:Notify(config)
-end
-
-function Library:SetTheme(t)
-	SetTheme(t)
-end
-
-function Library:ApplyTheme(name)
-	return ApplyThemePreset(name)
-end
-
-function Library:GetTheme()
-	return GetTheme()
-end
-
-function Library:GetSettings()
-	return Settings
-end
-
-function Library:SaveSettings()
-	return ConfigSave()
-end
-
-function Library:LoadSettings()
-	return ConfigLoad()
-end
-
-Library.ThemePresets = ThemePresets
-Library.Settings = Settings
-
-local InitDone = false
-
-local function KillPrevious()
-	pcall(function()
-
-		local snap = table.clone(Windows)
-		table.clear(Windows)
-		for _, win in ipairs(snap) do
-			pcall(function()
-				if win.Destroy then win:Destroy() end
-			end)
-		end
-
-		if NotifManager then
-			pcall(function() NotifManager:Clear() end)
-			pcall(function()
-				if NotifManager.Gui then NotifManager.Gui:Destroy() end
-			end)
-			NotifManager = NotificationManager.new()
-		end
-
-		pcall(function() TweenEngine.CancelAll() end)
-
-		local parents = {}
-		pcall(function() table.insert(parents, game:GetService("CoreGui")) end)
-		pcall(function()
-			if type(gethui) == "function" then table.insert(parents, gethui()) end
-		end)
-		pcall(function()
-			local lp = game:GetService("Players").LocalPlayer
-			if lp then table.insert(parents, lp:FindFirstChildOfClass("PlayerGui")) end
-		end)
-		for _, parent in ipairs(parents) do
-			if parent then
-				for _, child in ipairs(parent:GetChildren()) do
-					if child:IsA("ScreenGui") then
-						local n = child.Name
-						if string.find(n, "Veyra") or string.find(n, "veyra") then
-							pcall(function() child:Destroy() end)
-						end
-					end
-				end
-			end
-		end
-	end)
-end
-
-function Library:Init(options)
-	options = options or {}
-
-	KillPrevious()
-	pcall(function()
-		self:Destroy()
-	end)
-	InitDone = true
-
-	if type(Settings.Theme) == "string" and ThemePresets[Settings.Theme] then
-		ApplyThemePreset(Settings.Theme)
-	end
-	if type(options.Theme) == "string" then
-		ApplyThemePreset(options.Theme)
-	elseif type(options.Theme) == "table" then
-		SetTheme(options.Theme)
-	end
-
-	if options.NotifDraggable ~= nil then
-		NotifManager.Draggable = options.NotifDraggable and true or false
-	end
-
-	if options.Intro == true then
-		task.spawn(function()
-			PlayIntro(options.IntroConfig or {
-				Title = options.Title or "Veyra",
-				Subtitle = options.Subtitle or "",
-			})
-		end)
-	end
-
-	if type(options.KeySystem) == "table" then
-		task.spawn(function()
-			CreateKeySystem(options.KeySystem)
-		end)
-	end
-
-	-- Simple: Init({ Title = "..." }) returns the window
-	if options.Title or options.Name then
-		return self:CreateWindow({
-			Title = options.Title or options.Name or "Veyra",
-			Subtitle = options.Subtitle or "",
-			MobileToggle = options.MobileToggle,
-			VeyraBlur = options.VeyraBlur,
-			Size = options.Size,
-		})
-	end
-
-	return Library
-end
-
-function Library:PlayIntro(config)
-	return PlayIntro(config)
-end
-
-function Library:CreateKeySystem(config)
-	return CreateKeySystem(config)
-end
-
-function Library:IsInit()
-	return InitDone
-end
-
-function Library:Destroy()
-	local snap = table.clone(Windows)
-	table.clear(Windows)
-	for _, win in ipairs(snap) do
-		pcall(function() win:Destroy() end)
-	end
-	pcall(function() NotifManager:Destroy() end)
-	pcall(function()
-		NotifManager = NotificationManager.new()
-	end)
-	TweenEngine.CancelAll()
-	table.clear(ThemeListeners)
-	InitDone = false
-	pcall(function()
-		local parents = {}
-		pcall(function() table.insert(parents, game:GetService("CoreGui")) end)
-		pcall(function()
-			if type(gethui) == "function" then table.insert(parents, gethui()) end
-		end)
-		pcall(function()
-			local lp = game:GetService("Players").LocalPlayer
-			if lp then table.insert(parents, lp:FindFirstChildOfClass("PlayerGui")) end
-		end)
-		for _, parent in ipairs(parents) do
-			if parent then
-				for _, child in ipairs(parent:GetChildren()) do
-					if child:IsA("ScreenGui") and (child.Name == "VeyraKeySystem" or string.find(child.Name, "VeyraKey")) then
-						pcall(function() child:Destroy() end)
-					end
-				end
-			end
-		end
-	end)
-end
 
 Library.Animation = TweenEngine
 
@@ -8507,7 +8286,6 @@ Library.Icons = IconAssets
 Library.SurfaceBlur = SurfaceBlur
 Library.Version = "2.0.0-unified"
 Library.Flipper = Flipper
-Library.AttachFloatingToggle = AttachFloatingToggle
 
 local ExtendedKit = {}
 do
