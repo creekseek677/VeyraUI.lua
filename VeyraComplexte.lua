@@ -8061,6 +8061,219 @@ Flipper = {
 }
 
 
+local Library = {}
+Library.__index = Library
+
+local NotifManager = NotificationManager.new()
+
+local Windows = {}
+
+function Library:CreateWindow(config)
+	local win = CreateWindow(Library, config)
+	table.insert(Windows, win)
+
+	local oldDestroy = win.Destroy
+	function win:Destroy()
+		local idx = table.find(Windows, self)
+		if idx then table.remove(Windows, idx) end
+		if oldDestroy then oldDestroy(self) end
+	end
+	return win
+end
+
+function Library:Notify(config)
+	return NotifManager:Notify(config)
+end
+
+function Library:SetNotifDraggable(enabled)
+	NotifManager.Draggable = enabled and true or false
+end
+Library.NotifDraggable = true
+
+function Library:CreateNode(config)
+	config = config or {}
+
+	if config.Content and not config.Description then
+		config.Description = config.Content
+	end
+	if config.Length ~= nil and config.Duration == nil then
+		config.Duration = config.Length
+	end
+	return NotifManager:Notify(config)
+end
+
+function Library:SetTheme(t)
+	SetTheme(t)
+end
+
+function Library:ApplyTheme(name)
+	return ApplyThemePreset(name)
+end
+
+function Library:GetTheme()
+	return GetTheme()
+end
+
+function Library:GetSettings()
+	return Settings
+end
+
+function Library:SaveSettings()
+	return ConfigSave()
+end
+
+function Library:LoadSettings()
+	return ConfigLoad()
+end
+
+Library.ThemePresets = ThemePresets
+Library.Settings = Settings
+
+local InitDone = false
+
+local function KillPrevious()
+	pcall(function()
+
+		local snap = table.clone(Windows)
+		table.clear(Windows)
+		for _, win in ipairs(snap) do
+			pcall(function()
+				if win.Destroy then win:Destroy() end
+			end)
+		end
+
+		if NotifManager then
+			pcall(function() NotifManager:Clear() end)
+			pcall(function()
+				if NotifManager.Gui then NotifManager.Gui:Destroy() end
+			end)
+			NotifManager = NotificationManager.new()
+		end
+
+		pcall(function() TweenEngine.CancelAll() end)
+
+		local parents = {}
+		pcall(function() table.insert(parents, game:GetService("CoreGui")) end)
+		pcall(function()
+			if type(gethui) == "function" then table.insert(parents, gethui()) end
+		end)
+		pcall(function()
+			local lp = game:GetService("Players").LocalPlayer
+			if lp then table.insert(parents, lp:FindFirstChildOfClass("PlayerGui")) end
+		end)
+		for _, parent in ipairs(parents) do
+			if parent then
+				for _, child in ipairs(parent:GetChildren()) do
+					if child:IsA("ScreenGui") then
+						local n = child.Name
+						if string.find(n, "Veyra") or string.find(n, "veyra") then
+							pcall(function() child:Destroy() end)
+						end
+					end
+				end
+			end
+		end
+	end)
+end
+
+function Library:Init(options)
+	options = options or {}
+
+	KillPrevious()
+	pcall(function()
+		self:Destroy()
+	end)
+	InitDone = true
+
+	if type(Settings.Theme) == "string" and ThemePresets[Settings.Theme] then
+		ApplyThemePreset(Settings.Theme)
+	end
+	if type(options.Theme) == "string" then
+		ApplyThemePreset(options.Theme)
+	elseif type(options.Theme) == "table" then
+		SetTheme(options.Theme)
+	end
+
+	if options.NotifDraggable ~= nil then
+		NotifManager.Draggable = options.NotifDraggable and true or false
+	end
+
+	if options.Intro == true then
+		task.spawn(function()
+			PlayIntro(options.IntroConfig or {
+				Title = options.Title or "Veyra",
+				Subtitle = options.Subtitle or "",
+			})
+		end)
+	end
+
+	if type(options.KeySystem) == "table" then
+		task.spawn(function()
+			CreateKeySystem(options.KeySystem)
+		end)
+	end
+
+	-- Simple: Init({ Title = "..." }) returns the window
+	if options.Title or options.Name then
+		return self:CreateWindow({
+			Title = options.Title or options.Name or "Veyra",
+			Subtitle = options.Subtitle or "",
+			MobileToggle = options.MobileToggle,
+			VeyraBlur = options.VeyraBlur,
+			Size = options.Size,
+		})
+	end
+
+	return Library
+end
+
+function Library:PlayIntro(config)
+	return PlayIntro(config)
+end
+
+function Library:CreateKeySystem(config)
+	return CreateKeySystem(config)
+end
+
+function Library:IsInit()
+	return InitDone
+end
+
+function Library:Destroy()
+	local snap = table.clone(Windows)
+	table.clear(Windows)
+	for _, win in ipairs(snap) do
+		pcall(function() win:Destroy() end)
+	end
+	pcall(function() NotifManager:Destroy() end)
+	pcall(function()
+		NotifManager = NotificationManager.new()
+	end)
+	TweenEngine.CancelAll()
+	table.clear(ThemeListeners)
+	InitDone = false
+	pcall(function()
+		local parents = {}
+		pcall(function() table.insert(parents, game:GetService("CoreGui")) end)
+		pcall(function()
+			if type(gethui) == "function" then table.insert(parents, gethui()) end
+		end)
+		pcall(function()
+			local lp = game:GetService("Players").LocalPlayer
+			if lp then table.insert(parents, lp:FindFirstChildOfClass("PlayerGui")) end
+		end)
+		for _, parent in ipairs(parents) do
+			if parent then
+				for _, child in ipairs(parent:GetChildren()) do
+					if child:IsA("ScreenGui") and (child.Name == "VeyraKeySystem" or string.find(child.Name, "VeyraKey")) then
+						pcall(function() child:Destroy() end)
+					end
+				end
+			end
+		end
+	end)
+end
+
 Library.Animation = TweenEngine
 
 local function wrapTab(tab)
@@ -13632,179 +13845,3 @@ local Icons = {
 		["lucide-shirt"] = "rbxassetid://10734952036",
 		["lucide-shopping-bag"] = "rbxassetid://10734952273",
 		["lucide-shopping-cart"] = "rbxassetid://10734952479",
-		["lucide-shovel"] = "rbxassetid://10734952773",
-		["lucide-shower-head"] = "rbxassetid://10734952942",
-		["lucide-shrink"] = "rbxassetid://10734953073",
-		["lucide-shrub"] = "rbxassetid://10734953241",
-		["lucide-shuffle"] = "rbxassetid://10734953451",
-		["lucide-sidebar"] = "rbxassetid://10734954301",
-		["lucide-sidebar-close"] = "rbxassetid://10734953715",
-		["lucide-sidebar-open"] = "rbxassetid://10734954000",
-		["lucide-sigma"] = "rbxassetid://10734954538",
-		["lucide-signal"] = "rbxassetid://10734961133",
-		["lucide-signal-high"] = "rbxassetid://10734954807",
-		["lucide-signal-low"] = "rbxassetid://10734955080",
-		["lucide-signal-medium"] = "rbxassetid://10734955336",
-		["lucide-signal-zero"] = "rbxassetid://10734960878",
-		["lucide-siren"] = "rbxassetid://10734961284",
-		["lucide-skip-back"] = "rbxassetid://10734961526",
-		["lucide-skip-forward"] = "rbxassetid://10734961809",
-		["lucide-skull"] = "rbxassetid://10734962068",
-		["lucide-slack"] = "rbxassetid://10734962339",
-		["lucide-slash"] = "rbxassetid://10734962600",
-		["lucide-slice"] = "rbxassetid://10734963024",
-		["lucide-sliders"] = "rbxassetid://10734963400",
-		["lucide-sliders-horizontal"] = "rbxassetid://10734963191",
-		["lucide-smartphone"] = "rbxassetid://10734963940",
-		["lucide-smartphone-charging"] = "rbxassetid://10734963671",
-		["lucide-smile"] = "rbxassetid://10734964441",
-		["lucide-smile-plus"] = "rbxassetid://10734964188",
-		["lucide-snowflake"] = "rbxassetid://10734964600",
-		["lucide-sofa"] = "rbxassetid://10734964852",
-		["lucide-sort-asc"] = "rbxassetid://10734965115",
-		["lucide-sort-desc"] = "rbxassetid://10734965287",
-		["lucide-speaker"] = "rbxassetid://10734965419",
-		["lucide-sprout"] = "rbxassetid://10734965572",
-		["lucide-square"] = "rbxassetid://10734965702",
-		["lucide-star"] = "rbxassetid://10734966248",
-		["lucide-star-half"] = "rbxassetid://10734965897",
-		["lucide-star-off"] = "rbxassetid://10734966097",
-		["lucide-stethoscope"] = "rbxassetid://10734966384",
-		["lucide-sticker"] = "rbxassetid://10734972234",
-		["lucide-sticky-note"] = "rbxassetid://10734972463",
-		["lucide-stop-circle"] = "rbxassetid://10734972621",
-		["lucide-stretch-horizontal"] = "rbxassetid://10734972862",
-		["lucide-stretch-vertical"] = "rbxassetid://10734973130",
-		["lucide-strikethrough"] = "rbxassetid://10734973290",
-		["lucide-subscript"] = "rbxassetid://10734973457",
-		["lucide-sun"] = "rbxassetid://10734974297",
-		["lucide-sun-dim"] = "rbxassetid://10734973645",
-		["lucide-sun-medium"] = "rbxassetid://10734973778",
-		["lucide-sun-moon"] = "rbxassetid://10734973999",
-		["lucide-sun-snow"] = "rbxassetid://10734974130",
-		["lucide-sunrise"] = "rbxassetid://10734974522",
-		["lucide-sunset"] = "rbxassetid://10734974689",
-		["lucide-superscript"] = "rbxassetid://10734974850",
-		["lucide-swiss-franc"] = "rbxassetid://10734975024",
-		["lucide-switch-camera"] = "rbxassetid://10734975214",
-		["lucide-sword"] = "rbxassetid://10734975486",
-		["lucide-swords"] = "rbxassetid://10734975692",
-		["lucide-syringe"] = "rbxassetid://10734975932",
-		["lucide-table"] = "rbxassetid://10734976230",
-		["lucide-table-2"] = "rbxassetid://10734976097",
-		["lucide-tablet"] = "rbxassetid://10734976394",
-		["lucide-tag"] = "rbxassetid://10734976528",
-		["lucide-tags"] = "rbxassetid://10734976739",
-		["lucide-target"] = "rbxassetid://10734977012",
-		["lucide-tent"] = "rbxassetid://10734981750",
-		["lucide-terminal"] = "rbxassetid://10734982144",
-		["lucide-terminal-square"] = "rbxassetid://10734981995",
-		["lucide-text-cursor"] = "rbxassetid://10734982395",
-		["lucide-text-cursor-input"] = "rbxassetid://10734982297",
-		["lucide-thermometer"] = "rbxassetid://10734983134",
-		["lucide-thermometer-snowflake"] = "rbxassetid://10734982571",
-		["lucide-thermometer-sun"] = "rbxassetid://10734982771",
-		["lucide-thumbs-down"] = "rbxassetid://10734983359",
-		["lucide-thumbs-up"] = "rbxassetid://10734983629",
-		["lucide-ticket"] = "rbxassetid://10734983868",
-		["lucide-timer"] = "rbxassetid://10734984606",
-		["lucide-timer-off"] = "rbxassetid://10734984138",
-		["lucide-timer-reset"] = "rbxassetid://10734984355",
-		["lucide-toggle-left"] = "rbxassetid://10734984834",
-		["lucide-toggle-right"] = "rbxassetid://10734985040",
-		["lucide-tornado"] = "rbxassetid://10734985247",
-		["lucide-toy-brick"] = "rbxassetid://10747361919",
-		["lucide-train"] = "rbxassetid://10747362105",
-		["lucide-trash"] = "rbxassetid://10747362393",
-		["lucide-trash-2"] = "rbxassetid://10747362241",
-		["lucide-tree-deciduous"] = "rbxassetid://10747362534",
-		["lucide-tree-pine"] = "rbxassetid://10747362748",
-		["lucide-trees"] = "rbxassetid://10747363016",
-		["lucide-trending-down"] = "rbxassetid://10747363205",
-		["lucide-trending-up"] = "rbxassetid://10747363465",
-		["lucide-triangle"] = "rbxassetid://10747363621",
-		["lucide-trophy"] = "rbxassetid://10747363809",
-		["lucide-truck"] = "rbxassetid://10747364031",
-		["lucide-tv"] = "rbxassetid://10747364593",
-		["lucide-tv-2"] = "rbxassetid://10747364302",
-		["lucide-type"] = "rbxassetid://10747364761",
-		["lucide-umbrella"] = "rbxassetid://10747364971",
-		["lucide-underline"] = "rbxassetid://10747365191",
-		["lucide-undo"] = "rbxassetid://10747365484",
-		["lucide-undo-2"] = "rbxassetid://10747365359",
-		["lucide-unlink"] = "rbxassetid://10747365771",
-		["lucide-unlink-2"] = "rbxassetid://10747397871",
-		["lucide-unlock"] = "rbxassetid://10747366027",
-		["lucide-upload"] = "rbxassetid://10747366434",
-		["lucide-upload-cloud"] = "rbxassetid://10747366266",
-		["lucide-usb"] = "rbxassetid://10747366606",
-		["lucide-user"] = "rbxassetid://10747373176",
-		["lucide-user-check"] = "rbxassetid://10747371901",
-		["lucide-user-cog"] = "rbxassetid://10747372167",
-		["lucide-user-minus"] = "rbxassetid://10747372346",
-		["lucide-user-plus"] = "rbxassetid://10747372702",
-		["lucide-user-x"] = "rbxassetid://10747372992",
-		["lucide-users"] = "rbxassetid://10747373426",
-		["lucide-utensils"] = "rbxassetid://10747373821",
-		["lucide-utensils-crossed"] = "rbxassetid://10747373629",
-		["lucide-venetian-mask"] = "rbxassetid://10747374003",
-		["lucide-verified"] = "rbxassetid://10747374131",
-		["lucide-vibrate"] = "rbxassetid://10747374489",
-		["lucide-vibrate-off"] = "rbxassetid://10747374269",
-		["lucide-video"] = "rbxassetid://10747374938",
-		["lucide-video-off"] = "rbxassetid://10747374721",
-		["lucide-view"] = "rbxassetid://10747375132",
-		["lucide-voicemail"] = "rbxassetid://10747375281",
-		["lucide-volume"] = "rbxassetid://10747376008",
-		["lucide-volume-1"] = "rbxassetid://10747375450",
-		["lucide-volume-2"] = "rbxassetid://10747375679",
-		["lucide-volume-x"] = "rbxassetid://10747375880",
-		["lucide-wallet"] = "rbxassetid://10747376205",
-		["lucide-wand"] = "rbxassetid://10747376565",
-		["lucide-wand-2"] = "rbxassetid://10747376349",
-		["lucide-watch"] = "rbxassetid://10747376722",
-		["lucide-waves"] = "rbxassetid://10747376931",
-		["lucide-webcam"] = "rbxassetid://10747381992",
-		["lucide-wifi"] = "rbxassetid://10747382504",
-		["lucide-wifi-off"] = "rbxassetid://10747382268",
-		["lucide-wind"] = "rbxassetid://10747382750",
-		["lucide-wrap-text"] = "rbxassetid://10747383065",
-		["lucide-wrench"] = "rbxassetid://10747383470",
-		["lucide-x"] = "rbxassetid://10747384394",
-		["lucide-x-circle"] = "rbxassetid://10747383819",
-		["lucide-x-octagon"] = "rbxassetid://10747384037",
-		["lucide-x-square"] = "rbxassetid://10747384217",
-		["lucide-zoom-in"] = "rbxassetid://10747384552",
-		["lucide-zoom-out"] = "rbxassetid://10747384679",
-	},
-}
-
-local NotificationModule = Components.Notification
-NotificationModule:Init(GUI)
-
-function Library:GetIcon(Name)
-	if Name ~= nil and Icons.assets["lucide-" .. Name] then
-		return Icons.assets["lucide-" .. Name]
-	end
-	return nil
-end
-
-]=],
-
-}
-
-function Library:LoadExtendedBuilders()
-	local out = {}
-	if _MergedArchive.AcrylicBuilders then
-		local fn, err = loadstring(_MergedArchive.AcrylicBuilders)
-		if fn then
-			local ok, res = pcall(fn)
-			out.Acrylic = ok and res or err
-		else
-			out.AcrylicError = err
-		end
-	end
-	return out
-end
-
-return Library
