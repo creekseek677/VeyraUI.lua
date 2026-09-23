@@ -775,11 +775,7 @@ local function DecorateGuiTree(root)
 		if not obj:IsA("GuiObject") then return end
 		local n = string.lower(obj.Name or "")
 		if obj.BackgroundTransparency < 1 then
-			-- Skip structural / fixed-radius elements so Corner Radius slider only affects the main window chrome
-			if n ~= "root" and n ~= "body" and n ~= "contentcontainer" and n ~= "tabbar"
-				and n ~= "outlineaccent" and n ~= "dim" and n ~= "resizegrip" and n ~= "backgroundimage"
-				and n ~= "search" and n ~= "tabbg" and n ~= "titlebar" and n ~= "titlefix"
-				and n ~= "sidebar" and n ~= "backgroundholder" and n ~= "veyramobiletoggle" then
+			if n ~= "root" and n ~= "body" and n ~= "contentcontainer" and n ~= "tabbar" and n ~= "outlineaccent" and n ~= "dim" and n ~= "resizegrip" and n ~= "backgroundimage" then
 				EnsureCorner(obj, Settings.CornerRadius or Theme.CornerRadius or 2)
 			end
 		end
@@ -2150,80 +2146,233 @@ end
 local function CreateSection(tab, config)
 	config = config or {}
 	local cleanup = CreateCleanup()
+	local collapsed = config.Collapsed == true
+	local animating = false
+
+	local CHEVRON_DOWN = (GetIcon and GetIcon("chevron-down")) or "rbxassetid://10709790948"
+	local CHEVRON_RIGHT = (GetIcon and GetIcon("chevron-right")) or "rbxassetid://10709791437"
 
 	local container = Instance.new("Frame")
 	container.Name = "Section_" .. (config.Name or "Untitled")
 	container.BackgroundTransparency = 1
 	container.Size = UDim2.new(1, 0, 0, 0)
 	container.AutomaticSize = Enum.AutomaticSize.Y
+	container.ClipsDescendants = false
 	container.Parent = tab.Content
 
 	local layout = Instance.new("UIListLayout")
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Padding = UDim.new(0, 8)
+	layout.Padding = UDim.new(0, 6)
 	layout.Parent = container
+
+	-- Header (clickable) with title left + chevron right
+	local header = Instance.new("TextButton")
+	header.Name = "Header"
+	header.BackgroundColor3 = Theme.Secondary
+	header.BackgroundTransparency = 0.55
+	header.BorderSizePixel = 0
+	header.Size = UDim2.new(1, 0, 0, 28)
+	header.AutoButtonColor = false
+	header.Text = ""
+	header.LayoutOrder = 0
+	header.ZIndex = 2
+	header.Parent = container
+
+	local headerCorner = Instance.new("UICorner")
+	headerCorner.Name = "VeyraFixedCorner"
+	headerCorner.CornerRadius = UDim.new(0, 6)
+	headerCorner.Parent = header
 
 	local title = Instance.new("TextLabel")
 	title.BackgroundTransparency = 1
-	title.Size = UDim2.new(1, 0, 0, 20)
+	title.Size = UDim2.new(1, -36, 1, 0)
+	title.Position = UDim2.new(0, 10, 0, 0)
 	title.Font = Theme.FontBold
 	title.TextSize = 13
 	title.TextColor3 = Theme.Text
 	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.Text = config.Name or "Section"
-	title.LayoutOrder = 0
-	title.Parent = container
+	title.ZIndex = 3
+	title.Parent = header
 
+	local arrow = Instance.new("ImageLabel")
+	arrow.Name = "Arrow"
+	arrow.BackgroundTransparency = 1
+	arrow.Size = UDim2.new(0, 16, 0, 16)
+	arrow.Position = UDim2.new(1, -24, 0.5, -8)
+	arrow.Image = collapsed and CHEVRON_RIGHT or CHEVRON_DOWN
+	arrow.ImageColor3 = Theme.SecondaryText
+	arrow.ScaleType = Enum.ScaleType.Fit
+	arrow.ZIndex = 3
+	arrow.Parent = header
+
+	local descLabel = nil
 	if config.Description then
-		local d = Instance.new("TextLabel")
-		d.BackgroundTransparency = 1
-		d.Size = UDim2.new(1, 0, 0, 16)
-		d.Font = Theme.Font
-		d.TextSize = 11
-		d.TextColor3 = Theme.SecondaryText
-		d.TextXAlignment = Enum.TextXAlignment.Left
-		d.Text = config.Description
-		d.LayoutOrder = 1
-		d.Parent = container
+		descLabel = Instance.new("TextLabel")
+		descLabel.BackgroundTransparency = 1
+		descLabel.Size = UDim2.new(1, 0, 0, 16)
+		descLabel.Font = Theme.Font
+		descLabel.TextSize = 11
+		descLabel.TextColor3 = Theme.SecondaryText
+		descLabel.TextXAlignment = Enum.TextXAlignment.Left
+		descLabel.Text = config.Description
+		descLabel.LayoutOrder = 1
+		descLabel.Parent = container
 	end
+
+	-- Content wrapper used for collapse animation (slides / height tween)
+	local contentWrap = Instance.new("Frame")
+	contentWrap.Name = "ContentWrap"
+	contentWrap.BackgroundTransparency = 1
+	contentWrap.Size = UDim2.new(1, 0, 0, 0)
+	contentWrap.AutomaticSize = Enum.AutomaticSize.Y
+	contentWrap.ClipsDescendants = true
+	contentWrap.LayoutOrder = 2
+	contentWrap.Parent = container
 
 	local content = Instance.new("Frame")
 	content.Name = "Content"
 	content.BackgroundTransparency = 1
 	content.Size = UDim2.new(1, 0, 0, 0)
 	content.AutomaticSize = Enum.AutomaticSize.Y
-	content.LayoutOrder = 2
-	content.Parent = container
+	content.Position = UDim2.new(0, 0, 0, 0)
+	content.Parent = contentWrap
 
 	local cl = Instance.new("UIListLayout")
 	cl.SortOrder = Enum.SortOrder.LayoutOrder
 	cl.Padding = UDim.new(0, 6)
 	cl.Parent = content
 
+	local contentPad = Instance.new("UIPadding")
+	contentPad.PaddingTop = UDim.new(0, 4)
+	contentPad.Parent = content
+
 	cleanup:AddInstance(container)
-
-	local descLabel = nil
-	if config.Description then
-		descLabel = container:FindFirstChildWhichIsA("TextLabel")
-
-		for _, ch in ipairs(container:GetChildren()) do
-			if ch:IsA("TextLabel") and ch ~= title then
-				descLabel = ch
-				break
-			end
-		end
-	end
 
 	local section = {
 		Container = container,
 		Content = content,
+		Header = header,
 		Cleanup = cleanup,
+		Collapsed = collapsed,
 	}
+
+	local function measureContentHeight()
+		-- Force layout update then read absolute content size
+		local h = 0
+		for _, ch in ipairs(content:GetChildren()) do
+			if ch:IsA("GuiObject") and ch.Visible then
+				h = math.max(h, ch.AbsolutePosition.Y + ch.AbsoluteSize.Y - content.AbsolutePosition.Y)
+			end
+		end
+		-- Fallback via UIListLayout
+		if cl.AbsoluteContentSize then
+			h = math.max(h, cl.AbsoluteContentSize.Y + 4)
+		end
+		return math.max(0, h)
+	end
+
+	local function setCollapsed(state, animate)
+		if animating then return end
+		collapsed = state and true or false
+		section.Collapsed = collapsed
+		arrow.Image = collapsed and CHEVRON_RIGHT or CHEVRON_DOWN
+
+		if not animate then
+			if collapsed then
+				contentWrap.AutomaticSize = Enum.AutomaticSize.None
+				contentWrap.Size = UDim2.new(1, 0, 0, 0)
+				content.Visible = false
+			else
+				content.Visible = true
+				contentWrap.AutomaticSize = Enum.AutomaticSize.Y
+				contentWrap.Size = UDim2.new(1, 0, 0, 0)
+			end
+			return
+		end
+
+		animating = true
+		if collapsed then
+			-- Collapse: capture height then tween to 0, content slides left slightly
+			local h = measureContentHeight()
+			contentWrap.AutomaticSize = Enum.AutomaticSize.None
+			contentWrap.Size = UDim2.new(1, 0, 0, h)
+			content.Visible = true
+			content.Position = UDim2.new(0, 0, 0, 0)
+			TweenEngine.Play(contentWrap, { Size = UDim2.new(1, 0, 0, 0) }, {
+				Duration = 0.22,
+				Easing = "QuadOut",
+				OnComplete = function()
+					content.Visible = false
+					animating = false
+				end,
+			})
+			TweenEngine.Play(content, { Position = UDim2.new(-0.08, 0, 0, 0) }, {
+				Duration = 0.22,
+				Easing = "QuadOut",
+			})
+		else
+			-- Expand: start from 0, measure, tween up, slide in from left
+			content.Visible = true
+			content.Position = UDim2.new(-0.08, 0, 0, 0)
+			contentWrap.AutomaticSize = Enum.AutomaticSize.None
+			contentWrap.Size = UDim2.new(1, 0, 0, 0)
+			task.defer(function()
+				local h = measureContentHeight()
+				if h < 1 then h = 1 end
+				TweenEngine.Play(contentWrap, { Size = UDim2.new(1, 0, 0, h) }, {
+					Duration = 0.25,
+					Easing = "QuadOut",
+					OnComplete = function()
+						contentWrap.AutomaticSize = Enum.AutomaticSize.Y
+						contentWrap.Size = UDim2.new(1, 0, 0, 0)
+						animating = false
+					end,
+				})
+				TweenEngine.Play(content, { Position = UDim2.new(0, 0, 0, 0) }, {
+					Duration = 0.25,
+					Easing = "QuadOut",
+				})
+			end)
+		end
+	end
+
+	-- Initial state
+	setCollapsed(collapsed, false)
+
+	cleanup:AddConnection(header.Activated:Connect(function()
+		setCollapsed(not collapsed, true)
+	end))
+
+	-- Hover feedback on header
+	cleanup:AddConnection(header.MouseEnter:Connect(function()
+		header.BackgroundTransparency = 0.35
+		arrow.ImageColor3 = Theme.Text
+	end))
+	cleanup:AddConnection(header.MouseLeave:Connect(function()
+		header.BackgroundTransparency = 0.55
+		arrow.ImageColor3 = Theme.SecondaryText
+	end))
+
+	function section:SetCollapsed(state)
+		setCollapsed(state, true)
+	end
+
+	function section:IsCollapsed()
+		return collapsed
+	end
+
+	function section:Toggle()
+		setCollapsed(not collapsed, true)
+	end
 
 	function section:RefreshTheme()
 		if cleanup:IsDestroyed() then return end
 		title.Font = Theme.FontBold
 		title.TextColor3 = Theme.Text
+		header.BackgroundColor3 = Theme.Secondary
+		arrow.ImageColor3 = Theme.SecondaryText
+		arrow.Image = collapsed and CHEVRON_RIGHT or CHEVRON_DOWN
 		if descLabel then
 			descLabel.Font = Theme.Font
 			descLabel.TextColor3 = Theme.SecondaryText
@@ -4080,8 +4229,8 @@ local function CreateTab(window, config)
 	tabBg.Parent = tabBtn
 
 	local tabBgCorner = Instance.new("UICorner")
-	tabBgCorner.Name = "VeyraFixedCorner"
-	tabBgCorner.CornerRadius = UDim.new(0, 6) -- fixed, independent of Corner Radius slider
+	tabBgCorner.Name = "VeyraCorner"
+	tabBgCorner.CornerRadius = UDim.new(0, Theme.CornerRadius or 2)
 	tabBgCorner.Parent = tabBg
 
 		local btnPad = Instance.new("UIPadding")
@@ -4781,10 +4930,9 @@ local function CreateWindow(library, config)
 	outline.BackgroundColor3 = Theme.OutlineAccent or Color3.fromRGB(255, 255, 255)
 	outline.BackgroundTransparency = 0.05
 	outline.BorderSizePixel = 0
-	-- Inset by corner radius so the accent bar does not create sharp "tips" at the rounded corners
-	local cr = math.max(0, math.floor(tonumber(Settings.CornerRadius or Theme.CornerRadius or 2) or 2))
-	outline.Size = UDim2.new(0, 2, 1, -2 * cr)
-	outline.Position = UDim2.new(0, 0, 0, cr)
+	
+	outline.Size = UDim2.new(0, 2, 1, 0)
+	outline.Position = UDim2.new(0, 0, 0, 0)
 	outline.ZIndex = 5
 	outline.Parent = main
 
@@ -4902,11 +5050,6 @@ local function CreateWindow(library, config)
 	searchPad.PaddingLeft = UDim.new(0, 8)
 	searchPad.PaddingRight = UDim.new(0, 8)
 	searchPad.Parent = searchBox
-
-	local searchCorner = Instance.new("UICorner")
-	searchCorner.Name = "VeyraFixedCorner"
-	searchCorner.CornerRadius = UDim.new(0, 6) -- fixed, independent of Corner Radius slider
-	searchCorner.Parent = searchBox
 
 	local tabBar = Instance.new("ScrollingFrame")
 	tabBar.Name = "TabBar"
@@ -5162,12 +5305,6 @@ local function CreateWindow(library, config)
 		Theme.CornerRadius = math.max(0, math.floor(tonumber(Settings.CornerRadius or Theme.CornerRadius or 2) or 2))
 		EnsureCorner(root, Theme.CornerRadius)
 		EnsureCorner(main, Theme.CornerRadius)
-		-- Keep left accent bar inset so rounded corners never produce sharp tips
-		if outline and outline.Parent then
-			local cr = Theme.CornerRadius
-			outline.Size = UDim2.new(0, 2, 1, -2 * cr)
-			outline.Position = UDim2.new(0, 0, 0, cr)
-		end
 		titleLabel.TextColor3 = Theme.Text
 		titleLabel.Font = Theme.FontBold
 		subtitle.TextColor3 = Theme.SecondaryText
@@ -7866,14 +8003,6 @@ Flipper = {
 }
 
 function AttachFloatingToggle(screenGui, onToggle)
-	-- Parent to a dedicated ScreenGui so the toggle stays visible when the main UI is hidden
-	local toggleGui = Instance.new("ScreenGui")
-	toggleGui.Name = "VeyraMobileToggleGui"
-	toggleGui.DisplayOrder = 100
-	toggleGui.IgnoreGuiInset = true
-	toggleGui.ResetOnSpawn = false
-	ProtectAndParent(toggleGui)
-
 	local btn = Instance.new("ImageButton")
 	btn.Name = "VeyraMobileToggle"
 	btn.Image = "rbxassetid://112235310154264"
@@ -7885,23 +8014,14 @@ function AttachFloatingToggle(screenGui, onToggle)
 	btn.AnchorPoint = Vector2.new(0, 0.5)
 	btn.Visible = false
 	btn.ZIndex = 999
-	btn.Parent = toggleGui
+	btn.Parent = screenGui
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(1, 0)
 	corner.Parent = btn
 	local stroke = Instance.new("UIStroke")
-	stroke.Name = "VeyraToggleStroke"
-	stroke.Color = GetOutlineColor()
-	stroke.Thickness = 1.5
-	stroke.Transparency = 0.2
+	stroke.Color = Color3.fromRGB(55, 55, 65)
+	stroke.Thickness = 1
 	stroke.Parent = btn
-
-	-- Keep outline in sync with theme
-	local themeConn = OnThemeChange(function()
-		if stroke and stroke.Parent then
-			stroke.Color = GetOutlineColor()
-		end
-	end)
 
 	local dragging = false
 	local dragStart, startPos
@@ -7934,15 +8054,6 @@ function AttachFloatingToggle(screenGui, onToggle)
 	end)
 	local touch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 	if touch then btn.Visible = true end
-
-	-- Cleanup the dedicated gui when the button is destroyed
-	btn.Destroying:Connect(function()
-		if themeConn then themeConn() end
-		if toggleGui and toggleGui.Parent then
-			pcall(function() toggleGui:Destroy() end)
-		end
-	end)
-
 	return btn
 end
 
