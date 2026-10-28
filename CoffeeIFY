@@ -1727,7 +1727,7 @@ function Section:CreateColorPicker(opts)
 		})
 		-- Reparent the RGB slider into the picker body and tie its lifetime to
 		-- the picker so its global input connections are released on destroy.
-		(s._root).Parent = body
+		s._root.Parent = body
 		table.insert(comp._ownedComponents, s)
 		return s
 	end
@@ -1930,7 +1930,7 @@ function CoffeeIFY:CreateWindow(opts)
 	local w = setmetatable({}, Window)
 	w.Title = tostring(opts.Title or "CoffeeIFY")
 	w.ToggleKey = opts.Keybind
-	if typeof(w.ToggleKey) ~= "EnumItem" then
+	if typeof(w.ToggleKey) ~= "EnumItem" or w.ToggleKey.EnumType ~= Enum.KeyCode then
 		w.ToggleKey = Enum.KeyCode.RightShift
 	end
 	w.Tabs = {}
