@@ -1,4 +1,3 @@
---!strict
 -- CoffeeIFY UI Library (Luau)
 -- Compact coffee-themed UI inspired by provided references.
 -- Single-file distribution. Internal modules are defined as local tables.
@@ -16,16 +15,16 @@ local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 
 local LocalPlayer = Players.LocalPlayer
-local PlayerGui = if LocalPlayer then LocalPlayer:WaitForChild("PlayerGui") else nil
+local PlayerGui = LocalPlayer and LocalPlayer:WaitForChild("PlayerGui") or nil
 
 --// Utility
-local function clamp(n: number, a: number, b: number): number
+local function clamp(n, a, b)
 	if n < a then return a end
 	if n > b then return b end
 	return n
 end
 
-local function roundToIncrement(n: number, inc: number?): number
+local function roundToIncrement(n, inc)
 	if not inc or inc <= 0 then
 		return n
 	end
@@ -76,7 +75,7 @@ local HOVER_SOUND = 408524543
 local CLICK_SOUND = 4307186075
 local ALERT_SOUND = 644569388
 
-local function PlaySound(id: number, vol: number?)
+local function PlaySound(id, vol)
 	local s = Instance.new("Sound")
 	s.SoundId = "rbxassetid://" .. tostring(id)
 	s.Volume = vol or 0.35
@@ -91,14 +90,14 @@ Anim.Easing = Enum.EasingStyle.Quad
 Anim.DirOut = Enum.EasingDirection.Out
 Anim.DirIn = Enum.EasingDirection.In
 
-function Anim.tween(obj: Instance, time: number, props: {[string]: any}, easingStyle, easingDirection)
+function Anim.tween(obj, time, props, easingStyle, easingDirection)
 	local ti = TweenInfo.new(time, easingStyle or Anim.Easing, easingDirection or Anim.DirOut)
 	local tw = TweenService:Create(obj, ti, props)
 	tw:Play()
 	return tw
 end
 
-function Anim.springy(obj: Instance, time: number, props: {[string]: any})
+function Anim.springy(obj, time, props)
 	local ti = TweenInfo.new(time, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 	local tw = TweenService:Create(obj, ti, props)
 	tw:Play()
@@ -106,7 +105,7 @@ function Anim.springy(obj: Instance, time: number, props: {[string]: any})
 end
 
 -- Dark invasion hover: overlay grows from left.
-function Anim.bindHoverInvasion(button: GuiObject, overlay: Frame, options)
+function Anim.bindHoverInvasion(button, overlay, options)
 	options = options or {}
 	local enterSize = options.enterSize or UDim2.fromScale(1, 1)
 	local leaveSize = options.leaveSize or UDim2.fromScale(0, 1)
@@ -140,7 +139,7 @@ function Anim.bindHoverInvasion(button: GuiObject, overlay: Frame, options)
 		end
 	end)
 
-	return function(forceOff: boolean?)
+	return function(forceOff)
 		if forceOff then
 			overlay.Size = leaveSize
 			overlay.Position = leavePos
@@ -148,7 +147,7 @@ function Anim.bindHoverInvasion(button: GuiObject, overlay: Frame, options)
 	end
 end
 
-function Anim.bindPress(button: GuiButton, target: GuiObject?, options)
+function Anim.bindPress(button, target, options)
 	options = options or {}
 	local down = options.down or 0.02
 	local t = options.time or 0.08
@@ -187,7 +186,7 @@ end
 --// Icons (lucide.lua)
 local Icons = { Library = nil }
 
-function Icons.get(name: string)
+function Icons.get(name)
 	-- Soft dependency on lucide.lua. This supports the common ways users expose it:
 	-- CoffeeIFY:SetIconLibrary(lucide), _G.lucide, shared.lucide, or replicated ModuleScript named "lucide"/"Lucide".
 	local candidates = {}
@@ -197,8 +196,8 @@ function Icons.get(name: string)
 		end
 	end
 	addCandidate(Icons.Library)
-	pcall(function() addCandidate((_G :: any).lucide or (_G :: any).Lucide) end)
-	pcall(function() addCandidate((shared :: any).lucide or (shared :: any).Lucide) end)
+	pcall(function() addCandidate(_G.lucide or _G.Lucide) end)
+	pcall(function() addCandidate(shared.lucide or shared.Lucide) end)
 	pcall(function()
 		local rs = game:GetService("ReplicatedStorage")
 		local mod = rs:FindFirstChild("lucide") or rs:FindFirstChild("Lucide") or rs:FindFirstChild("lucide.lua")
@@ -227,15 +226,15 @@ function Icons.get(name: string)
 end
 
 --// UI factory helpers
-local function new(inst: string, props)
+local function new(inst, props)
 	local obj = Instance.new(inst)
 	for k, v in pairs(props or {}) do
-		(obj :: any)[k] = v
+		obj[k] = v
 	end
 	return obj
 end
 
-local function applyStroke(frame: GuiObject, thickness: number)
+local function applyStroke(frame, thickness)
 	local stroke = new("UIStroke", {
 		Thickness = thickness,
 		Color = Theme.Outline,
@@ -246,13 +245,13 @@ local function applyStroke(frame: GuiObject, thickness: number)
 	return stroke
 end
 
-local function applyCorner(frame: GuiObject, radius: number)
+local function applyCorner(frame, radius)
 	local corner = new("UICorner", { CornerRadius = UDim.new(0, radius) })
 	corner.Parent = frame
 	return corner
 end
 
-local function pad(frame: GuiObject, l, r, t, b)
+local function pad(frame, l, r, t, b)
 	local p = new("UIPadding", {
 		PaddingLeft = UDim.new(0, l),
 		PaddingRight = UDim.new(0, r),
@@ -267,7 +266,7 @@ end
 local CoffeeIFY = {}
 CoffeeIFY.__index = CoffeeIFY
 
-function CoffeeIFY:SetIconLibrary(lucideTable)
+function CoffeeIFY(lucideTable)
 	-- Pass the table returned by lucide.lua if your environment does not expose it globally.
 	-- Example: CoffeeIFY:SetIconLibrary(loadstring(game:HttpGet(LUCIDE_URL))())
 	Icons.Library = lucideTable
@@ -278,20 +277,20 @@ end
 -- global state for keybind capture and window toggles
 local Global = {
 	Windows = {},
-	Capturing = nil :: any,
+	Capturing = nil,
 }
 
 --// Component base
 local ComponentBase = {}
 ComponentBase.__index = ComponentBase
 
-function ComponentBase:SetVisible(v: boolean)
+function ComponentBase(v)
 	if self._root then
-		(self._root :: GuiObject).Visible = v
+		self._root.Visible = v
 	end
 end
 
-function ComponentBase:Destroy()
+function ComponentBase()
 	if Global.Capturing == self then
 		if type(self._setCapture) == "function" then
 			pcall(self._setCapture, false)
@@ -318,12 +317,12 @@ function ComponentBase:Destroy()
 	end
 
 	if self._root then
-		(self._root :: Instance):Destroy()
+		self._root:Destroy()
 		self._root = nil
 	end
 end
 
-function ComponentBase:GetValue()
+function ComponentBase()
 	return self.Value
 end
 
@@ -358,7 +357,7 @@ local Visual = {
 	RoseImage = "rbxassetid://391020990", -- top-right rose
 }
 
-local function createRootGui(name: string)
+local function createRootGui(name)
 	local sg = new("ScreenGui", {
 		Name = name,
 		ResetOnSpawn = false,
@@ -368,7 +367,7 @@ local function createRootGui(name: string)
 	return sg
 end
 
-local function createTopBarButton(parent: Instance, iconName: string, x: number)
+local function createTopBarButton(parent, iconName, x)
 	local btn = new("ImageButton", {
 		Name = iconName .. "Button",
 		BackgroundColor3 = Theme.Panel,
@@ -422,7 +421,7 @@ local function createTopBarButton(parent: Instance, iconName: string, x: number)
 	return btn, icon, iconInDark
 end
 
-local function setLucide(iconLabel: ImageLabel, name: string)
+local function setLucide(iconLabel, name)
 	-- Accept both URL strings and numeric asset IDs from different lucide.lua
 	-- builds. Keep a small glyph fallback so controls remain identifiable when
 	-- no icon library is available.
@@ -476,22 +475,22 @@ local function setLucide(iconLabel: ImageLabel, name: string)
 	end
 end
 
-function Window:_setInteractionEnabled(enabled: boolean)
+function Window(enabled)
 	self._interactive = enabled
 	if self._rootFrame then
-		(self._rootFrame :: Frame).Active = enabled
+		self._rootFrame.Active = enabled
 	end
 	if self._shield then
-		(self._shield :: Frame).Visible = not enabled
+		self._shield.Visible = not enabled
 	end
 end
 
-function Window:_intro()
+function Window()
 	-- assembling: header slides in, sidebar clips reveal, content clips reveal
-	local root = self._rootFrame :: Frame
-	local header = self._header :: Frame
-	local sidebar = self._sidebar :: Frame
-	local content = self._content :: Frame
+	local root = self._rootFrame
+	local header = self._header
+	local sidebar = self._sidebar
+	local content = self._content
 
 	root.Visible = true
 	root.BackgroundTransparency = 1
@@ -527,15 +526,15 @@ function Window:_intro()
 	end)
 end
 
-function Window:_outro(destroyAfter: boolean)
+function Window(destroyAfter)
 	if self._closing then return end
 	self._closing = true
 	self:_setInteractionEnabled(false)
 
-	local root = self._rootFrame :: Frame
-	local header = self._header :: Frame
-	local sidebar = self._sidebar :: Frame
-	local content = self._content :: Frame
+	local root = self._rootFrame
+	local header = self._header
+	local sidebar = self._sidebar
+	local content = self._content
 
 	sidebar.ClipsDescendants = true
 	content.ClipsDescendants = true
@@ -558,14 +557,14 @@ function Window:_outro(destroyAfter: boolean)
 	end)
 end
 
-function Window:Toggle()
+function Window()
 	if self._closing then return end
 	self._visible = not self._visible
 	if self._visible then
 		self._minimized = false
-		(self._sidebar :: Frame).Visible = true
-		(self._content :: Frame).Visible = true
-		(self._rootFrame :: Frame).Visible = true
+		self._sidebar.Visible = true
+		self._content.Visible = true
+		self._rootFrame.Visible = true
 		self:_intro()
 	else
 		-- quick hide with disassembly but keep instance for state
@@ -573,12 +572,12 @@ function Window:Toggle()
 	end
 end
 
-function Window:Minimize()
+function Window()
 	if self._closing then return end
 	self._minimized = not self._minimized
-	local sidebar = self._sidebar :: Frame
-	local content = self._content :: Frame
-	local root = self._rootFrame :: Frame
+	local sidebar = self._sidebar
+	local content = self._content
+	local root = self._rootFrame
 
 	self:_setInteractionEnabled(false)
 	if self._minimized then
@@ -612,12 +611,12 @@ function Window:Minimize()
 	end
 end
 
-function Window:Close()
+function Window()
 	if self._closing then return end
 	self:_outro(true)
 end
 
-function Window:Destroy()
+function Window()
 	self._closing = true
 	self._visible = false
 
@@ -639,11 +638,11 @@ function Window:Destroy()
 		end
 	end
 	if self._screenGui then
-		(self._screenGui :: ScreenGui):Destroy()
+		self._screenGui:Destroy()
 	end
 end
 
-function Window:CreateTab(opts)
+function Window(opts)
 	opts = opts or {}
 	local tab = setmetatable({}, Tab)
 	tab.Window = self
@@ -793,22 +792,22 @@ function Window:CreateTab(opts)
 	return tab
 end
 
-function Window:_selectTab(tab)
+function Window(tab)
 	if self._selectedTab == tab then return end
 	local prev = self._selectedTab
 	self._selectedTab = tab
 
 	-- show page
 	for _, t in ipairs(self.Tabs) do
-		(t._page :: ScrollingFrame).Visible = false
+		t._page.Visible = false
 	end
-	(tab._page :: ScrollingFrame).Visible = true
+	tab._page.Visible = true
 
 	-- animate buttons: selected expands and stays dark
-	local function setSelected(t, selected: boolean)
+	local function setSelected(t, selected)
 		t._selected = selected
-		local btn = t._button :: TextButton
-		local overlay = t._overlay :: Frame
+		local btn = t._button
+		local overlay = t._overlay
 
 		if selected then
 			overlay.Size = UDim2.fromScale(1, 1)
@@ -833,11 +832,11 @@ function Window:_selectTab(tab)
 end
 
 -- public tab select
-function Tab:Select()
+function Tab()
 	self.Window:_selectTab(self)
 end
 
-function Tab:CreateSection(title: string)
+function Tab(title)
 	local section = setmetatable({}, Section)
 	section.Tab = self
 	section.Title = title
@@ -893,7 +892,7 @@ end
 local Components = {}
 
 -- Label (static text)
-function Section:CreateLabel(opts)
+function Section(opts)
 	opts = opts or {}
 	local text = tostring(opts.Text or opts.Name or "")
 	local comp = setmetatable({ Value = text }, ComponentBase)
@@ -931,7 +930,7 @@ function Section:CreateLabel(opts)
 end
 
 -- Button
-function Section:CreateButton(opts)
+function Section(opts)
 	opts = opts or {}
 	local comp = setmetatable({ Value = false }, ComponentBase)
 
@@ -1046,7 +1045,7 @@ function Section:CreateButton(opts)
 end
 
 -- Toggle (square + ON/OFF, black invade locks while ON)
-function Section:CreateToggle(opts)
+function Section(opts)
 	opts = opts or {}
 	local default = (opts.Default == true)
 	local comp = setmetatable({ Value = default }, ComponentBase)
@@ -1143,7 +1142,7 @@ function Section:CreateToggle(opts)
 		end
 	end)
 
-	local function setValue(v: boolean, fire: boolean)
+	local function setValue(v, fire)
 		v = v == true
 		comp.Value = v
 		refreshVisual()
@@ -1166,7 +1165,7 @@ function Section:CreateToggle(opts)
 end
 
 -- Slider
-function Section:CreateSlider(opts)
+function Section(opts)
 	opts = opts or {}
 	local minV = tonumber(opts.Min or 0) or 0
 	local maxV = tonumber(opts.Max or 100) or 100
@@ -1174,7 +1173,7 @@ function Section:CreateSlider(opts)
 		minV, maxV = maxV, minV
 	end
 	local inc = tonumber(opts.Increment) or nil
-	local function normalizeValue(v: number): number
+	local function normalizeValue(v)
 		v = clamp(v, minV, maxV)
 		if inc and inc > 0 then
 			v = minV + roundToIncrement(v - minV, inc)
@@ -1277,8 +1276,8 @@ function Section:CreateSlider(opts)
 
 	Anim.bindHoverInvasion(btn, overlay, { time = 0.14 })
 
-	local function render(v: number, instant: boolean?)
-		local alpha = if maxV == minV then 0 else (v - minV) / (maxV - minV)
+	local function render(v, instant)
+		local alpha = (maxV == minV) and 0 or ((v - minV) / (maxV - minV))
 		alpha = clamp(alpha, 0, 1)
 		valueLbl.Text = tostring(v)
 		valueLblDark.Text = valueLbl.Text
@@ -1289,7 +1288,7 @@ function Section:CreateSlider(opts)
 		end
 	end
 
-	local function setValue(v: number, fire: boolean)
+	local function setValue(v, fire)
 		v = normalizeValue(v)
 		if comp.Value == v then
 			render(v, false)
@@ -1304,10 +1303,10 @@ function Section:CreateSlider(opts)
 
 	render(default, true)
 
-	local function positionToValue(x: number)
+	local function positionToValue(x)
 		local absPos = bar.AbsolutePosition.X
 		local absSize = bar.AbsoluteSize.X
-		local alpha = if absSize <= 0 then 0 else (x - absPos) / absSize
+		local alpha = (absSize <= 0) and 0 or ((x - absPos) / absSize)
 		alpha = clamp(alpha, 0, 1)
 		return minV + (maxV - minV) * alpha
 	end
@@ -1349,7 +1348,7 @@ function Section:CreateSlider(opts)
 end
 
 -- Dropdown
-function Section:CreateDropdown(opts)
+function Section(opts)
 	opts = opts or {}
 	local options = type(opts.Options) == "table" and opts.Options or {}
 	local default = opts.Default
@@ -1521,7 +1520,7 @@ function Section:CreateDropdown(opts)
 	Anim.bindHoverInvasion(btn, overlay, { time = 0.14 })
 	Anim.bindPress(btn)
 
-	local function setOpen(v: boolean)
+	local function setOpen(v)
 		open = v
 		if open then
 			local targetH = 36 + math.min(#options, 6) * 28
@@ -1552,7 +1551,7 @@ function Section:CreateDropdown(opts)
 end
 
 -- Color Picker (compact; opens a small palette + RGB sliders)
-function Section:CreateColorPicker(opts)
+function Section(opts)
 	opts = opts or {}
 	local default = opts.Default
 	if typeof(default) ~= "Color3" then
@@ -1663,7 +1662,7 @@ function Section:CreateColorPicker(opts)
 		Color3.fromRGB(140, 95, 65),
 	}
 
-	local function setColor(c: Color3, fire: boolean)
+	local function setColor(c, fire)
 		if typeof(c) ~= "Color3" then
 			return
 		end
@@ -1714,7 +1713,7 @@ function Section:CreateColorPicker(opts)
 			Name = name,
 			Min = 0,
 			Max = 255,
-			Default = math.floor((default :: Color3)[channel] * 255 + 0.5),
+			Default = math.floor(default[channel] * 255 + 0.5),
 			Increment = 1,
 			Callback = function(v)
 				local r = math.floor((comp.Value.R * 255) + 0.5)
@@ -1728,7 +1727,7 @@ function Section:CreateColorPicker(opts)
 		})
 		-- Reparent the RGB slider into the picker body and tie its lifetime to
 		-- the picker so its global input connections are released on destroy.
-		(s._root :: Instance).Parent = body
+		s._root.Parent = body
 		table.insert(comp._ownedComponents, s)
 		return s
 	end
@@ -1743,7 +1742,7 @@ function Section:CreateColorPicker(opts)
 	Anim.bindHoverInvasion(btn, overlay, { time = 0.14 })
 	Anim.bindPress(btn)
 
-	local function setOpen(v: boolean)
+	local function setOpen(v)
 		open = v
 		if open then
 			local targetH = 210
@@ -1772,7 +1771,7 @@ function Section:CreateColorPicker(opts)
 end
 
 -- Keybind
-function Section:CreateKeybind(opts)
+function Section(opts)
 	opts = opts or {}
 	local default = opts.Default
 	if typeof(default) ~= "EnumItem" or default.EnumType ~= Enum.KeyCode then
@@ -1841,7 +1840,7 @@ function Section:CreateKeybind(opts)
 	Anim.bindHoverInvasion(root, overlay, { time = 0.14 })
 	Anim.bindPress(root)
 
-	local function setCapture(v: boolean)
+	local function setCapture(v)
 		capturing = v
 		if capturing then
 			keyLbl.Text = "..."
@@ -1849,13 +1848,13 @@ function Section:CreateKeybind(opts)
 			-- make dark overlay stay slightly in
 			Anim.tween(overlay, 0.12, { Size = UDim2.fromScale(0.35, 1) }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 		else
-			keyLbl.Text = tostring((comp.Value :: any).Name)
+			keyLbl.Text = tostring(comp.Value.Name)
 			keyLblDark.Text = keyLbl.Text
 			Anim.tween(overlay, 0.12, { Size = UDim2.fromScale(0, 1) }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 		end
 	end
 
-	local function setKey(kc: Enum.KeyCode, fire: boolean)
+	local function setKey(kc, fire)
 		comp.Value = kc
 		setCapture(false)
 		if Global.Capturing == comp then
@@ -1924,7 +1923,7 @@ function Section:CreateKeybind(opts)
 end
 
 --// Create window
-function CoffeeIFY:CreateWindow(opts)
+function CoffeeIFY(opts)
 	opts = opts or {}
 	assert(PlayerGui, "CoffeeIFY requires PlayerGui")
 
@@ -2111,7 +2110,7 @@ function CoffeeIFY:CreateWindow(opts)
 		Parent = root,
 	})
 
-	function w:_ShowCursor(target)
+	function w(target)
 		if self._closing or not self._cursor or not target or not target.Parent then return end
 		local mainAbs = root.AbsolutePosition
 		local tAbs = target.AbsolutePosition
@@ -2123,7 +2122,7 @@ function CoffeeIFY:CreateWindow(opts)
 		Anim.tween(self._cursor, 0.12, { Position = UDim2.fromOffset(x, y) })
 	end
 
-	function w:_HideCursor()
+	function w()
 		if not self._cursor then return end
 		Anim.tween(self._cursor, 0.1, { TextTransparency = 1 })
 		task.delay(0.1, function()
@@ -2246,9 +2245,9 @@ local function restackNotifications()
 end
 
 -- Convincing digital glitch: random black rectangles that flicker across the card
-local function playGlitch(target: Frame, duration: number?)
+local function playGlitch(target, duration)
 	duration = duration or 0.38
-	local spots: {Frame} = {}
+	local spots = {}
 	local endTime = os.clock() + duration
 	local conn
 	conn = RunService.RenderStepped:Connect(function()
@@ -2333,21 +2332,21 @@ end
 			Image = "rbxassetid://...", -- optional override
 			ImageColor = Color3.fromRGB(...),
 			OutlineColor = Theme.Outline, -- optional
-			Callback = function(accepted: boolean?) end, -- for Type = "option"
+			Callback = function(accepted) end, -- for Type = "option"
 		})
 ]]
-function CoffeeIFY:Notify(opts, durationOrOpts, extra)
+function CoffeeIFY(opts, durationOrOpts, extra)
 	assert(PlayerGui, "CoffeeIFY requires PlayerGui")
 
 	-- normalize arguments (support legacy string + number)
-	local title: string
-	local description: string
-	local duration: number
-	local nType: string
-	local image: string?
-	local imageColor: Color3?
-	local outlineColor: Color3?
-	local callback: ((boolean?) -> ())?
+	local title
+	local description
+	local duration
+	local nType
+	local image
+	local imageColor
+	local outlineColor
+	local callback
 
 	if type(opts) == "string" then
 		title = opts
@@ -2470,7 +2469,7 @@ function CoffeeIFY:Notify(opts, durationOrOpts, extra)
 		Parent = card,
 	})
 
-	local descLbl: TextLabel? = nil
+	local descLbl = nil
 	if description ~= "" then
 		descLbl = new("TextLabel", {
 			Name = "Description",
@@ -2518,7 +2517,7 @@ function CoffeeIFY:Notify(opts, durationOrOpts, extra)
 	end
 
 	-- option buttons (BocusLuke style)
-	local accepted: boolean? = nil
+	local accepted = nil
 	if nType == "option" then
 		local btnRow = new("Frame", {
 			Name = "Options",
@@ -2536,7 +2535,7 @@ function CoffeeIFY:Notify(opts, durationOrOpts, extra)
 		})
 		layout.Parent = btnRow
 
-		local function makeOpt(labelText: string, isYes: boolean)
+		local function makeOpt(labelText, isYes)
 			local b = new("TextButton", {
 				BackgroundColor3 = isYes and Theme.Dark or Theme.Control,
 				BorderSizePixel = 0,
