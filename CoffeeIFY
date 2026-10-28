@@ -196,8 +196,8 @@ function Icons.get(name)
 		end
 	end
 	addCandidate(Icons.Library)
-	pcall(function() addCandidate(_G.lucide or _G.Lucide) end)
-	pcall(function() addCandidate(shared.lucide or shared.Lucide) end)
+	pcall(function() addCandidate((_G).lucide or (_G).Lucide) end)
+	pcall(function() addCandidate((shared).lucide or (shared).Lucide) end)
 	pcall(function()
 		local rs = game:GetService("ReplicatedStorage")
 		local mod = rs:FindFirstChild("lucide") or rs:FindFirstChild("Lucide") or rs:FindFirstChild("lucide.lua")
@@ -229,7 +229,7 @@ end
 local function new(inst, props)
 	local obj = Instance.new(inst)
 	for k, v in pairs(props or {}) do
-		obj[k] = v
+		(obj)[k] = v
 	end
 	return obj
 end
@@ -266,7 +266,7 @@ end
 local CoffeeIFY = {}
 CoffeeIFY.__index = CoffeeIFY
 
-function CoffeeIFY(lucideTable)
+function CoffeeIFY:SetIconLibrary(lucideTable)
 	-- Pass the table returned by lucide.lua if your environment does not expose it globally.
 	-- Example: CoffeeIFY:SetIconLibrary(loadstring(game:HttpGet(LUCIDE_URL))())
 	Icons.Library = lucideTable
@@ -284,13 +284,13 @@ local Global = {
 local ComponentBase = {}
 ComponentBase.__index = ComponentBase
 
-function ComponentBase(v)
+function ComponentBase:SetVisible(v)
 	if self._root then
-		self._root.Visible = v
+		(self._root).Visible = v
 	end
 end
 
-function ComponentBase()
+function ComponentBase:Destroy()
 	if Global.Capturing == self then
 		if type(self._setCapture) == "function" then
 			pcall(self._setCapture, false)
@@ -317,12 +317,12 @@ function ComponentBase()
 	end
 
 	if self._root then
-		self._root:Destroy()
+		(self._root):Destroy()
 		self._root = nil
 	end
 end
 
-function ComponentBase()
+function ComponentBase:GetValue()
 	return self.Value
 end
 
@@ -475,17 +475,17 @@ local function setLucide(iconLabel, name)
 	end
 end
 
-function Window(enabled)
+function Window:_setInteractionEnabled(enabled)
 	self._interactive = enabled
 	if self._rootFrame then
-		self._rootFrame.Active = enabled
+		(self._rootFrame).Active = enabled
 	end
 	if self._shield then
-		self._shield.Visible = not enabled
+		(self._shield).Visible = not enabled
 	end
 end
 
-function Window()
+function Window:_intro()
 	-- assembling: header slides in, sidebar clips reveal, content clips reveal
 	local root = self._rootFrame
 	local header = self._header
@@ -526,7 +526,7 @@ function Window()
 	end)
 end
 
-function Window(destroyAfter)
+function Window:_outro(destroyAfter)
 	if self._closing then return end
 	self._closing = true
 	self:_setInteractionEnabled(false)
@@ -557,14 +557,14 @@ function Window(destroyAfter)
 	end)
 end
 
-function Window()
+function Window:Toggle()
 	if self._closing then return end
 	self._visible = not self._visible
 	if self._visible then
 		self._minimized = false
-		self._sidebar.Visible = true
-		self._content.Visible = true
-		self._rootFrame.Visible = true
+		(self._sidebar).Visible = true
+		(self._content).Visible = true
+		(self._rootFrame).Visible = true
 		self:_intro()
 	else
 		-- quick hide with disassembly but keep instance for state
@@ -572,7 +572,7 @@ function Window()
 	end
 end
 
-function Window()
+function Window:Minimize()
 	if self._closing then return end
 	self._minimized = not self._minimized
 	local sidebar = self._sidebar
@@ -611,12 +611,12 @@ function Window()
 	end
 end
 
-function Window()
+function Window:Close()
 	if self._closing then return end
 	self:_outro(true)
 end
 
-function Window()
+function Window:Destroy()
 	self._closing = true
 	self._visible = false
 
@@ -638,11 +638,11 @@ function Window()
 		end
 	end
 	if self._screenGui then
-		self._screenGui:Destroy()
+		(self._screenGui):Destroy()
 	end
 end
 
-function Window(opts)
+function Window:CreateTab(opts)
 	opts = opts or {}
 	local tab = setmetatable({}, Tab)
 	tab.Window = self
@@ -792,16 +792,16 @@ function Window(opts)
 	return tab
 end
 
-function Window(tab)
+function Window:_selectTab(tab)
 	if self._selectedTab == tab then return end
 	local prev = self._selectedTab
 	self._selectedTab = tab
 
 	-- show page
 	for _, t in ipairs(self.Tabs) do
-		t._page.Visible = false
+		(t._page).Visible = false
 	end
-	tab._page.Visible = true
+	(tab._page).Visible = true
 
 	-- animate buttons: selected expands and stays dark
 	local function setSelected(t, selected)
@@ -832,11 +832,11 @@ function Window(tab)
 end
 
 -- public tab select
-function Tab()
+function Tab:Select()
 	self.Window:_selectTab(self)
 end
 
-function Tab(title)
+function Tab:CreateSection(title)
 	local section = setmetatable({}, Section)
 	section.Tab = self
 	section.Title = title
@@ -892,7 +892,7 @@ end
 local Components = {}
 
 -- Label (static text)
-function Section(opts)
+function Section:CreateLabel(opts)
 	opts = opts or {}
 	local text = tostring(opts.Text or opts.Name or "")
 	local comp = setmetatable({ Value = text }, ComponentBase)
@@ -930,7 +930,7 @@ function Section(opts)
 end
 
 -- Button
-function Section(opts)
+function Section:CreateButton(opts)
 	opts = opts or {}
 	local comp = setmetatable({ Value = false }, ComponentBase)
 
@@ -1045,7 +1045,7 @@ function Section(opts)
 end
 
 -- Toggle (square + ON/OFF, black invade locks while ON)
-function Section(opts)
+function Section:CreateToggle(opts)
 	opts = opts or {}
 	local default = (opts.Default == true)
 	local comp = setmetatable({ Value = default }, ComponentBase)
@@ -1165,7 +1165,7 @@ function Section(opts)
 end
 
 -- Slider
-function Section(opts)
+function Section:CreateSlider(opts)
 	opts = opts or {}
 	local minV = tonumber(opts.Min or 0) or 0
 	local maxV = tonumber(opts.Max or 100) or 100
@@ -1348,7 +1348,7 @@ function Section(opts)
 end
 
 -- Dropdown
-function Section(opts)
+function Section:CreateDropdown(opts)
 	opts = opts or {}
 	local options = type(opts.Options) == "table" and opts.Options or {}
 	local default = opts.Default
@@ -1551,7 +1551,7 @@ function Section(opts)
 end
 
 -- Color Picker (compact; opens a small palette + RGB sliders)
-function Section(opts)
+function Section:CreateColorPicker(opts)
 	opts = opts or {}
 	local default = opts.Default
 	if typeof(default) ~= "Color3" then
@@ -1713,7 +1713,7 @@ function Section(opts)
 			Name = name,
 			Min = 0,
 			Max = 255,
-			Default = math.floor(default[channel] * 255 + 0.5),
+			Default = math.floor((default)[channel] * 255 + 0.5),
 			Increment = 1,
 			Callback = function(v)
 				local r = math.floor((comp.Value.R * 255) + 0.5)
@@ -1727,7 +1727,7 @@ function Section(opts)
 		})
 		-- Reparent the RGB slider into the picker body and tie its lifetime to
 		-- the picker so its global input connections are released on destroy.
-		s._root.Parent = body
+		(s._root).Parent = body
 		table.insert(comp._ownedComponents, s)
 		return s
 	end
@@ -1771,7 +1771,7 @@ function Section(opts)
 end
 
 -- Keybind
-function Section(opts)
+function Section:CreateKeybind(opts)
 	opts = opts or {}
 	local default = opts.Default
 	if typeof(default) ~= "EnumItem" or default.EnumType ~= Enum.KeyCode then
@@ -1848,7 +1848,7 @@ function Section(opts)
 			-- make dark overlay stay slightly in
 			Anim.tween(overlay, 0.12, { Size = UDim2.fromScale(0.35, 1) }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 		else
-			keyLbl.Text = tostring(comp.Value.Name)
+			keyLbl.Text = tostring((comp.Value).Name)
 			keyLblDark.Text = keyLbl.Text
 			Anim.tween(overlay, 0.12, { Size = UDim2.fromScale(0, 1) }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 		end
@@ -1923,7 +1923,7 @@ function Section(opts)
 end
 
 --// Create window
-function CoffeeIFY(opts)
+function CoffeeIFY:CreateWindow(opts)
 	opts = opts or {}
 	assert(PlayerGui, "CoffeeIFY requires PlayerGui")
 
@@ -2110,7 +2110,7 @@ function CoffeeIFY(opts)
 		Parent = root,
 	})
 
-	function w(target)
+	function w:_ShowCursor(target)
 		if self._closing or not self._cursor or not target or not target.Parent then return end
 		local mainAbs = root.AbsolutePosition
 		local tAbs = target.AbsolutePosition
@@ -2122,7 +2122,7 @@ function CoffeeIFY(opts)
 		Anim.tween(self._cursor, 0.12, { Position = UDim2.fromOffset(x, y) })
 	end
 
-	function w()
+	function w:_HideCursor()
 		if not self._cursor then return end
 		Anim.tween(self._cursor, 0.1, { TextTransparency = 1 })
 		task.delay(0.1, function()
@@ -2247,7 +2247,7 @@ end
 -- Convincing digital glitch: random black rectangles that flicker across the card
 local function playGlitch(target, duration)
 	duration = duration or 0.38
-	local spots = {}
+	local spots: {Frame} = {}
 	local endTime = os.clock() + duration
 	local conn
 	conn = RunService.RenderStepped:Connect(function()
@@ -2335,7 +2335,7 @@ end
 			Callback = function(accepted) end, -- for Type = "option"
 		})
 ]]
-function CoffeeIFY(opts, durationOrOpts, extra)
+function CoffeeIFY:Notify(opts, durationOrOpts, extra)
 	assert(PlayerGui, "CoffeeIFY requires PlayerGui")
 
 	-- normalize arguments (support legacy string + number)
